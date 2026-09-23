@@ -20,7 +20,9 @@ const DIST = join(ROOT, 'dist');
 
 const html = await readFile(join(DIST, 'index.html'), 'utf8');
 
-// 指纹 = 入口脚本内容哈希，保证「内容变了指纹才变」
+// 指纹 = **所有被 index.html 引用的资源**内容哈希之和。
+// 注意：只哈希 app.js 会漏掉「仅改样式」的构建 —— CSS 内容变了但指纹不变，
+// 线上就会继续命中旧缓存（本轮改首页配色时踩到过），因此把 index.css 一并哈希。
 let js = '';
 try {
   js = await readFile(join(DIST, 'assets', 'app.js'), 'utf8');
@@ -28,7 +30,13 @@ try {
   console.warn('[stamp] 未找到 dist/assets/app.js，跳过指纹注入。');
   process.exit(0);
 }
-const buildId = createHash('sha256').update(js).digest('hex').slice(0, 10);
+let css = '';
+try {
+  css = await readFile(join(DIST, 'assets', 'index.css'), 'utf8');
+} catch {
+  console.warn('[stamp] 未找到 dist/assets/index.css（仅哈希 app.js）。');
+}
+const buildId = createHash('sha256').update(js).update(css).digest('hex').slice(0, 10);
 
 let out = html;
 const stamp = (file) => {
@@ -45,8 +53,8 @@ if (out !== html) {
 // 记录本次构建指纹，便于排查「线上是不是最新版本」
 await writeFile(
   join(DIST, 'build.json'),
-  JSON.stringify({ buildId, builtAt: new Date().toISOString(), appJsBytes: js.length }, null, 2),
+  JSON.stringify({ buildId, builtAt: new Date().toISOString(), appJsBytes: js.length, cssBytes: css.length }, null, 2),
   'utf8',
 );
 
-console.log(`[stamp] 构建指纹 ${buildId}（app.js ${js.length} 字节）已写入 index.html`);
+console.log(`[stamp] 构建指纹 ${buildId}（app.js ${js.length} 字节 + index.css ${css.length} 字节）已写入 index.html`);

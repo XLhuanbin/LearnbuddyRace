@@ -182,3 +182,7 @@ npm run analyze             # 真实模型全量重跑（需自备密钥，见�
 - **论文正文与 PDF 不随仓库分发**：`samples/pdfs/` 已被忽略，PDF 版权归原作者，用 `samples/download-samples.mjs` 自行获取；
   仓库内 `public/samples*/` 只含**结构化分析结果与原文片段引文**（用于证据定位），不含论文全文。
 - **界面走查截图不随仓库分发**（仅作者本地保留），说明见 `docs/SCREENSHOTS.md`。
+- **自托管字体子集**：首页标题使用 **Noto Serif SC**（即思源宋体的 Google 版，**SIL Open Font License 1.1**），
+  通过 `@fontsource/noto-serif-sc` 取「首页标题所需字形」的子集，共 6 个 woff2 文件（约 231 KB）放在 `public/fonts/`，
+  `@font-face` 声明见 `src/fonts.css`（含 `unicode-range` 与 `font-display: swap`）。
+  这样线上不依赖访问者是否安装思源宋体；未命中子集的字符会自动回退到系统衬线字体。

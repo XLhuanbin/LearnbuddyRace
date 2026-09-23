@@ -6,50 +6,67 @@
    - 大留白、清晰卡片层级、统一圆角，不做装饰性渐变与炫技动画
    ========================================================================= */
 :root {
-  /* 底色：白 + 暖灰 */
-  --bg: #ffffff;
-  --bg-2: #f8f9fb;
-  --bg-3: #f1f3f7;
-  --bg-4: #e9edf3;
-  --line: #e5e8ef;
-  --line-2: #d3d9e4;
+  /* ---------- 底色：暖纸（不再用冷灰 + 靛青）---------- */
+  --bg: #fcf8f1;      /* 卡片 / 主面板 */
+  --bg-2: #f5efe3;    /* 页面底 */
+  --bg-3: #efe7d9;    /* 次级块 */
+  --bg-4: #e5dbc9;
+  --line: #e3d9c7;
+  --line-2: #cfc0a8;
 
-  /* 文字：深墨色 */
-  --fg: #16202e;
-  --fg-2: #4c5a6e;
-  --fg-3: #7b8798;
+  /* ---------- 文字：深墨蓝 ---------- */
+  --fg: #17263c;
+  --fg-2: #45556c;
+  --fg-3: #7b8698;
 
-  /* 主色：靛青 */
-  --accent: #4f46e5;
-  --accent-2: #4338ca;
-  --accent-soft: #eef0ff;
-  --accent-line: #c7c9f7;
+  /* ---------- 主色：墨蓝（结构、按钮、链接）---------- */
+  --accent: #1e3a5f;
+  --accent-2: #142f4f;
+  --accent-soft: #e8eef6;
+  --accent-line: #b7c7da;
 
-  /* 语义色 */
-  --ok: #15803d;
-  --ok-soft: #e8f7ee;
-  --ok-line: #a8ddba;
-  --warn: #b45309;
-  --warn-soft: #fdf3e3;
-  --warn-line: #f0cf9a;
-  --pending: #c2410c;
-  --pending-soft: #fdeee4;
-  --pending-line: #f2c19a;
-  --bad: #b91c1c;
-  --bad-soft: #fdecec;
-  --bad-line: #f0b3b3;
-  --purple: #6d28d9;
-  --purple-soft: #f3edfd;
-  --purple-line: #d3c4f5;
-  --neutral: #475569;
-  --neutral-soft: #f1f3f7;
+  /* ---------- 辅助：铜色（只用于细线、标记与少量强调）---------- */
+  --copper: #9e5326;
+  --copper-2: #83431c;
+  --copper-soft: #f7eadc;
+  --copper-line: #d9b492;
+
+  /* ---------- 语义色：与品牌色区分，且一律配合图标与文字，不靠颜色单独表达 ---------- */
+  --ok: #2f6b4a;          /* 已核验 */
+  --ok-soft: #e8f0ea;
+  --ok-line: #a9c7b6;
+  --warn: #8a5a12;        /* 警告 */
+  --warn-soft: #f8eeda;
+  --warn-line: #dcc08a;
+  --pending: #be6a1e;     /* 待核查 / 待人工核对 */
+  --pending-soft: #fbebda;
+  --pending-line: #e8c49b;
+  --bad: #8e322c;         /* 不可比 / 失败 */
+  --bad-soft: #f7e6e3;
+  --bad-line: #dcb0a8;
+  --purple: #5b4a8a;
+  --purple-soft: #edeaf5;
+  --purple-line: #c6bedc;
+  --neutral: #4e5a6b;
+  --neutral-soft: #efeadd;
+
+  /* ---------- 字体 ---------- */
+  /* 界面正文：系统无衬线（保证小字号清晰） */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Noto Sans SC', 'Source Han Sans SC', sans-serif;
+  /* 中文衬线（标题）：优先自托管的 Noto Serif SC 子集（见 src/fonts.css），再回退到本机可能已有的思源宋体 / 宋体族 */
+  --font-serif: 'RP Serif SC', 'Noto Serif SC', 'Source Han Serif SC', 'Source Han Serif CN',
+    'Songti SC', 'STSong', 'SimSun', serif;
+  /* 拉丁品牌字：自托管子集里的西文，再回退到系统西文衬线 */
+  --font-brand: 'RP Serif SC', Georgia, 'Times New Roman', 'Songti SC', serif;
+  --mono: 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
 
   --radius: 12px;
   --radius-sm: 8px;
   --radius-lg: 16px;
-  --shadow-1: 0 1px 2px rgba(22, 32, 46, .05);
-  --shadow-2: 0 4px 14px rgba(22, 32, 46, .07);
-  --mono: 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+  /* 阴影：暖纸上的墨色阴影，透明度压得很低 */
+  --shadow-1: 0 1px 2px rgba(23, 38, 60, .05);
+  --shadow-2: 0 6px 18px rgba(23, 38, 60, .07);
 }
 
 * { box-sizing: border-box; }
@@ -59,8 +76,7 @@ html, body, #root { height: 100%; margin: 0; }
 body {
   background: var(--bg-2);
   color: var(--fg);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
-    'Microsoft YaHei', sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.7;
   -webkit-font-smoothing: antialiased;

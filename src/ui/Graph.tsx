@@ -4,9 +4,9 @@ import { RELATION_LABELS, RELATION_STATE_DESC, RELATION_STATE_LABELS } from '../
 import { Status, Banner, Tag } from './common';
 
 const STATE_STYLE: Record<RelationEvidenceState, { color: string; dash?: string; label: string }> = {
-  explicit: { color: '#5aa9ff', dash: undefined, label: RELATION_STATE_LABELS.explicit },
-  inferred: { color: '#e0a23c', dash: '6 4', label: RELATION_STATE_LABELS.inferred },
-  candidate: { color: '#8b95a6', dash: '2 4', label: RELATION_STATE_LABELS.candidate },
+  explicit: { color: '#2f6b4a', dash: undefined, label: RELATION_STATE_LABELS.explicit },
+  inferred: { color: '#be6a1e', dash: '6 4', label: RELATION_STATE_LABELS.inferred },
+  candidate: { color: '#8a8378', dash: '2 4', label: RELATION_STATE_LABELS.candidate },
 };
 
 interface Node {
@@ -326,7 +326,7 @@ export function GraphView({
                       style={{
                         fontSize: 11.5,
                         lineHeight: 1.35,
-                        color: '#e6ecf5',
+                        color: 'var(--fg)',
                         display: '-webkit-box',
                         WebkitLineClamp: 3,
                         WebkitBoxOrient: 'vertical',

@@ -17,9 +17,9 @@ interface Props {
 
 /** 线型 + 颜色双重区分（不只靠颜色） */
 const EDGE_STYLE: Record<RelationEvidenceState, { color: string; dash?: string; width: number; label: string }> = {
-  explicit: { color: '#1f7a4d', width: 2, label: '原文明示' },
-  inferred: { color: '#b45309', dash: '8 5', width: 1.9, label: '系统推断' },
-  candidate: { color: '#9aa4b2', dash: '2 5', width: 1.7, label: '待核查' },
+  explicit: { color: '#2f6b4a', width: 2, label: '原文明示' },
+  inferred: { color: '#be6a1e', dash: '8 5', width: 1.9, label: '系统推断' },
+  candidate: { color: '#8a8378', dash: '2 5', width: 1.7, label: '待核查' },
 };
 
 const LANE_ORDER: MethodProfile['family']['id'][] = ['cnn', 'transformer', 'hybrid', 'pending'];
