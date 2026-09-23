@@ -1,0 +1,2949 @@
+{
+  "cacheVersion": 3,
+  "generatedBy": "scripts/analyze.mjs（本地离线真实模型分析）",
+  "notLive": true,
+  "notice": "本页预置样例的结构化结论由真实模型对各论文原文抽取产生，每条引文均通过全文定位校验；它属于预置样例，不是本次操作触发的实时分析。",
+  "meta": {
+    "generatedAt": "2026-09-17T07:47:01.484Z",
+    "model": "deepseek-chat",
+    "promptVersion": "v3.0.0",
+    "domain": "Transformer 序列建模与预训练语言模型（开发流程验证用样例）",
+    "domainConfirmed": false,
+    "samplesAreDevOnly": true,
+    "purpose": "开发流程验证样例：用于打通 PDF 解析、真实模型抽取、原文证据定位、不可比检测、关系可信度、方法决策与分歧发现。用户尚未确认最终参赛细分领域，本组样例不代表最终选题。",
+    "baseUrlHost": "api.deepseek.com"
+  },
+  "rulesVersion": "r3.0.0",
+  "inputsSignature": "p_arxiv_1706.03762,p_arxiv_1810.04805,p_arxiv_1907.11692,p_arxiv_1910.01108,p_arxiv_2005.14165",
+  "papers": [
+    {
+      "id": "p_arxiv_1706.03762",
+      "title": "Attention Is All You Need",
+      "authors": [],
+      "year": 2017,
+      "source": {
+        "kind": "arxiv",
+        "url": "https://arxiv.org/abs/1706.03762"
+      },
+      "parseStatus": "ok",
+      "pageCount": 15,
+      "charCount": 39969,
+      "sample": {
+        "purpose": "开发流程验证样例（非最终参赛领域）",
+        "license": "arXiv 公开预印本，示例用途，版权归原作者所有。"
+      },
+      "cached": true,
+      "createdAt": 1789631155390
+    },
+    {
+      "id": "p_arxiv_1810.04805",
+      "title": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
+      "authors": [],
+      "year": 2018,
+      "source": {
+        "kind": "arxiv",
+        "url": "https://arxiv.org/abs/1810.04805"
+      },
+      "parseStatus": "ok",
+      "pageCount": 16,
+      "charCount": 65636,
+      "sample": {
+        "purpose": "开发流程验证样例（非最终参赛领域）",
+        "license": "arXiv 公开预印本，示例用途，版权归原作者所有。"
+      },
+      "cached": true,
+      "createdAt": 1789631163000,
+      "titleFrom": "model-verified"
+    },
+    {
+      "id": "p_arxiv_1907.11692",
+      "title": "RoBERTa: A Robustly Optimized BERT Pretraining Approach",
+      "authors": [],
+      "year": 2019,
+      "source": {
+        "kind": "arxiv",
+        "url": "https://arxiv.org/abs/1907.11692"
+      },
+      "parseStatus": "ok",
+      "pageCount": 13,
+      "charCount": 49756,
+      "sample": {
+        "purpose": "开发流程验证样例（非最终参赛领域）",
+        "license": "arXiv 公开预印本，示例用途，版权归原作者所有。"
+      },
+      "cached": true,
+      "createdAt": 1789631170493
+    },
+    {
+      "id": "p_arxiv_1910.01108",
+      "title": "DistilBERT, a distilled version of BERT: smaller, faster, cheaper and lighter",
+      "authors": [],
+      "year": 2019,
+      "source": {
+        "kind": "arxiv",
+        "url": "https://arxiv.org/abs/1910.01108"
+      },
+      "parseStatus": "ok",
+      "pageCount": 5,
+      "charCount": 18778,
+      "sample": {
+        "purpose": "开发流程验证样例（非最终参赛领域）",
+        "license": "arXiv 公开预印本，示例用途，版权归原作者所有。"
+      },
+      "cached": true,
+      "createdAt": 1789631179925,
+      "titleFrom": "model-verified"
+    },
+    {
+      "id": "p_arxiv_2005.14165",
+      "title": "Language Models are Few-Shot Learners",
+      "authors": [],
+      "year": 2020,
+      "source": {
+        "kind": "arxiv",
+        "url": "https://arxiv.org/abs/2005.14165"
+      },
+      "parseStatus": "ok",
+      "pageCount": 75,
+      "charCount": 240327,
+      "sample": {
+        "purpose": "开发流程验证样例（非最终参赛领域）",
+        "license": "arXiv 公开预印本，示例用途，版权归原作者所有。"
+      },
+      "cached": true,
+      "createdAt": 1789631186744
+    }
+  ],
+  "methods": [
+    {
+      "id": "m_p_arxiv_1706.03762",
+      "paperId": "p_arxiv_1706.03762",
+      "fields": {
+        "researchTask": {
+          "value": "提出一种完全基于注意力机制、不含循环与卷积的序列转换网络架构，并在机器翻译任务上验证其效果。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1706.03762",
+            "quote": "We propose a new simple network architecture, the Transformer,\n\nbased solely on attention mechanisms, dispensing with recurrence and convolutions\n\nentirely.",
+            "page": 1,
+            "start": 855,
+            "end": 1011,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          }
+        },
+        "methodName": {
+          "value": "Transformer",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1706.03762",
+            "quote": "We propose a new simple network architecture, the Transformer,\n\nbased solely on attention mechanisms, dispensing with recurrence and convolutions\n\nentirely.",
+            "page": 1,
+            "start": 855,
+            "end": 1011,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          }
+        },
+        "coreIdea": {
+          "value": "Transformer 采用编码器-解码器结构，编码器与解码器各由 N=6 个相同层堆叠而成，每层包含多头自注意力子层与逐位置全连接前馈子层，并配合残差连接与层归一化。注意力使用缩放点积注意力，并通过多头并行投影从不同表示子空间联合关注信息。由于模型不含循环与卷积，需在输入嵌入中加入位置编码以利用序列顺序信息。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1706.03762",
+            "quote": "The Transformer follows this overall architecture using stacked self-attention and point-wise, fully\n\nconnected layers for both the encoder and decoder, shown in the left and right halves of Figure 1,\n\nrespectively.",
+            "page": 3,
+            "start": 7261,
+            "end": 7476,
+            "section": "3 Model Architecture",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 3
+        },
+        "inputsConditions": {
+          "value": "输入为符号表示序列 (x1,...,xn)，编码器将其映射为连续表示 z，解码器自回归地逐元素生成输出序列 (y1,...,ym)，生成时把已生成符号作为额外输入。模型维度 dmodel=512，编码器/解码器各 6 层，多头注意力 h=8，dk=dv=64，前馈内层维度 dff=2048；训练使用 warmup_steps=4000 的学习率调度，base 模型 dropout 率 Pdrop=0.1，并使用 ϵls=0.1 的标签平滑。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1706.03762",
+            "quote": "Here, the encoder maps an input sequence of symbol representations (x1, ..., xn) to a sequence\n\nof continuous representations z = (z1, ..., zn). Given z, the decoder then generates an output\n\nsequence (y1, ..., ym) of symbols one element at a time.",
+            "page": 2,
+            "start": 6822,
+            "end": 7070,
+            "section": "3 Model Architecture",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 3
+        },
+        "datasets": {
+          "value": "WMT 2014 English-to-German, WMT 2014 English-to-French",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1706.03762",
+            "quote": "On the WMT 2014 English-to-German translation task, the big transformer model (Transformer (big)\n\nin Table 2) outperforms the best previously reported models (including ensembles) by more than 2.0\nBLEU, establishing a new state-of-the-art BLEU score of 28.4.",
+            "page": 8,
+            "start": 22979,
+            "end": 23237,
+            "section": "6 Results",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "片段中仅明确给出这两个机器翻译评估任务；摘要还提到英语成分句法分析，但未给出数据集名称。"
+        },
+        "metrics": {
+          "value": "BLEU",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1706.03762",
+            "quote": "Our model achieves 28.4 BLEU on the WMT 2014 English-\n\nto-German translation task, improving over the existing best results, including\n\nensembles, by over 2 BLEU",
+            "page": 1,
+            "start": 1183,
+            "end": 1344,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          }
+        },
+        "limitations": {
+          "value": "片段中未找到作者明确承认的局限或适用范围限制。",
+          "status": "no_evidence",
+          "note": "提供的片段中没有明确的 limitations 段落。"
+        }
+      },
+      "conditions": {
+        "datasets": {
+          "values": [
+            "WMT 2014 English-to-German",
+            "WMT 2014 English-to-French"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1706.03762",
+            "quote": "On the WMT 2014 English-to-German translation task, the big transformer model (Transformer (big)\n\nin Table 2) outperforms the best previously reported models (including ensembles) by more than 2.0\nBLEU, establishing a new state-of-the-art BLEU score of 28.4.",
+            "page": 8,
+            "start": 22979,
+            "end": 23237,
+            "section": "6 Results",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "摘要还提到英语成分句法分析，但片段中未给出其数据集名称。"
+        },
+        "dataSplits": {
+          "values": [],
+          "status": "not_extracted",
+          "note": "片段中未给出 WMT 2014 等数据集的 train/dev/test 划分说明。"
+        },
+        "metrics": {
+          "values": [
+            "BLEU"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1706.03762",
+            "quote": "Our model achieves 28.4 BLEU on the WMT 2014 English-\n\nto-German translation task, improving over the existing best results, including\n\nensembles, by over 2 BLEU",
+            "page": 1,
+            "start": 1183,
+            "end": 1344,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          }
+        },
+        "pretrainingCorpus": {
+          "values": [],
+          "status": "not_extracted",
+          "note": "片段中未描述预训练语料；该论文方法为从头训练，但片段未给出相关表述。"
+        },
+        "downstreamExtraData": {
+          "values": [
+            "none"
+          ],
+          "status": "unverified",
+          "note": "片段中未提及相对某个实验额外引入的训练数据。"
+        },
+        "dataAugmentation": {
+          "values": [
+            "none"
+          ],
+          "status": "unverified",
+          "note": "片段中未提及数据增强。"
+        },
+        "pretrainedModel": {
+          "values": [
+            "none（从头训练）"
+          ],
+          "status": "unverified",
+          "note": "片段中未明确说明初始化来源；从方法描述看为从头训练，但缺少可直接引用的原文句子。"
+        },
+        "experimentalSettings": {
+          "values": [
+            "机器翻译评估：从头训练（from scratch），在 WMT 2014 EN-DE 与 EN-FR 上报告 BLEU；big 模型 EN-DE 训练 3.5 天/8 P100 GPU，EN-FR 使用 dropout Pdrop=0.1（而非 0.3）"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1706.03762",
+            "quote": "The Transformer (big) model trained for English-to-French used\n\ndropout rate Pdrop = 0.1, instead of 0.3.",
+            "page": 8,
+            "start": 23735,
+            "end": 23840,
+            "section": "6 Results",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "片段未出现 fine-tuning / zero-shot / few-shot / 知识蒸馏 等协议描述；从方法看为从头训练。"
+        },
+        "computeResources": {
+          "values": [
+            "8 x P100 GPU，训练 3.5 天（Transformer big，WMT 2014 English-to-German）"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1706.03762",
+            "quote": "Training took 3.5 days on 8 P100 GPUs.",
+            "page": 8,
+            "start": 23312,
+            "end": 23350,
+            "section": "6 Results",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "scopeDetail": "Transformer (big) 模型在 WMT 2014 English-to-German 翻译任务上的训练",
+          "stage": "from_scratch"
+        }
+      },
+      "overrides": [],
+      "model": "deepseek-chat",
+      "promptVersion": "v3.0.0",
+      "extractedAt": 1789631162724,
+      "cached": true,
+      "paperTitleGuess": "Attention Is All You Need",
+      "validation": [
+        {
+          "id": "vi_mu5898rn_1",
+          "scope": "method",
+          "refId": "m_p_arxiv_1706.03762",
+          "field": "inputsConditions",
+          "code": "page_mismatch",
+          "severity": "warn",
+          "message": "输入/训练条件：模型自称页码 p.3，但引文实际定位在第 2 页，已采用实际定位结果。",
+          "action": "系统不采信模型自报页码，一律以全文定位结果为准。",
+          "at": 1789631279267
+        },
+        {
+          "id": "vi_mu5898rt_2",
+          "scope": "method",
+          "refId": "m_p_arxiv_1706.03762",
+          "field": "limitations",
+          "code": "evidence_missing",
+          "severity": "warn",
+          "message": "局限：模型给出了内容但没有提供任何原文引文，标记为「未找到证据」。",
+          "action": "该值不作为可核验结论使用，需要人工回到原文核对。",
+          "at": 1789631279273
+        },
+        {
+          "id": "vi_mu5898ru_3",
+          "scope": "method",
+          "refId": "m_p_arxiv_1706.03762",
+          "field": "dataSplits",
+          "code": "condition_not_extracted",
+          "severity": "warn",
+          "message": "数据划分：本次提供的片段中未提取到该信息（不等于论文没有报告）。比较时按「信息不足」处理。",
+          "action": "该维度不参与一致性判断。",
+          "at": 1789631279274
+        },
+        {
+          "id": "vi_mu5898ru_4",
+          "scope": "method",
+          "refId": "m_p_arxiv_1706.03762",
+          "field": "pretrainingCorpus",
+          "code": "condition_not_extracted",
+          "severity": "warn",
+          "message": "预训练语料：本次提供的片段中未提取到该信息（不等于论文没有报告）。比较时按「信息不足」处理。",
+          "action": "该维度不参与一致性判断。",
+          "at": 1789631279274
+        },
+        {
+          "id": "vi_mu5898ru_5",
+          "scope": "method",
+          "refId": "m_p_arxiv_1706.03762",
+          "field": "downstreamExtraData",
+          "code": "evidence_not_located",
+          "severity": "warn",
+          "message": "下游额外训练数据：有内容但引文未通过定位校验或未支撑该主张。",
+          "action": "该条件按「信息不足」处理，不参与一致性判断。",
+          "at": 1789631279274
+        },
+        {
+          "id": "vi_mu5898ru_6",
+          "scope": "method",
+          "refId": "m_p_arxiv_1706.03762",
+          "field": "dataAugmentation",
+          "code": "evidence_not_located",
+          "severity": "warn",
+          "message": "数据增强：有内容但引文未通过定位校验或未支撑该主张。",
+          "action": "该条件按「信息不足」处理，不参与一致性判断。",
+          "at": 1789631279274
+        },
+        {
+          "id": "vi_mu5898ru_7",
+          "scope": "method",
+          "refId": "m_p_arxiv_1706.03762",
+          "field": "pretrainedModel",
+          "code": "evidence_not_located",
+          "severity": "warn",
+          "message": "预训练模型：有内容但引文未通过定位校验或未支撑该主张。",
+          "action": "该条件按「信息不足」处理，不参与一致性判断。",
+          "at": 1789631279274
+        }
+      ]
+    },
+    {
+      "id": "m_p_arxiv_1810.04805",
+      "paperId": "p_arxiv_1810.04805",
+      "fields": {
+        "researchTask": {
+          "value": "提出一种新的语言表示模型 BERT，通过预训练深度双向表示并在下游任务上微调，以在多种自然语言处理任务上取得最优结果。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1810.04805",
+            "quote": "We introduce a new language representa-\n\ntion model called BERT, which stands for\nBidirectional Encoder Representations from\nTransformers",
+            "page": 1,
+            "start": 223,
+            "end": 360,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          }
+        },
+        "methodName": {
+          "value": "BERT (Bidirectional Encoder Representations from Transformers)",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1810.04805",
+            "quote": "We introduce a new language representa-\n\ntion model called BERT, which stands for\nBidirectional Encoder Representations from\nTransformers",
+            "page": 1,
+            "start": 223,
+            "end": 360,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          }
+        },
+        "coreIdea": {
+          "value": "BERT 是一个多层双向 Transformer 编码器，通过联合条件化左右上下文来预训练深度双向表示。预训练使用两个无监督任务：Masked LM（MLM）和下一句预测。预训练后的模型只需增加一个输出层即可微调，适用于多种下游任务。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1810.04805",
+            "quote": "BERT is designed to pre-\n\ntrain deep bidirectional representations from\n\nunlabeled text by jointly conditioning on both\n\nleft and right context in all layers",
+            "page": 1,
+            "start": 459,
+            "end": 616,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          }
+        },
+        "inputsConditions": {
+          "value": "输入表示可以明确表示单个句子或一对句子（如〈Question, Answer〉）在一个 token 序列中。使用 WordPiece 嵌入，30,000 token 词表。每个序列第一个 token 是 [CLS]，句子对用 [SEP] 分隔，并添加学习到的句子 A/B 嵌入。输入表示由 token、segment 和 position 嵌入相加构成。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1810.04805",
+            "quote": "We use WordPiece embeddings (Wu et al.,\n\n2016) with a 30,000 token vocabulary. The first\n\ntoken of every sequence is always a special clas-\n\nsification token ([CLS",
+            "page": 4,
+            "start": 12967,
+            "end": 13130,
+            "section": "Model Architecture BERT’s model architec-",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          },
+          "claimedPage": 4
+        },
+        "datasets": {
+          "value": "GLUE, MultiNLI, SQuAD v1.1, SQuAD v2.0, CoNLL-2003 NER",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1810.04805",
+            "quote": "It obtains new state-of-the-art re-\n\nsults on eleven natural language processing\n\ntasks, including pushing the GLUE score to\n\n80.5% (7.7% point absolute improvement),\n\nMultiNLI accuracy to 86.7% (4.6% absolute\n\nimprovement), SQuAD v1.1 question answer-\n\ning Test F1 to 93.2 (1.5 point absolute im-\n\nprovement) and SQuAD v2.0 Test F1 to 83.1\n\n(5.1 point absolute improvement",
+            "page": 1,
+            "start": 954,
+            "end": 1327,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          },
+          "note": "片段中未列出全部十一个任务的数据集，仅提取明确出现的评估数据集。"
+        },
+        "metrics": {
+          "value": "GLUE score, accuracy, F1",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1810.04805",
+            "quote": "pushing the GLUE score to\n\n80.5% (7.7% point absolute improvement),\n\nMultiNLI accuracy to 86.7% (4.6% absolute\n\nimprovement), SQuAD v1.1 question answer-\n\ning Test F1 to 93.2",
+            "page": 1,
+            "start": 1053,
+            "end": 1227,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          }
+        },
+        "limitations": {
+          "value": "片段中未找到作者明确承认的局限或适用范围限制。",
+          "status": "no_evidence",
+          "note": "提供的片段中没有明确讨论局限性的句子。"
+        }
+      },
+      "conditions": {
+        "datasets": {
+          "values": [
+            "GLUE",
+            "MultiNLI",
+            "SQuAD v1.1",
+            "SQuAD v2.0",
+            "CoNLL-2003 NER"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1810.04805",
+            "quote": "It obtains new state-of-the-art re-\n\nsults on eleven natural language processing\n\ntasks, including pushing the GLUE score to\n\n80.5% (7.7% point absolute improvement),\n\nMultiNLI accuracy to 86.7% (4.6% absolute\n\nimprovement), SQuAD v1.1 question answer-\n\ning Test F1 to 93.2 (1.5 point absolute im-\n\nprovement) and SQuAD v2.0 Test F1 to 83.1\n\n(5.1 point absolute improvement",
+            "page": 1,
+            "start": 954,
+            "end": 1327,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          },
+          "note": "片段中未列出全部十一个任务的数据集，仅提取明确出现的评估数据集。"
+        },
+        "dataSplits": {
+          "values": [],
+          "status": "not_extracted",
+          "note": "提供的片段中没有关于数据集划分的详细描述。"
+        },
+        "metrics": {
+          "values": [
+            "GLUE score",
+            "accuracy",
+            "F1"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1810.04805",
+            "quote": "pushing the GLUE score to\n\n80.5% (7.7% point absolute improvement),\n\nMultiNLI accuracy to 86.7% (4.6% absolute\n\nimprovement), SQuAD v1.1 question answer-\n\ning Test F1 to 93.2",
+            "page": 1,
+            "start": 1053,
+            "end": 1227,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          }
+        },
+        "pretrainingCorpus": {
+          "values": [
+            "BooksCorpus (800M words)",
+            "English Wikipedia (2,500M words)"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1810.04805",
+            "quote": "For the pre-training corpus we\n\nuse the BooksCorpus (800M words) (Zhu et al.,\n\n2015) and English Wikipedia (2,500M words).",
+            "page": 5,
+            "start": 18284,
+            "end": 18406,
+            "section": "model pre-training.",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          }
+        },
+        "downstreamExtraData": {
+          "values": [
+            "none"
+          ],
+          "status": "unverified",
+          "note": "提供的片段中没有明确说明下游任务是否使用了额外数据。"
+        },
+        "dataAugmentation": {
+          "values": [
+            "none"
+          ],
+          "status": "unverified",
+          "note": "提供的片段中没有提到数据增强。"
+        },
+        "pretrainedModel": {
+          "values": [
+            "BERTBASE (L=12, H=768, A=12, Total Parameters=110M)",
+            "BERTLARGE (L=24, H=1024, A=16, Total Parameters=340M)"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1810.04805",
+            "quote": "We primarily report results on two model sizes:\nBERTBASE (L=12, H=768, A=12, Total Param-\n\neters=110M) and BERTLARGE (L=24, H=1024,\n\nA=16, Total Parameters=340M",
+            "page": 3,
+            "start": 11737,
+            "end": 11897,
+            "section": "Model Architecture BERT’s model architec-",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          }
+        },
+        "experimentalSettings": {
+          "values": [
+            "fine-tuning：在预训练模型上添加一个输出层，并在下游任务上端到端微调所有参数。"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1810.04805",
+            "quote": "For each task, we simply plug in the task-\n\nspecific inputs and outputs into BERT and fine-\n\ntune all the parameters end-to-end",
+            "page": 5,
+            "start": 19361,
+            "end": 19488,
+            "section": "model pre-training. For the pre-training corpus we",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          }
+        },
+        "computeResources": {
+          "values": [
+            "单块 Cloud TPU 最多 1 小时，或 GPU 几小时（微调）"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1810.04805",
+            "quote": "All of the results in the pa-\n\nper can be replicated in at most 1 hour on a sin-\n\ngle Cloud TPU, or a few hours on a GPU, starting\n\nfrom the exact same pre-trained model",
+            "page": 5,
+            "start": 20121,
+            "end": 20290,
+            "section": "model pre-training. For the pre-training corpus we",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          },
+          "scopeDetail": "微调所有下游任务结果",
+          "stage": "finetune"
+        }
+      },
+      "overrides": [],
+      "model": "deepseek-chat",
+      "promptVersion": "v3.0.0",
+      "extractedAt": 1789631170277,
+      "cached": true,
+      "paperTitleGuess": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
+      "validation": [
+        {
+          "id": "vi_mu5898sy_8",
+          "scope": "method",
+          "refId": "m_p_arxiv_1810.04805",
+          "field": "limitations",
+          "code": "evidence_missing",
+          "severity": "warn",
+          "message": "局限：模型给出了内容但没有提供任何原文引文，标记为「未找到证据」。",
+          "action": "该值不作为可核验结论使用，需要人工回到原文核对。",
+          "at": 1789631279314
+        },
+        {
+          "id": "vi_mu5898sy_9",
+          "scope": "method",
+          "refId": "m_p_arxiv_1810.04805",
+          "field": "dataSplits",
+          "code": "condition_not_extracted",
+          "severity": "warn",
+          "message": "数据划分：本次提供的片段中未提取到该信息（不等于论文没有报告）。比较时按「信息不足」处理。",
+          "action": "该维度不参与一致性判断。",
+          "at": 1789631279314
+        },
+        {
+          "id": "vi_mu5898sy_10",
+          "scope": "method",
+          "refId": "m_p_arxiv_1810.04805",
+          "field": "downstreamExtraData",
+          "code": "evidence_not_located",
+          "severity": "warn",
+          "message": "下游额外训练数据：有内容但引文未通过定位校验或未支撑该主张。",
+          "action": "该条件按「信息不足」处理，不参与一致性判断。",
+          "at": 1789631279314
+        },
+        {
+          "id": "vi_mu5898sy_11",
+          "scope": "method",
+          "refId": "m_p_arxiv_1810.04805",
+          "field": "dataAugmentation",
+          "code": "evidence_not_located",
+          "severity": "warn",
+          "message": "数据增强：有内容但引文未通过定位校验或未支撑该主张。",
+          "action": "该条件按「信息不足」处理，不参与一致性判断。",
+          "at": 1789631279314
+        }
+      ]
+    },
+    {
+      "id": "m_p_arxiv_1907.11692",
+      "paperId": "p_arxiv_1907.11692",
+      "fields": {
+        "researchTask": {
+          "value": "对 BERT 预训练进行复现研究，仔细衡量关键超参数与训练数据规模的影响，并提出改进的预训练方法。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1907.11692",
+            "quote": "We present a replication study of BERT\n\npretraining (Devlin et al., 2019) that carefully\n\nmeasures the impact of many key hyperparam-\n\neters and training data size.",
+            "page": 1,
+            "start": 808,
+            "end": 972,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 1
+        },
+        "methodName": {
+          "value": "RoBERTa (Robustly Optimized BERT Pretraining Approach)",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1907.11692",
+            "quote": "Appendix for “RoBERTa: A Robustly\n\nOptimized BERT Pretraining Approach”",
+            "page": 12,
+            "start": 47871,
+            "end": 47942,
+            "section": "method for commonsense reasoning. arXiv preprint",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "标题在附录页眉出现，正文中方法名以 RoBERTa 形式使用。",
+          "claimedPage": 12
+        },
+        "coreIdea": {
+          "value": "在保持 BERT 架构不变的前提下，系统研究预训练中的关键设计选择（如动态掩码、是否使用 NSP 损失、输入格式、批大小、数据规模与训练步数），发现原 BERT 训练不足，通过更长时间、更大批量、更多数据的预训练可显著提升下游任务性能。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1907.11692",
+            "quote": "This section explores and quantifies which choices\n\nare important for successfully pretraining BERT\n\nmodels. We keep the model architecture fixed.",
+            "page": 4,
+            "start": 13709,
+            "end": 13855,
+            "section": "results depend on a several task-specific modifica-",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 4
+        },
+        "inputsConditions": {
+          "value": "输入为最多 512 个 token 的序列，仅使用全长序列（不随机注入短序列）；使用混合精度浮点训练，在 DGX-1 机器（8×32GB V100 GPU）上进行。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1907.11692",
+            "quote": "We pretrain with sequences of at most T = 512\ntokens. Unlike Devlin et al. (2019), we do not ran-\n\ndomly inject short sequences, and we do not train\n\nwith a reduced sequence length for the first 90% of\n\nupdates. We train only with full-length sequences.",
+            "page": 3,
+            "start": 8311,
+            "end": 8564,
+            "section": "2 Background",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 3
+        },
+        "datasets": {
+          "value": "GLUE (CoLA, SST, MRPC, STS, QQP, MNLI, QNLI, RTE, WNLI), SQuAD V1.1, SQuAD V2.0, RACE",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1907.11692",
+            "quote": "The datasets are: CoLA (Warstadt et al., 2018),\n\nStanford Sentiment Treebank (SST) (Socher et al.,\n2013), Microsoft Research Paragraph Corpus\n\n(MRPC) (Dolan and Brockett, 2005), Semantic Tex-\n\ntual Similarity Benchmark (STS) (Agirre et al., 2007),\n\nQuora Question Pairs (QQP) (Iyer et al., 2016), Multi-\n\nGenre NLI (MNLI) (Williams et al., 2018), Question NLI\n\n(QNLI) (Rajpurkar et al., 2016), Recognizing Textual\n\nEntailment (RTE) (Dagan et al., 2006; Bar-Haim et al.,\n2006; Giampiccolo et al., 2007; Bentivogli et al., 2009) and\n\nWinograd NLI (WNLI) (Levesque et al., 2011",
+            "page": 3,
+            "start": 12009,
+            "end": 12583,
+            "section": "results depend on a several task-specific modifica-",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          },
+          "note": "SQuAD 与 RACE 见同页及第 4 页描述。",
+          "claimedPage": 3
+        },
+        "metrics": {
+          "value": "F1, accuracy, EM",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1907.11692",
+            "quote": "We report F1 for SQuAD and accuracy for MNLI-m,\n\nSST-2 and RACE.",
+            "page": 5,
+            "start": 17451,
+            "end": 17515,
+            "section": "Model SQuAD 1.1/2.0 MNLI-m SST-2 RACE",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "EM 见 Table 6。",
+          "claimedPage": 4
+        },
+        "limitations": {
+          "value": "论文承认架构改动（包括更大架构）留作未来工作，未在本文研究。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1907.11692",
+            "quote": "Studying architectural changes, including larger archi-\n\ntectures, is an important area for future work.",
+            "page": 4,
+            "start": 14730,
+            "end": 14834,
+            "section": "results depend on a several task-specific modifica-",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 4
+        }
+      },
+      "conditions": {
+        "datasets": {
+          "values": [
+            "GLUE",
+            "SQuAD V1.1",
+            "SQuAD V2.0",
+            "RACE"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1907.11692",
+            "quote": "Following previous work, we evaluate our pre-\n\ntrained models on downstream tasks using the fol-\n\nlowing three benchmarks.",
+            "page": 3,
+            "start": 10429,
+            "end": 10551,
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "三个基准为 GLUE、SQuAD、RACE；SQuAD 含 V1.1 与 V2.0。",
+          "claimedPage": 3
+        },
+        "dataSplits": {
+          "values": [
+            "GLUE：提供 train/dev 划分 + 私有 held-out test（leaderboard）",
+            "SQuAD：dev 与 test 设置（Table 6 区分 dev 与 test）",
+            "RACE：test 集（Table 7 报告 test 结果）"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1907.11692",
+            "quote": "The GLUE\n\norganizers provide training and development data\n\nsplits as well as a submission server and leader-\n\nboard that allows participants to evaluate and com-\n\npare their systems on private held-out test data.",
+            "page": 3,
+            "start": 10831,
+            "end": 11044,
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "SQuAD 与 RACE 的划分细节在片段中未明确说明。",
+          "claimedPage": 3
+        },
+        "metrics": {
+          "values": [
+            "F1",
+            "accuracy",
+            "EM"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1907.11692",
+            "quote": "We report F1 for SQuAD and accuracy for MNLI-m,\n\nSST-2 and RACE.",
+            "page": 5,
+            "start": 17451,
+            "end": 17515,
+            "section": "Model SQuAD 1.1/2.0 MNLI-m SST-2 RACE",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "EM 见 Table 6 表头。",
+          "claimedPage": 4
+        },
+        "pretrainingCorpus": {
+          "values": [
+            "BOOKCORPUS + English WIKIPEDIA (16GB)",
+            "CC-NEWS (76GB after filtering)",
+            "OPENWEBTEXT (38GB)",
+            "STORIES (31GB)",
+            "总计超过 160GB 未压缩文本"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1907.11692",
+            "quote": "We consider five English-language corpora of\n\nvarying sizes and domains, totaling over 160GB\n\nof uncompressed text.",
+            "page": 3,
+            "start": 9356,
+            "end": 9471,
+            "section": "2 Background",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "各语料规模见同页列表。",
+          "claimedPage": 3
+        },
+        "downstreamExtraData": {
+          "values": [
+            "none"
+          ],
+          "status": "unverified",
+          "evidence": {
+            "paperId": "p_arxiv_1907.11692",
+            "quote": "RoBERTa\n\nuses only the provided SQuAD data in both dev and\n\ntest settings.",
+            "page": 9,
+            "start": 33495,
+            "end": 33569,
+            "section": "Model",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "引文是局部实验描述（出现「provided SQuAD」这类限定），只说明该实验的情况，不能支持「整篇论文均无」的否定结论。该条件不作为「一致」的依据。",
+          "scope": "experiment",
+          "scopeDetail": "provided SQuAD"
+        },
+        "dataAugmentation": {
+          "values": [
+            "none"
+          ],
+          "status": "unclear",
+          "note": "该引文只是 Table 6 中 SQuAD dev 单模型结果的局部描述，不能支持整篇论文级「未做数据增强」的结论。",
+          "scope": "experiment",
+          "scopeDetail": "SQuAD dev 单模型结果（Table 6）"
+        },
+        "pretrainedModel": {
+          "values": [
+            "RoBERTaLARGE：L=24, H=1024, A=16, 355M 参数，遵循 BERTLARGE 架构",
+            "RoBERTaBASE：L=12, H=768, A=12, 110M 参数，遵循 BERTBASE 架构"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1907.11692",
+            "quote": "we begin by training RoBERTa\n\nfollowing the BERTLARGE architecture (L = 24,\nH = 1024, A = 16, 355M parameters).",
+            "page": 6,
+            "start": 25022,
+            "end": 25133,
+            "section": "results in variable batch sizes, we use FULL-",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "BASE 配置见第 4 页「BERTBASE (L = 12, H = 768, A = 12, 110M params)」。"
+        },
+        "experimentalSettings": {
+          "values": [
+            "fine-tuning：在单任务训练数据上微调预训练模型，不使用多任务训练或集成；微调流程遵循原 BERT 论文",
+            "fine-tuning：SQuAD V1.1 采用与 BERT 相同的 span 预测方法；SQuAD V2.0 增加可回答性二分类器，与 span 损失联合训练",
+            "fine-tuning：RACE 将每个候选答案与问题、段落拼接编码，经全连接层预测正确答案"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1907.11692",
+            "quote": "results on the development sets after finetuning\n\nthe pretrained models on the corresponding single-\n\ntask training data (i.e., without multi-task training\n\nor ensembling). Our finetuning procedure follows\n\nthe original BERT paper (Devlin et al., 2019",
+            "page": 3,
+            "start": 11097,
+            "end": 11348,
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          },
+          "note": "SQuAD 与 RACE 的微调细节见第 4 页及后续片段。",
+          "claimedPage": 3
+        },
+        "computeResources": {
+          "values": [
+            "预训练：DGX-1 机器，每台 8×32GB Nvidia V100 GPU，通过 Infiniband 互联，混合精度",
+            "预训练：1024 块 V100 GPU，约一天（RoBERTa 在 BOOKCORPUS+WIKIPEDIA 上预训练 100K 步）"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1907.11692",
+            "quote": "We train with mixed precision floating point\n\narithmetic on DGX-1 machines, each with 8 ×\n32GB Nvidia V100 GPUs interconnected by In-\n\nfiniband (Micikevicius et al., 2018).",
+            "page": 3,
+            "start": 8566,
+            "end": 8738,
+            "section": "2 Background",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 3,
+          "scopeDetail": "RoBERTa 预训练（DGX-1 配置）；另见「We pretrain our model using 1024 V100 GPUs for approximately one day.」对应 RoBERTa 在 BOOKCORPUS+WIKIPEDIA 上 100K 步预训练。",
+          "stage": "pretrain"
+        }
+      },
+      "overrides": [],
+      "model": "deepseek-chat",
+      "promptVersion": "v3.0.0",
+      "extractedAt": 1789631179773,
+      "cached": true,
+      "paperTitleGuess": "RoBERTa: A Robustly Optimized BERT Pretraining Approach",
+      "validation": [
+        {
+          "id": "vi_mu5898to_12",
+          "scope": "method",
+          "refId": "m_p_arxiv_1907.11692",
+          "field": "metrics",
+          "code": "page_mismatch",
+          "severity": "warn",
+          "message": "评价指标：模型自称页码 p.4，但引文实际定位在第 5 页，已采用实际定位结果。",
+          "action": "系统不采信模型自报页码，一律以全文定位结果为准。",
+          "at": 1789631279340
+        },
+        {
+          "id": "vi_mu5898tt_13",
+          "scope": "method",
+          "refId": "m_p_arxiv_1907.11692",
+          "field": "downstreamExtraData",
+          "code": "evidence_not_located",
+          "severity": "warn",
+          "message": "下游额外训练数据：有内容但引文未通过定位校验或未支撑该主张。",
+          "action": "该条件按「信息不足」处理，不参与一致性判断。",
+          "at": 1789631279345
+        },
+        {
+          "id": "vi_mu5898tt_14",
+          "scope": "method",
+          "refId": "m_p_arxiv_1907.11692",
+          "field": "dataAugmentation",
+          "code": "condition_unconfirmed",
+          "severity": "warn",
+          "message": "数据增强：无法确认（表述含糊）。",
+          "action": "需要人工回到原文确认后再用于比较。",
+          "at": 1789631279345
+        }
+      ]
+    },
+    {
+      "id": "m_p_arxiv_1910.01108",
+      "paperId": "p_arxiv_1910.01108",
+      "fields": {
+        "researchTask": {
+          "value": "通过知识蒸馏预训练一个更小的通用语言表示模型，使其在多种下游任务上微调后性能接近大型模型，同时更小更快。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1910.01108",
+            "quote": "In this work, we propose a method to pre-train a smaller general-\n\npurpose language representation model, called DistilBERT, which can then be fine-\n\ntuned with good performances on a wide range of tasks like its larger counterparts",
+            "page": 1,
+            "start": 462,
+            "end": 694,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          }
+        },
+        "methodName": {
+          "value": "DistilBERT",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1910.01108",
+            "quote": "we propose a method to pre-train a smaller general-\n\npurpose language representation model, called DistilBERT",
+            "page": 1,
+            "start": 476,
+            "end": 585,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          }
+        },
+        "coreIdea": {
+          "value": "在预训练阶段利用知识蒸馏，让学生模型 DistilBERT 模仿教师模型 BERT 的行为。使用由语言建模损失、蒸馏损失和余弦距离损失组成的三重损失，并将学生模型从教师模型每隔一层初始化。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1910.01108",
+            "quote": "Using a triple loss, we show that a 40% smaller Transformer (Vaswani et al. [2017]) pre-trained\n\nthrough distillation via the supervision of a bigger Transformer language model can achieve similar\n\nperformance on a variety of downstream tasks, while being 60% faster at inference time.",
+            "page": 2,
+            "start": 3206,
+            "end": 3491,
+            "section": "1 Introduction",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 2
+        },
+        "inputsConditions": {
+          "value": "输入为文本；训练时使用动态掩码、无下一句预测目标、大批量（最多4K样本）和梯度累积；学生模型从教师模型每隔一层初始化。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1910.01108",
+            "quote": "As such, DistilBERT is distilled on very large batches leveraging gradient accumulation (up to 4K\n\nexamples per batch) using dynamic masking and without the next sentence prediction objective.",
+            "page": 3,
+            "start": 8277,
+            "end": 8469,
+            "section": "Model # param. Inf. time",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 3
+        },
+        "datasets": {
+          "value": "GLUE, IMDb, SQuAD v1.1",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1910.01108",
+            "quote": "We assess the language understanding and generalization ca-\n\npabilities of DistilBERT on the General Language Understanding Evaluation (GLUE) benchmark\n\n[Wang et al., 2018], a collection of 9 datasets for evaluating natural language understanding systems.",
+            "page": 3,
+            "start": 8871,
+            "end": 9126,
+            "section": "4 Experiments",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "IMDb 和 SQuAD 在后续句子中提及。",
+          "claimedPage": 3
+        },
+        "metrics": {
+          "value": "accuracy, EM, F1, inference time, macro-score",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1910.01108",
+            "quote": "Com-\n\nparison on downstream tasks: IMDb (test ac-\n\ncuracy) and SQuAD 1.1 (EM/F1 on dev set).",
+            "page": 3,
+            "start": 7619,
+            "end": 7711,
+            "section": "Model Score CoLA MNLI MRPC QNLI QQP RTE SST-2 STS-B WNLI",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "GLUE 使用 macro-score，推理时间在表3中报告。",
+          "claimedPage": 3
+        },
+        "limitations": {
+          "value": "未明确提及局限性。",
+          "status": "no_evidence",
+          "note": "提供的片段中没有明确讨论局限性。"
+        }
+      },
+      "conditions": {
+        "datasets": {
+          "values": [
+            "GLUE",
+            "IMDb",
+            "SQuAD v1.1"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1910.01108",
+            "quote": "We assess the language understanding and generalization ca-\n\npabilities of DistilBERT on the General Language Understanding Evaluation (GLUE) benchmark\n\n[Wang et al., 2018], a collection of 9 datasets for evaluating natural language understanding systems.",
+            "page": 3,
+            "start": 8871,
+            "end": 9126,
+            "section": "4 Experiments",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "IMDb 和 SQuAD 在后续句子中提及。",
+          "claimedPage": 3
+        },
+        "dataSplits": {
+          "values": [
+            "GLUE：dev sets",
+            "IMDb：test set",
+            "SQuAD v1.1：dev set"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1910.01108",
+            "quote": "We report scores on the development sets for each task by fine-tuning DistilBERT without the use\n\nof ensembling or multi-tasking scheme for fine-tuning (which are mostly orthogonal to the present\n\nwork).",
+            "page": 3,
+            "start": 9128,
+            "end": 9331,
+            "section": "4 Experiments",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "IMDb 和 SQuAD 的划分在表2标题中说明。",
+          "claimedPage": 3
+        },
+        "metrics": {
+          "values": [
+            "accuracy",
+            "EM",
+            "F1",
+            "inference time",
+            "macro-score"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1910.01108",
+            "quote": "Com-\n\nparison on downstream tasks: IMDb (test ac-\n\ncuracy) and SQuAD 1.1 (EM/F1 on dev set).",
+            "page": 3,
+            "start": 7619,
+            "end": 7711,
+            "section": "Model Score CoLA MNLI MRPC QNLI QQP RTE SST-2 STS-B WNLI",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "GLUE 使用 macro-score，推理时间在表3中报告。",
+          "claimedPage": 3
+        },
+        "pretrainingCorpus": {
+          "values": [
+            "English Wikipedia and Toronto Book Corpus"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1910.01108",
+            "quote": "We train DistilBERT on the same corpus as the original BERT model:\n\na concatenation of English Wikipedia and Toronto Book Corpus [Zhu et al., 2015].",
+            "page": 3,
+            "start": 8493,
+            "end": 8641,
+            "section": "Model # param. Inf. time",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 3
+        },
+        "downstreamExtraData": {
+          "values": [
+            "none"
+          ],
+          "status": "unclear",
+          "note": "该引文仅说明未使用集成或多任务微调，未明确说明是否引入额外数据。",
+          "claimedPage": 3
+        },
+        "dataAugmentation": {
+          "values": [
+            "none"
+          ],
+          "status": "unverified",
+          "note": "提供的片段中没有提及数据增强。"
+        },
+        "pretrainedModel": {
+          "values": [
+            "DistilBERT 从 BERT-base 初始化，学生模型从教师模型每隔一层初始化。"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1910.01108",
+            "quote": "we initialize the student from the teacher by taking one layer out of two.",
+            "page": 2,
+            "start": 6733,
+            "end": 6807,
+            "section": "1 Introduction",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 2
+        },
+        "experimentalSettings": {
+          "values": [
+            "fine-tuning：在 GLUE、IMDb、SQuAD 上微调 DistilBERT，无集成或多任务；zero-shot：未提及；few-shot：未提及；知识蒸馏：预训练阶段使用知识蒸馏；从头训练：未提及。"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1910.01108",
+            "quote": "We report scores on the development sets for each task by fine-tuning DistilBERT without the use\n\nof ensembling or multi-tasking scheme for fine-tuning (which are mostly orthogonal to the present\n\nwork).",
+            "page": 3,
+            "start": 9128,
+            "end": 9331,
+            "section": "4 Experiments",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "评估协议为微调。",
+          "claimedPage": 3
+        },
+        "computeResources": {
+          "values": [
+            "8 16GB V100 GPUs for approximately 90 hours"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1910.01108",
+            "quote": "DistilBERT\n\nwas trained on 8 16GB V100 GPUs for approximately 90 hours.",
+            "page": 3,
+            "start": 8642,
+            "end": 8713,
+            "section": "Model # param. Inf. time",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 3,
+          "scopeDetail": "DistilBERT 预训练",
+          "stage": "pretrain"
+        }
+      },
+      "overrides": [],
+      "model": "deepseek-chat",
+      "promptVersion": "v3.0.0",
+      "extractedAt": 1789631186122,
+      "cached": true,
+      "paperTitleGuess": "DistilBERT, a distilled version of BERT: smaller, faster, cheaper and lighter",
+      "validation": [
+        {
+          "id": "vi_mu5898u3_15",
+          "scope": "method",
+          "refId": "m_p_arxiv_1910.01108",
+          "field": "limitations",
+          "code": "evidence_missing",
+          "severity": "warn",
+          "message": "局限：模型给出了内容但没有提供任何原文引文，标记为「未找到证据」。",
+          "action": "该值不作为可核验结论使用，需要人工回到原文核对。",
+          "at": 1789631279355
+        },
+        {
+          "id": "vi_mu5898u3_16",
+          "scope": "method",
+          "refId": "m_p_arxiv_1910.01108",
+          "field": "downstreamExtraData",
+          "code": "condition_unconfirmed",
+          "severity": "warn",
+          "message": "下游额外训练数据：无法确认（表述含糊）。",
+          "action": "需要人工回到原文确认后再用于比较。",
+          "at": 1789631279355
+        },
+        {
+          "id": "vi_mu5898u3_17",
+          "scope": "method",
+          "refId": "m_p_arxiv_1910.01108",
+          "field": "dataAugmentation",
+          "code": "evidence_not_located",
+          "severity": "warn",
+          "message": "数据增强：有内容但引文未通过定位校验或未支撑该主张。",
+          "action": "该条件按「信息不足」处理，不参与一致性判断。",
+          "at": 1789631279355
+        }
+      ]
+    },
+    {
+      "id": "m_p_arxiv_2005.14165",
+      "paperId": "p_arxiv_2005.14165",
+      "fields": {
+        "researchTask": {
+          "value": "研究通过扩大语言模型规模来提升任务无关的少样本（few-shot）学习性能，并在不进行梯度更新或微调的情况下评估 GPT-3 在多种 NLP 任务上的表现。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2005.14165",
+            "quote": "Here we show that scaling up language models greatly improves task-agnostic,\n\nfew-shot performance, sometimes even reaching competitiveness with prior state-of-the-art fine-\n\ntuning approaches",
+            "page": 1,
+            "start": 1027,
+            "end": 1219,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          }
+        },
+        "methodName": {
+          "value": "GPT-3",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2005.14165",
+            "quote": "Specifically, we train GPT-3, an autoregressive language model with 175 billion\n\nparameters, 10x more than any previous non-sparse language model, and test its performance in\n\nthe few-shot setting.",
+            "page": 1,
+            "start": 1221,
+            "end": 1418,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          }
+        },
+        "coreIdea": {
+          "value": "训练一个 1750 亿参数的自回归语言模型 GPT-3，在评估时不进行任何梯度更新或微调，仅通过文本交互将任务描述和少量示例作为上下文条件输入模型，从而在零样本、单样本和少样本设置下完成任务。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2005.14165",
+            "quote": "For all tasks, GPT-3 is applied without any gradient updates or fine-tuning,\n\nwith tasks and few-shot demonstrations specified purely via text interaction with the model.",
+            "page": 1,
+            "start": 1419,
+            "end": 1589,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          }
+        },
+        "inputsConditions": {
+          "value": "输入为自然语言任务描述和/或少量示例（上下文），模型上下文窗口为 2048 个 token；训练使用 3000 亿个 token，模型规模从 1.25 亿到 1750 亿参数不等。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2005.14165",
+            "quote": "All models use a context window of nctx = 2048 tokens.",
+            "page": 8,
+            "start": 26108,
+            "end": 26162,
+            "section": "2.1 Model and Architectures",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 8
+        },
+        "datasets": {
+          "value": "Quac, SQuADv2, DROP, Symbol Insertion, CoQa, ReCoRD, Winograd, BoolQ, MultiRC, RACE-h, LAMBADA, LAMBADA (No Blanks), WSC, PIQA, RACE-m, De→En 16, En→De 16, En→Ro 16, Ro→En 16, WebQs, ANLI R1, ANLI R2, TriviaQA, ANLI R3, En→Fr 14, Fr→En 14, WiC, RTE, CB, Anagrams 2, Reversed Words, OpenBookQA, ARC (Easy), Anagrams 1, COPA, ARC (Challenge), HellaSwag, NQs, Cycled Letters, SAT Analogies, StoryCloze, Winogrande",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2005.14165",
+            "quote": "Table C.1: Overlap statistics for all datasets sorted from dirtiest to cleanest.",
+            "page": 45,
+            "start": 159283,
+            "end": 159363,
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "数据集名称来自表 C.1 的 Name 列。",
+          "claimedPage": 45
+        },
+        "metrics": {
+          "value": "accuracy, F1, BLEU",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2005.14165",
+            "quote": "For “Acc/F1/BLEU” we\n\nuse the metric specified in “Metric”.",
+            "page": 45,
+            "start": 159736,
+            "end": 159795,
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 45
+        },
+        "limitations": {
+          "value": "论文承认 GPT-3 的少样本学习在某些数据集上仍然表现不佳，并且一些数据集存在与大规模网络语料训练相关的方法学问题。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2005.14165",
+            "quote": "At the same\n\ntime, we also identify some datasets where GPT-3’s few-shot learning still struggles, as well as some\n\ndatasets where GPT-3 faces methodological issues related to training on large web corpora.",
+            "page": 1,
+            "start": 1886,
+            "end": 2092,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          }
+        }
+      },
+      "conditions": {
+        "datasets": {
+          "values": [
+            "Quac",
+            "SQuADv2",
+            "DROP",
+            "Symbol Insertion",
+            "CoQa",
+            "ReCoRD",
+            "Winograd",
+            "BoolQ",
+            "MultiRC",
+            "RACE-h",
+            "LAMBADA",
+            "LAMBADA (No Blanks)",
+            "WSC",
+            "PIQA",
+            "RACE-m",
+            "De→En 16",
+            "En→De 16",
+            "En→Ro 16",
+            "Ro→En 16",
+            "WebQs",
+            "ANLI R1",
+            "ANLI R2",
+            "TriviaQA",
+            "ANLI R3",
+            "En→Fr 14",
+            "Fr→En 14",
+            "WiC",
+            "RTE",
+            "CB",
+            "Anagrams 2",
+            "Reversed Words",
+            "OpenBookQA",
+            "ARC (Easy)",
+            "Anagrams 1",
+            "COPA",
+            "ARC (Challenge)",
+            "HellaSwag",
+            "NQs",
+            "Cycled Letters",
+            "SAT Analogies",
+            "StoryCloze",
+            "Winogrande"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2005.14165",
+            "quote": "Table C.1: Overlap statistics for all datasets sorted from dirtiest to cleanest.",
+            "page": 45,
+            "start": 159283,
+            "end": 159363,
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "数据集名称来自表 C.1 的 Name 列。",
+          "claimedPage": 45
+        },
+        "dataSplits": {
+          "values": [
+            "Quac：dev",
+            "SQuADv2：dev",
+            "DROP：dev",
+            "Symbol Insertion：dev",
+            "CoQa：dev",
+            "ReCoRD：dev",
+            "Winograd：test",
+            "BoolQ：dev",
+            "MultiRC：dev",
+            "RACE-h：test",
+            "LAMBADA：test",
+            "LAMBADA (No Blanks)：test",
+            "WSC：dev",
+            "PIQA：dev",
+            "RACE-m：test",
+            "De→En 16：test",
+            "En→De 16：test",
+            "En→Ro 16：test",
+            "Ro→En 16：test",
+            "WebQs：test",
+            "ANLI R1：test",
+            "ANLI R2：test",
+            "TriviaQA：dev",
+            "ANLI R3：test",
+            "En→Fr 14：test",
+            "Fr→En 14：test",
+            "WiC：dev",
+            "RTE：dev",
+            "CB：dev",
+            "Anagrams 2：dev",
+            "Reversed Words：dev",
+            "OpenBookQA：test",
+            "ARC (Easy)：test",
+            "Anagrams 1：dev",
+            "COPA：dev",
+            "ARC (Challenge)：test",
+            "HellaSwag：dev",
+            "NQs：test",
+            "Cycled Letters：dev",
+            "SAT Analogies：dev",
+            "StoryCloze：test",
+            "Winogrande：dev"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2005.14165",
+            "quote": "Table C.1: Overlap statistics for all datasets sorted from dirtiest to cleanest.",
+            "page": 45,
+            "start": 159283,
+            "end": 159363,
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "划分信息来自表 C.1 的 Split 列。",
+          "claimedPage": 45
+        },
+        "metrics": {
+          "values": [
+            "accuracy",
+            "F1",
+            "BLEU"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2005.14165",
+            "quote": "For “Acc/F1/BLEU” we\n\nuse the metric specified in “Metric”.",
+            "page": 45,
+            "start": 159736,
+            "end": 159795,
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 45
+        },
+        "pretrainingCorpus": {
+          "values": [
+            "Common Crawl（经过过滤和模糊去重）",
+            "已知高质量参考语料库（未在片段中列出具体名称）"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2005.14165",
+            "quote": "we downloaded and filtered a version of CommonCrawl based on similarity to a range of high-quality reference\n\ncorpora, (2) we performed fuzzy deduplication at the document level, within and across datasets, to prevent redundancy\n\nand preserve the integrity of our held-out validation set as an accurate measure of overfitting, and (3) we also added\n\nknown high-quality reference corpora to the training mix to augment CommonCrawl and increase its diversity.",
+            "page": 8,
+            "start": 27082,
+            "end": 27539,
+            "section": "2.1 Model and Architectures",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "片段中未给出具体语料名称和规模。",
+          "claimedPage": 8
+        },
+        "downstreamExtraData": {
+          "values": [
+            "none"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2005.14165",
+            "quote": "For all tasks, GPT-3 is applied without any gradient updates or fine-tuning,\n\nwith tasks and few-shot demonstrations specified purely via text interaction with the model.",
+            "page": 1,
+            "start": 1419,
+            "end": 1589,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "论文明确说明所有任务均不进行梯度更新或微调，仅通过文本交互提供任务描述和少量示例。",
+          "scope": "paper",
+          "scopeDetail": "所有任务"
+        },
+        "dataAugmentation": {
+          "values": [
+            "none"
+          ],
+          "status": "unverified",
+          "note": "提供的片段中未提及数据增强。",
+          "scope": "paper"
+        },
+        "pretrainedModel": {
+          "values": [
+            "GPT-3 175B（1750 亿参数），从头训练；同时训练了 8 种不同规模的模型（125M 到 175B）"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2005.14165",
+            "quote": "we train 8 different sizes of model, ranging over three orders of magnitude from 125\n\nmillion parameters to 175 billion parameters, with the last being the model we call GPT-3.",
+            "page": 8,
+            "start": 25264,
+            "end": 25440,
+            "section": "2.1 Model and Architectures",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 8
+        },
+        "experimentalSettings": {
+          "values": [
+            "评估协议：zero-shot, one-shot, few-shot（无梯度更新或微调，仅前向传播）"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2005.14165",
+            "quote": "In this paper we focus on\n\nzero-shot, one-shot and few-shot, with the aim of comparing them not as competing alternatives, but as different\n\nproblem settings which offer a varying trade-off between performance on specific benchmarks and sample efficiency.",
+            "page": 7,
+            "start": 23439,
+            "end": 23694,
+            "section": "2 Approach",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 7
+        },
+        "computeResources": {
+          "values": [
+            "GPT-3 175B：3.64E+03 PF-days（3.14E+23 flops），训练 3000 亿 token"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2005.14165",
+            "quote": "GPT-3 175B 3.64E+03 3.14E+23 174,600 300 6 3 2 1.0",
+            "page": 46,
+            "start": 161442,
+            "end": 161492,
+            "section": "Model",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "算力数据来自表 D.1。",
+          "claimedPage": 46,
+          "scopeDetail": "GPT-3 175B 预训练",
+          "stage": "pretrain"
+        }
+      },
+      "overrides": [],
+      "model": "deepseek-chat",
+      "promptVersion": "v3.0.0",
+      "extractedAt": 1789631195871,
+      "cached": true,
+      "paperTitleGuess": "Language Models are Few-Shot Learners",
+      "validation": [
+        {
+          "id": "vi_mu5898xw_18",
+          "scope": "method",
+          "refId": "m_p_arxiv_2005.14165",
+          "field": "dataAugmentation",
+          "code": "evidence_not_located",
+          "severity": "warn",
+          "message": "数据增强：有内容但引文未通过定位校验或未支撑该主张。",
+          "action": "该条件按「信息不足」处理，不参与一致性判断。",
+          "at": 1789631279492
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "id": "r_0_m_p_arxiv_1706.03762_m_p_arxiv_1810.04805",
+      "fromMethodId": "m_p_arxiv_1706.03762",
+      "toMethodId": "m_p_arxiv_1810.04805",
+      "type": "extends",
+      "evidenceState": "explicit",
+      "evidence": {
+        "paperId": "p_arxiv_1810.04805",
+        "quote": "Model Architecture BERT’s model architec-\n\nture is a multi-layer bidirectional Transformer en-\n\ncoder based on the original implementation de-\n\nscribed in Vaswani et al",
+        "page": 3,
+        "start": 11060,
+        "end": 11228,
+        "section": "2 Related Work",
+        "locator": "page+offset",
+        "verified": true,
+        "matchType": "strict",
+        "coverage": 1
+      },
+      "evidenceList": [
+        {
+          "paperId": "p_arxiv_1810.04805",
+          "quote": "Model Architecture BERT’s model architec-\n\nture is a multi-layer bidirectional Transformer en-\n\ncoder based on the original implementation de-\n\nscribed in Vaswani et al",
+          "page": 3,
+          "start": 11060,
+          "end": 11228,
+          "section": "2 Related Work",
+          "locator": "page+offset",
+          "verified": true,
+          "matchType": "strict",
+          "coverage": 1
+        }
+      ],
+      "rationale": "BERT 论文明确说明其模型架构是基于 Vaswani et al. 描述的原始实现的多层双向 Transformer 编码器，指名了被继承方法（Transformer / Vaswani et al.）并使用 based on 措辞，满足 explicit 标准。",
+      "aiOriginal": {
+        "type": "extends",
+        "evidenceState": "explicit",
+        "rationale": "BERT 论文明确说明其模型架构是基于 Vaswani et al. 描述的原始实现的多层双向 Transformer 编码器，指名了被继承方法（Transformer / Vaswani et al.）并使用 based on 措辞，满足 explicit 标准。",
+        "evidenceQuote": "Model Architecture BERT’s model architec- ture is a multi-layer bidirectional Transformer en- coder based on the original implementation de- scribed in Vaswani et al."
+      },
+      "stateAdjusted": [],
+      "evidenceAssessment": "引文提到了被继承方法「Transformer」；提到了关系另一端「BERT」；含继承/组合措辞「based on」，足以支撑「extends」关系。",
+      "cached": true
+    },
+    {
+      "id": "r_1_m_p_arxiv_1810.04805_m_p_arxiv_1907.11692",
+      "fromMethodId": "m_p_arxiv_1810.04805",
+      "toMethodId": "m_p_arxiv_1907.11692",
+      "type": "improves",
+      "evidenceState": "explicit",
+      "evidence": {
+        "paperId": "p_arxiv_1907.11692",
+        "quote": "When controlling for training data, our im-\n\nproved training procedure improves upon the pub-\n\nlished BERT results on both GLUE and SQuAD",
+        "page": 1,
+        "start": 2849,
+        "end": 2986,
+        "section": "1 Introduction",
+        "locator": "page+offset",
+        "verified": true,
+        "matchType": "strict",
+        "coverage": 1
+      },
+      "evidenceList": [
+        {
+          "paperId": "p_arxiv_1907.11692",
+          "quote": "When controlling for training data, our im-\n\nproved training procedure improves upon the pub-\n\nlished BERT results on both GLUE and SQuAD",
+          "page": 1,
+          "start": 2849,
+          "end": 2986,
+          "section": "1 Introduction",
+          "locator": "page+offset",
+          "verified": true,
+          "matchType": "strict",
+          "coverage": 1
+        },
+        {
+          "paperId": "p_arxiv_1907.11692",
+          "quote": "We primarily follow the original BERT",
+          "page": 2,
+          "start": 7663,
+          "end": 7700,
+          "section": "2 Background",
+          "locator": "page+offset",
+          "verified": true,
+          "matchType": "strict",
+          "coverage": 1
+        }
+      ],
+      "rationale": "RoBERTa 论文明确指名 BERT，并使用 improves upon 与 follow the original BERT 措辞，说明其在 BERT 基础上改进训练流程，满足 explicit 标准。",
+      "aiOriginal": {
+        "type": "improves",
+        "evidenceState": "explicit",
+        "rationale": "RoBERTa 论文明确指名 BERT，并使用 improves upon 与 follow the original BERT 措辞，说明其在 BERT 基础上改进训练流程，满足 explicit 标准。",
+        "evidenceQuote": "When controlling for training data, our im- proved training procedure improves upon the pub- lished BERT results on both GLUE and SQuAD."
+      },
+      "stateAdjusted": [],
+      "evidenceAssessment": "引文提到了被继承方法「BERT」；含改进措辞「improves」，足以支撑「improves」关系。",
+      "cached": true
+    },
+    {
+      "id": "r_2_m_p_arxiv_1810.04805_m_p_arxiv_1910.01108",
+      "fromMethodId": "m_p_arxiv_1810.04805",
+      "toMethodId": "m_p_arxiv_1910.01108",
+      "type": "extends",
+      "evidenceState": "explicit",
+      "evidence": {
+        "paperId": "p_arxiv_1910.01108",
+        "quote": "3 DistilBERT: a distilled version of BERT\nStudent architecture In the present work, the student - DistilBERT - has the same general architec-\n\nture as BERT",
+        "page": 2,
+        "start": 5706,
+        "end": 5861,
+        "section": "1 Introduction",
+        "locator": "page+offset",
+        "verified": true,
+        "matchType": "strict",
+        "coverage": 1
+      },
+      "evidenceList": [
+        {
+          "paperId": "p_arxiv_1910.01108",
+          "quote": "3 DistilBERT: a distilled version of BERT\nStudent architecture In the present work, the student - DistilBERT - has the same general architec-\n\nture as BERT",
+          "page": 2,
+          "start": 5706,
+          "end": 5861,
+          "section": "1 Introduction",
+          "locator": "page+offset",
+          "verified": true,
+          "matchType": "strict",
+          "coverage": 1
+        }
+      ],
+      "rationale": "DistilBERT 论文明确指名 BERT，并说明学生模型 DistilBERT 具有与 BERT 相同的总体架构，属于在 BERT 基础上的蒸馏扩展，满足 explicit 标准。",
+      "aiOriginal": {
+        "type": "extends",
+        "evidenceState": "explicit",
+        "rationale": "DistilBERT 论文明确指名 BERT，并说明学生模型 DistilBERT 具有与 BERT 相同的总体架构，属于在 BERT 基础上的蒸馏扩展，满足 explicit 标准。",
+        "evidenceQuote": "3 DistilBERT: a distilled version of BERT Student architecture In the present work, the student - DistilBERT - has the same general architec- ture as BERT."
+      },
+      "stateAdjusted": [],
+      "evidenceAssessment": "引文提到了被继承方法「BERT」；提到了关系另一端「DistilBERT」；含继承/组合措辞「distilled version of」，足以支撑「extends」关系。",
+      "cached": true
+    },
+    {
+      "id": "r_3_m_p_arxiv_1706.03762_m_p_arxiv_1910.01108",
+      "fromMethodId": "m_p_arxiv_1706.03762",
+      "toMethodId": "m_p_arxiv_1910.01108",
+      "type": "extends",
+      "evidenceState": "inferred",
+      "evidence": {
+        "paperId": "p_arxiv_1910.01108",
+        "quote": "Using a triple loss, we show that a 40% smaller Transformer (Vaswani et al. [2017]) pre-trained\n\nthrough distillation via the supervision of a bigger Transformer language model can achieve similar\n\nperformance on a variety of downstream tasks, while being 60% faster at inference time.",
+        "page": 2,
+        "start": 3206,
+        "end": 3491,
+        "section": "1 Introduction",
+        "locator": "page+offset",
+        "verified": true,
+        "matchType": "strict",
+        "coverage": 1
+      },
+      "evidenceList": [
+        {
+          "paperId": "p_arxiv_1910.01108",
+          "quote": "Using a triple loss, we show that a 40% smaller Transformer (Vaswani et al. [2017]) pre-trained\n\nthrough distillation via the supervision of a bigger Transformer language model can achieve similar\n\nperformance on a variety of downstream tasks, while being 60% faster at inference time.",
+          "page": 2,
+          "start": 3206,
+          "end": 3491,
+          "section": "1 Introduction",
+          "locator": "page+offset",
+          "verified": true,
+          "matchType": "strict",
+          "coverage": 1
+        }
+      ],
+      "rationale": "DistilBERT 论文提到其学生模型是更小的 Transformer (Vaswani et al. [2017])，教师是更大的 Transformer 语言模型，技术承接关系明确指向 Transformer 架构；但该句未直接以 based on/extends 等措辞指名继承 Transformer 方法本身，故标为 inferred。",
+      "aiOriginal": {
+        "type": "extends",
+        "evidenceState": "inferred",
+        "rationale": "DistilBERT 论文提到其学生模型是更小的 Transformer (Vaswani et al. [2017])，教师是更大的 Transformer 语言模型，技术承接关系明确指向 Transformer 架构；但该句未直接以 based on/extends 等措辞指名继承 Transformer 方法本身，故标为 inferred。",
+        "evidenceQuote": "Using a triple loss, we show that a 40% smaller Transformer (Vaswani et al. [2017]) pre-trained through distillation via the supervision of a bigger Transformer language model can achieve similar performance on a variety of downstream tasks, while being 60% faster at inference time."
+      },
+      "stateAdjusted": [],
+      "cached": true,
+      "evidenceAssessment": "引文提到了被继承方法「Transformer」；含引用标记「[2017]」，足以支撑「extends」关系。"
+    },
+    {
+      "id": "r_4_m_p_arxiv_1706.03762_m_p_arxiv_2005.14165",
+      "fromMethodId": "m_p_arxiv_1706.03762",
+      "toMethodId": "m_p_arxiv_2005.14165",
+      "type": "unclear",
+      "evidenceState": "inferred",
+      "rationale": "提供的 GPT-3 相关片段只提到 GPT-3 的评估、性能提升与参数规模，未出现 Transformer 或 Vaswani et al. 等指名继承关系的表述，无法依据现有原文判定 GPT-3 与 Transformer 的具体关系，需核查 GPT-3 论文中关于模型架构来源的原文。",
+      "aiOriginal": {
+        "type": "unclear",
+        "evidenceState": "inferred",
+        "rationale": "提供的 GPT-3 相关片段只提到 GPT-3 的评估、性能提升与参数规模，未出现 Transformer 或 Vaswani et al. 等指名继承关系的表述，无法依据现有原文判定 GPT-3 与 Transformer 的具体关系，需核查 GPT-3 论文中关于模型架构来源的原文。"
+      },
+      "stateAdjusted": [],
+      "cached": true
+    },
+    {
+      "id": "r_5_m_p_arxiv_1810.04805_m_p_arxiv_2005.14165",
+      "fromMethodId": "m_p_arxiv_1810.04805",
+      "toMethodId": "m_p_arxiv_2005.14165",
+      "type": "unclear",
+      "evidenceState": "inferred",
+      "rationale": "提供的 GPT-3 相关片段未提及 BERT，也未出现基于/改进 BERT 的措辞，无法依据现有原文判定 GPT-3 与 BERT 的关系，需核查 GPT-3 论文中是否明确说明与 BERT 的承接关系。",
+      "aiOriginal": {
+        "type": "unclear",
+        "evidenceState": "inferred",
+        "rationale": "提供的 GPT-3 相关片段未提及 BERT，也未出现基于/改进 BERT 的措辞，无法依据现有原文判定 GPT-3 与 BERT 的关系，需核查 GPT-3 论文中是否明确说明与 BERT 的承接关系。"
+      },
+      "stateAdjusted": [],
+      "cached": true
+    }
+  ],
+  "divergences": {
+    "findings": [
+      {
+        "id": "dv_0",
+        "kind": "individual_limitations",
+        "topic": "各论文作者承认的局限或未来工作方向",
+        "paperIds": [
+          "p_arxiv_1907.11692",
+          "p_arxiv_2005.14165"
+        ],
+        "sides": [
+          {
+            "paperId": "p_arxiv_1907.11692",
+            "claim": "论文承认架构改动（包括更大架构）留作未来工作，未在本文研究。",
+            "quote": "Studying architectural changes, including larger archi-\n\ntectures, is an important area for future work.",
+            "page": 4
+          },
+          {
+            "paperId": "p_arxiv_2005.14165",
+            "claim": "论文承认 GPT-3 的少样本学习在某些数据集上仍然表现不佳，并且一些数据集存在与大规模网络语料训练相关的方法学问题。",
+            "quote": "At the same\n\ntime, we also identify some datasets where GPT-3’s few-shot learning still struggles, as well as some\n\ndatasets where GPT-3 faces methodological issues related to training on large web corpora.",
+            "page": 1
+          }
+        ],
+        "claimType": "qualitative",
+        "explanation": "两篇论文各自承认的局限针对完全不同的对象：RoBERTa 的局限是关于其自身架构改动（含更大架构）未在本文研究，属于方法设计层面的未来工作；GPT-3 的局限是关于其少样本学习在部分数据集上表现不佳以及大规模网络语料训练带来的方法学问题，属于评估与数据层面的问题。二者既非同一任务、同一数据集，也非同一约束，不构成共同局限，因此分别列出。",
+        "nextAction": "若需聚合共同局限，应核查是否存在同一任务/数据集/约束下双方都承认的同类限制；当前材料不支持。",
+        "comparabilityLevel": "not_comparable",
+        "ruleNotes": [
+          "未给出共同的局限对象/任务/约束，因此按各自局限分别展示；没有共同对象时不聚合为共同局限。"
+        ],
+        "disclaimer": "这些局限针对的对象不同，分别列出仅供参考，不构成共同结论。"
+      },
+      {
+        "id": "dv_1",
+        "kind": "condition_confounded",
+        "topic": "不同论文报告的下游任务性能数值是否可直接比较",
+        "paperIds": [
+          "p_arxiv_1706.03762",
+          "p_arxiv_1810.04805",
+          "p_arxiv_1907.11692",
+          "p_arxiv_1910.01108",
+          "p_arxiv_2005.14165"
+        ],
+        "sides": [
+          {
+            "paperId": "p_arxiv_1706.03762",
+            "claim": "在 WMT 2014 EN-DE 与 EN-FR 上从头训练并报告 BLEU。"
+          },
+          {
+            "paperId": "p_arxiv_1810.04805",
+            "claim": "在 GLUE、MultiNLI、SQuAD v1.1、SQuAD v2.0、CoNLL-2003 NER 上微调并报告 GLUE score、accuracy、F1。"
+          },
+          {
+            "paperId": "p_arxiv_1907.11692",
+            "claim": "在 GLUE、SQuAD V1.1、SQuAD V2.0、RACE 上微调并报告 F1、accuracy、EM。"
+          },
+          {
+            "paperId": "p_arxiv_1910.01108",
+            "claim": "在 GLUE、IMDb、SQuAD v1.1 上微调并报告 accuracy、EM、F1、inference time、macro-score。"
+          },
+          {
+            "paperId": "p_arxiv_2005.14165",
+            "claim": "在大量数据集上以 zero-shot/one-shot/few-shot 协议（无梯度更新或微调）评估并报告 accuracy、F1、BLEU。"
+          }
+        ],
+        "claimType": "numeric",
+        "commonScope": "在自然语言理解/推理类下游任务上报告的性能数值（BLEU/accuracy/F1/EM 等）",
+        "conditionDifferences": [
+          {
+            "dimension": "datasets",
+            "label": "数据集",
+            "detail": "Transformer 使用 WMT 2014 EN-DE/EN-FR；BERT 使用 GLUE、MultiNLI、SQuAD v1.1/v2.0、CoNLL-2003 NER；RoBERTa 使用 GLUE、SQuAD V1.1/V2.0、RACE；DistilBERT 使用 GLUE、IMDb、SQuAD v1.1；GPT-3 使用数十个数据集（含 SQuADv2、RACE、LAMBADA 等）。各论文任务与数据集几乎不重叠。"
+          },
+          {
+            "dimension": "metrics",
+            "label": "评价指标",
+            "detail": "Transformer 报告 BLEU；BERT 报告 GLUE score、accuracy、F1；RoBERTa 报告 F1、accuracy、EM；DistilBERT 报告 accuracy、EM、F1、inference time、macro-score；GPT-3 报告 accuracy、F1、BLEU。指标集合不一致。"
+          },
+          {
+            "dimension": "experimentalSettings",
+            "label": "实验设置",
+            "detail": "Transformer 为机器翻译从头训练；BERT/RoBERTa/DistilBERT 为预训练后微调；GPT-3 为无梯度更新的 zero/one/few-shot 前向评估。训练与评估范式不同。"
+          },
+          {
+            "dimension": "pretrainingCorpus",
+            "label": "预训练语料",
+            "detail": "BERT 使用 BooksCorpus + English Wikipedia；RoBERTa 使用 BookCorpus + Wikipedia + CC-NEWS + OPENWEBTEXT + STORIES（超 160GB）；DistilBERT 使用 English Wikipedia and Toronto Book；GPT-3 使用过滤去重后的 Common Crawl 及高质量参考语料。语料规模与来源差异巨大。"
+          },
+          {
+            "dimension": "pretrainedModel",
+            "label": "预训练模型",
+            "detail": "BERT 为 BERTBASE/BERTLARGE；RoBERTa 为 RoBERTaBASE/RoBERTaLARGE；DistilBERT 从 BERT-base 每隔一层初始化；GPT-3 为 175B 参数模型（并训练 125M–175B 多种规模）。模型规模与初始化方式不同。"
+          }
+        ],
+        "explanation": "系统给出的可比性判定为「当前不能直接比较」，且各论文在数据集、指标、实验设置、预训练语料与模型规模上均存在差异。因此这些数值结果之间不存在可直接比较的共同对象，任何数值高低都无法排除条件差异的影响，也不能归因于方法本身。此处仅作为条件混杂记录，不构成结论分歧。",
+        "nextAction": "若要做数值比较，需先统一任务与数据集版本/划分、评价指标与评估协议（微调 vs 少样本），并控制预训练语料与模型规模。",
+        "comparabilityLevel": "not_comparable",
+        "disclaimer": "条件不一致时无法排除条件差异的影响，也不能把结果差异归因于方法本身；要判断方法优劣需要先对齐实验条件。"
+      }
+    ],
+    "checkedPairs": [
+      {
+        "pair": "Attention Is All You Need ↔ BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
+        "result": "可比性=当前不能直接比较；条件差异：数据集、评价指标、实验设置"
+      },
+      {
+        "pair": "Attention Is All You Need ↔ RoBERTa: A Robustly Optimized BERT Pretraining Approach",
+        "result": "可比性=当前不能直接比较；条件差异：数据集、评价指标、实验设置"
+      },
+      {
+        "pair": "Attention Is All You Need ↔ DistilBERT, a distilled version of BERT: smaller, faster, cheaper and lighter",
+        "result": "可比性=当前不能直接比较；条件差异：数据集、评价指标、实验设置"
+      },
+      {
+        "pair": "Attention Is All You Need ↔ Language Models are Few-Shot Learners",
+        "result": "可比性=当前不能直接比较；条件差异：数据集、评价指标、实验设置"
+      },
+      {
+        "pair": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding ↔ RoBERTa: A Robustly Optimized BERT Pretraining Approach",
+        "result": "可比性=当前不能直接比较；条件差异：数据集、评价指标、预训练语料、预训练模型"
+      },
+      {
+        "pair": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding ↔ DistilBERT, a distilled version of BERT: smaller, faster, cheaper and lighter",
+        "result": "可比性=当前不能直接比较；条件差异：数据集、评价指标、预训练语料、预训练模型、实验设置"
+      },
+      {
+        "pair": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding ↔ Language Models are Few-Shot Learners",
+        "result": "可比性=当前不能直接比较；条件差异：数据集、评价指标、预训练语料、预训练模型、实验设置"
+      },
+      {
+        "pair": "RoBERTa: A Robustly Optimized BERT Pretraining Approach ↔ DistilBERT, a distilled version of BERT: smaller, faster, cheaper and lighter",
+        "result": "可比性=当前不能直接比较；条件差异：数据集、数据划分、评价指标、预训练语料、预训练模型、实验设置"
+      },
+      {
+        "pair": "RoBERTa: A Robustly Optimized BERT Pretraining Approach ↔ Language Models are Few-Shot Learners",
+        "result": "可比性=当前不能直接比较；条件差异：数据集、评价指标、预训练语料、预训练模型、实验设置"
+      },
+      {
+        "pair": "DistilBERT, a distilled version of BERT: smaller, faster, cheaper and lighter ↔ Language Models are Few-Shot Learners",
+        "result": "可比性=当前不能直接比较；条件差异：数据集、评价指标、预训练语料、预训练模型、实验设置"
+      }
+    ],
+    "derivedFrom": {
+      "rulesVersion": "r3.0.0",
+      "paperSignature": "p_arxiv_1706.03762,p_arxiv_1810.04805,p_arxiv_1907.11692,p_arxiv_1910.01108,p_arxiv_2005.14165"
+    },
+    "model": "deepseek-chat",
+    "promptVersion": "v3.0.0",
+    "cached": true,
+    "stale": true,
+    "generatedAt": 1789631208078,
+    "staleReasons": [
+      "本文件的分歧种类与可比性已由程序按规则 r3.0.0 重算（规则重算，未重新调用模型）"
+    ]
+  },
+  "decisionSample": {
+    "profile": {
+      "background": "计算机相关专业，上过机器学习课，能读懂 Transformer 基本结构",
+      "interest": "想了解预训练语言模型的训练与评测思路，偏向可复现的小模型方向",
+      "time": "两周，每天约 2 小时",
+      "compute": "只有一台笔记本，无 GPU 集群",
+      "goal": "选一个能上手复现的小方向做课程项目"
+    },
+    "candidates": [
+      {
+        "methodId": "m_p_arxiv_1810.04805",
+        "paperId": "p_arxiv_1810.04805",
+        "fit": "conditional",
+        "targetStage": "finetune",
+        "reasons": [
+          {
+            "text": "BERT 论文明确给出微调阶段的算力条目：单块 Cloud TPU 最多 1 小时，或 GPU 几小时，这是与用户「用现有权重做微调」目标同阶段的算力证据，门槛远低于预训练。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "condition",
+              "key": "computeResources",
+              "paperId": "p_arxiv_1810.04805",
+              "methodId": "m_p_arxiv_1810.04805"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_1810.04805",
+              "quote": "All of the results in the pa-\n\nper can be replicated in at most 1 hour on a sin-\n\ngle Cloud TPU, or a few hours on a GPU, starting\n\nfrom the exact same pre-trained model",
+              "page": 5,
+              "start": 20121,
+              "end": 20290,
+              "section": "model pre-training. For the pre-training corpus we",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "loose",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false,
+            "bindingIssue": "模型标注的类型（field）与实际位置（condition）不一致，已按实际位置规范化",
+            "stage": "finetune"
+          },
+          {
+            "text": "BERT 的做法是预训练后只需增加一个输出层即可在下游任务上端到端微调，方法链条清晰，适合作为理解「预训练+微调」范式的入门对象。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "coreIdea",
+              "paperId": "p_arxiv_1810.04805",
+              "methodId": "m_p_arxiv_1810.04805"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_1810.04805",
+              "quote": "BERT is designed to pre-\n\ntrain deep bidirectional representations from\n\nunlabeled text by jointly conditioning on both\n\nleft and right context in all layers",
+              "page": 1,
+              "start": 459,
+              "end": 616,
+              "section": "Abstract",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "loose",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false
+          },
+          {
+            "text": "论文报告的下游评测覆盖 GLUE、MultiNLI、SQuAD v1.1/v2.0、CoNLL-2003 NER，指标为 GLUE score、accuracy、F1，用户可据此选择评测任务来组织课程项目。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "datasets",
+              "paperId": "p_arxiv_1810.04805",
+              "methodId": "m_p_arxiv_1810.04805"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_1810.04805",
+              "quote": "It obtains new state-of-the-art re-\n\nsults on eleven natural language processing\n\ntasks, including pushing the GLUE score to\n\n80.5% (7.7% point absolute improvement),\n\nMultiNLI accuracy to 86.7% (4.6% absolute\n\nimprovement), SQuAD v1.1 question answer-\n\ning Test F1 to 93.2 (1.5 point absolute im-\n\nprovement) and SQuAD v2.0 Test F1 to 83.1\n\n(5.1 point absolute improvement",
+              "page": 1,
+              "start": 954,
+              "end": 1327,
+              "section": "Abstract",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "loose",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false,
+            "bindingIssue": "「datasets」在字段与条件中同时存在，已按模型声明的类型绑定到字段条目"
+          },
+          {
+            "text": "用户只有一台无 GPU 集群的笔记本，材料未给出微调所需的显存占用、并行策略与可缩放实现证据，因此「在用户笔记本上实际跑通微调」的可行性未验证。",
+            "basis": "gap",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "computeResources"
+            },
+            "evidenceLocated": false
+          }
+        ],
+        "applicability": "微调所有下游任务结果",
+        "missing": [
+          "论文未报告微调所需显存与并行策略，无法确认在无 GPU 集群的笔记本上可运行",
+          "论文未报告微调所用预训练权重规模与具体硬件型号，无法判断与用户设备的匹配度"
+        ],
+        "computeReported": true,
+        "computeStage": "finetune",
+        "computeScope": "微调所有下游任务结果",
+        "resourceFeasibility": "below_paper_scale",
+        "feasibilityNote": "论文报告的该阶段规模高于用户可及资源；缺少显存、并行策略与可缩放实现证据，不能用更长的可用时间反推「能够复现」。",
+        "goalMatch": {
+          "level": "recommended",
+          "reasons": [
+            "BERT 论文明确给出微调阶段的算力条目：单块 Cloud TPU 最多 1 小时，或 GPU 几小时，这是与用户「用现有权重做微调」目标同阶段的算力证据，门槛远低于预训练。",
+            "BERT 的做法是预训练后只需增加一个输出层即可在下游任务上端到端微调，方法链条清晰，适合作为理解「预训练+微调」范式的入门对象。",
+            "论文报告的下游评测覆盖 GLUE、MultiNLI、SQuAD v1.1/v2.0、CoNLL-2003 NER，指标为 GLUE score、accuracy、F1，用户可据此选择评测任务来组织课程项目。"
+          ]
+        },
+        "execution": [
+          {
+            "stage": "reading",
+            "status": "evidence_supported",
+            "note": "阅读与理解方法只依赖论文文本，不受算力条件限制；本页字段与引文都可回溯到原文。"
+          },
+          {
+            "stage": "inference",
+            "status": "insufficient_evidence",
+            "note": "论文原文声明权重/代码可获取（见下方引文，p.2），因此拿到现有权重这条路径**有原文依据**；但论文没有报告推理阶段的算力与资源需求，**能不能在你的设备上跑通仍未验证**（可获取 ≠ 可运行）。",
+            "page": 2,
+            "evidence": {
+              "paperId": "p_arxiv_1810.04805",
+              "quote": "The code and pre-trained mod-\n\nels are available at https://github",
+              "page": 2,
+              "start": 5300,
+              "end": 5366,
+              "section": "1 Introduction",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "loose",
+              "coverage": 1
+            }
+          },
+          {
+            "stage": "finetune",
+            "status": "known_gap",
+            "note": "论文报告的微调阶段算力高于用户可及资源（单块 Cloud TPU 最多 1 小时，或 GPU 几小时（微调））。",
+            "page": 5
+          },
+          {
+            "stage": "pretrain",
+            "status": "insufficient_evidence",
+            "note": "论文没有报告预训练阶段的算力与训练时长，无法判断该阶段是否可执行。"
+          }
+        ],
+        "fitAdjusted": "模型判定为条件匹配，程序按资源可行性证据修正为有条件可用：论文报告的该阶段规模高于用户可及资源（不能用更长的可用时间反推可复现）"
+      },
+      {
+        "methodId": "m_p_arxiv_1910.01108",
+        "paperId": "p_arxiv_1910.01108",
+        "fit": "conditional",
+        "targetStage": "distill",
+        "reasons": [
+          {
+            "text": "DistilBERT 的核心思路是在预训练阶段用知识蒸馏让学生模型模仿 BERT，并采用语言建模损失、蒸馏损失与余弦距离损失的三重损失，方向与用户「可复现的小模型」兴趣一致。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "coreIdea",
+              "paperId": "p_arxiv_1910.01108",
+              "methodId": "m_p_arxiv_1910.01108"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_1910.01108",
+              "quote": "Using a triple loss, we show that a 40% smaller Transformer (Vaswani et al. [2017]) pre-trained\n\nthrough distillation via the supervision of a bigger Transformer language model can achieve similar\n\nperformance on a variety of downstream tasks, while being 60% faster at inference time.",
+              "page": 2,
+              "start": 3206,
+              "end": 3491,
+              "section": "1 Introduction",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false
+          },
+          {
+            "text": "论文报告的蒸馏算力为 8 张 16GB V100 约 90 小时，属于预训练阶段成本，用户无 GPU 集群，无法据此认为可自行完成蒸馏训练。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "condition",
+              "key": "computeResources",
+              "paperId": "p_arxiv_1910.01108",
+              "methodId": "m_p_arxiv_1910.01108"
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": false,
+            "evidenceMissing": true,
+            "bindingIssue": "模型标注的类型（field）与实际位置（condition）不一致，已按实际位置规范化；引用的算力证据阶段与用户目标阶段不一致",
+            "stage": "pretrain"
+          },
+          {
+            "text": "论文在 GLUE、IMDb、SQuAD v1.1 上微调 DistilBERT，并报告 accuracy、EM、F1、inference time、macro-score，用户若只做下游微调与评测，可参考这些数据集与指标。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "datasets",
+              "paperId": "p_arxiv_1910.01108",
+              "methodId": "m_p_arxiv_1910.01108"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_1910.01108",
+              "quote": "We assess the language understanding and generalization ca-\n\npabilities of DistilBERT on the General Language Understanding Evaluation (GLUE) benchmark\n\n[Wang et al., 2018], a collection of 9 datasets for evaluating natural language understanding systems.",
+              "page": 3,
+              "start": 8871,
+              "end": 9126,
+              "section": "4 Experiments",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false,
+            "bindingIssue": "「datasets」在字段与条件中同时存在，已按模型声明的类型绑定到字段条目"
+          },
+          {
+            "text": "材料未给出蒸馏后模型在笔记本上的推理或微调可行性证据，也未给出显存与并行策略，因此「用蒸馏产物做小模型实验」的可行性未验证。",
+            "basis": "gap",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "computeResources"
+            },
+            "evidenceLocated": false
+          }
+        ],
+        "applicability": "DistilBERT 预训练",
+        "missing": [
+          "论文未报告蒸馏所需显存与并行策略，无法确认在无 GPU 集群的笔记本上可运行",
+          "论文未报告蒸馏产物在用户设备上的推理/微调可行性"
+        ],
+        "computeReported": true,
+        "computeStage": "pretrain",
+        "computeScope": "DistilBERT 预训练",
+        "resourceFeasibility": "no_matching_stage_evidence",
+        "feasibilityNote": "论文没有报告与用户目标阶段一致的算力，无法据此判断可运行性。",
+        "goalMatch": {
+          "level": "recommended",
+          "reasons": [
+            "DistilBERT 的核心思路是在预训练阶段用知识蒸馏让学生模型模仿 BERT，并采用语言建模损失、蒸馏损失与余弦距离损失的三重损失，方向与用户「可复现的小模型」兴趣一致。",
+            "论文报告的蒸馏算力为 8 张 16GB V100 约 90 小时，属于预训练阶段成本，用户无 GPU 集群，无法据此认为可自行完成蒸馏训练。",
+            "论文在 GLUE、IMDb、SQuAD v1.1 上微调 DistilBERT，并报告 accuracy、EM、F1、inference time、macro-score，用户若只做下游微调与评测，可参考这些数据集与指标。"
+          ]
+        },
+        "execution": [
+          {
+            "stage": "reading",
+            "status": "evidence_supported",
+            "note": "阅读与理解方法只依赖论文文本，不受算力条件限制；本页字段与引文都可回溯到原文。"
+          },
+          {
+            "stage": "inference",
+            "status": "insufficient_evidence",
+            "note": "论文原文声明权重/代码可获取（见下方引文，p.2），因此拿到现有权重这条路径**有原文依据**；但论文没有报告推理阶段的算力与资源需求，**能不能在你的设备上跑通仍未验证**（可获取 ≠ 可运行）。",
+            "page": 2,
+            "evidence": {
+              "paperId": "p_arxiv_1910.01108",
+              "quote": "We have made the trained weights available along with the training code in the Transformers\n2\nlibrary from HuggingFace [Wolf et al.",
+              "page": 2,
+              "start": 3608,
+              "end": 3739,
+              "section": "1 Introduction",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            }
+          },
+          {
+            "stage": "finetune",
+            "status": "insufficient_evidence",
+            "note": "论文没有报告微调阶段的算力；不能用预训练成本代替微调成本来判断。"
+          },
+          {
+            "stage": "pretrain",
+            "status": "insufficient_evidence",
+            "note": "论文报告了预训练阶段算力，但缺少可用于对照的规模信息（8 16GB V100 GPUs for approximately 90 hours）。",
+            "page": 3
+          }
+        ]
+      },
+      {
+        "methodId": "m_p_arxiv_1907.11692",
+        "paperId": "p_arxiv_1907.11692",
+        "fit": "conditional",
+        "targetStage": "pretrain",
+        "reasons": [
+          {
+            "text": "RoBERTa 系统研究预训练中的关键设计选择（动态掩码、是否使用 NSP、输入格式、批大小、数据规模与训练步数），适合用户了解「预训练语言模型的训练思路」。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "coreIdea",
+              "paperId": "p_arxiv_1907.11692",
+              "methodId": "m_p_arxiv_1907.11692"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_1907.11692",
+              "quote": "This section explores and quantifies which choices\n\nare important for successfully pretraining BERT\n\nmodels. We keep the model architecture fixed.",
+              "page": 4,
+              "start": 13709,
+              "end": 13855,
+              "section": "results depend on a several task-specific modifica-",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false
+          },
+          {
+            "text": "论文报告的预训练算力为 DGX-1 每台 8×32GB V100、以及 1024 块 V100 约一天，属于预训练阶段成本，用户无 GPU 集群，无法据此认为可自行复现预训练。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "condition",
+              "key": "computeResources",
+              "paperId": "p_arxiv_1907.11692",
+              "methodId": "m_p_arxiv_1907.11692"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_1907.11692",
+              "quote": "We train with mixed precision floating point\n\narithmetic on DGX-1 machines, each with 8 ×\n32GB Nvidia V100 GPUs interconnected by In-\n\nfiniband (Micikevicius et al., 2018).",
+              "page": 3,
+              "start": 8566,
+              "end": 8738,
+              "section": "2 Background",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false,
+            "bindingIssue": "模型标注的类型（field）与实际位置（condition）不一致，已按实际位置规范化",
+            "stage": "pretrain"
+          },
+          {
+            "text": "论文承认架构改动（包括更大架构）留作未来工作，未在本文研究，说明其结论边界限于 BERT 架构不变前提下的预训练设计选择。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "limitations",
+              "paperId": "p_arxiv_1907.11692",
+              "methodId": "m_p_arxiv_1907.11692"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_1907.11692",
+              "quote": "Studying architectural changes, including larger archi-\n\ntectures, is an important area for future work.",
+              "page": 4,
+              "start": 14730,
+              "end": 14834,
+              "section": "results depend on a several task-specific modifica-",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false
+          },
+          {
+            "text": "论文的微调流程遵循原 BERT 论文，并在 SQuAD V1.1/V2.0、RACE 上报告 F1、accuracy、EM，用户若只做微调与评测可参考这些数据集与指标，但材料未给出微调阶段算力。",
+            "basis": "gap",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "computeResources"
+            },
+            "evidenceLocated": false
+          }
+        ],
+        "applicability": "RoBERTa 预训练（DGX-1 配置）；另见「We pretrain our model using 1024 V100 GPUs for approximately one day.」对应 RoBERTa 在 BOOKCORPUS+WIKIPEDIA 上 100K 步预训练。",
+        "missing": [
+          "论文未报告微调阶段算力，无法判断微调可行性",
+          "论文未报告预训练所需显存与并行策略细节，无法确认在无 GPU 集群的笔记本上可运行"
+        ],
+        "computeReported": true,
+        "computeStage": "pretrain",
+        "computeScope": "RoBERTa 预训练（DGX-1 配置）；另见「We pretrain our model using 1024 V100 GPUs for approximately one day.」对应 RoBERTa 在 BOOKCORPUS+WIKIPEDIA 上 100K 步预训练。",
+        "resourceFeasibility": "below_paper_scale",
+        "feasibilityNote": "论文报告的该阶段规模高于用户可及资源；缺少显存、并行策略与可缩放实现证据，不能用更长的可用时间反推「能够复现」。",
+        "goalMatch": {
+          "level": "recommended",
+          "reasons": [
+            "RoBERTa 系统研究预训练中的关键设计选择（动态掩码、是否使用 NSP、输入格式、批大小、数据规模与训练步数），适合用户了解「预训练语言模型的训练思路」。",
+            "论文报告的预训练算力为 DGX-1 每台 8×32GB V100、以及 1024 块 V100 约一天，属于预训练阶段成本，用户无 GPU 集群，无法据此认为可自行复现预训练。",
+            "论文承认架构改动（包括更大架构）留作未来工作，未在本文研究，说明其结论边界限于 BERT 架构不变前提下的预训练设计选择。"
+          ]
+        },
+        "execution": [
+          {
+            "stage": "reading",
+            "status": "evidence_supported",
+            "note": "阅读与理解方法只依赖论文文本，不受算力条件限制；本页字段与引文都可回溯到原文。"
+          },
+          {
+            "stage": "inference",
+            "status": "insufficient_evidence",
+            "note": "论文原文声明权重/代码可获取（见下方引文，p.1），因此拿到现有权重这条路径**有原文依据**；但论文没有报告推理阶段的算力与资源需求，**能不能在你的设备上跑通仍未验证**（可获取 ≠ 可运行）。",
+            "page": 1,
+            "evidence": {
+              "paperId": "p_arxiv_1907.11692",
+              "quote": "1\nOur models and code are available at:\nhttps://github.",
+              "page": 1,
+              "start": 1946,
+              "end": 2001,
+              "section": "1 Introduction",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            }
+          },
+          {
+            "stage": "finetune",
+            "status": "insufficient_evidence",
+            "note": "论文没有报告微调阶段的算力；不能用预训练成本代替微调成本来判断。"
+          },
+          {
+            "stage": "pretrain",
+            "status": "known_gap",
+            "note": "论文报告的预训练规模为 预训练：DGX-1 机器，每台 8×32GB Nvidia V100 GPU，通过 Infiniband 互联，混合精度、预训练：1024 块 V100 GPU，约一天（RoBERTa 在 BOOKCORPUS+WIKIPEDIA 上预训练 100K 步），高于用户可及资源；缺少可缩放实现证据，不能用更长的可用时间反推可以复现。",
+            "page": 3
+          }
+        ]
+      },
+      {
+        "methodId": "m_p_arxiv_1706.03762",
+        "paperId": "p_arxiv_1706.03762",
+        "fit": "conditional",
+        "targetStage": "from_scratch",
+        "reasons": [
+          {
+            "text": "Transformer 的核心思路是编码器-解码器各由 N=6 个相同层堆叠，每层含多头自注意力与逐位置前馈子层，配合残差连接与层归一化，并用位置编码注入顺序信息，是理解后续预训练模型结构的基础。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "coreIdea",
+              "paperId": "p_arxiv_1706.03762",
+              "methodId": "m_p_arxiv_1706.03762"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_1706.03762",
+              "quote": "The Transformer follows this overall architecture using stacked self-attention and point-wise, fully\n\nconnected layers for both the encoder and decoder, shown in the left and right halves of Figure 1,\n\nrespectively.",
+              "page": 3,
+              "start": 7261,
+              "end": 7476,
+              "section": "3 Model Architecture",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false
+          },
+          {
+            "text": "论文报告的从头训练算力为 8 张 P100 GPU 训练 3.5 天（Transformer big，WMT 2014 English-to-German），属于从头训练阶段成本，用户无 GPU 集群，无法据此认为可自行复现。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "condition",
+              "key": "computeResources",
+              "paperId": "p_arxiv_1706.03762",
+              "methodId": "m_p_arxiv_1706.03762"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_1706.03762",
+              "quote": "Training took 3.5 days on 8 P100 GPUs.",
+              "page": 8,
+              "start": 23312,
+              "end": 23350,
+              "section": "6 Results",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false,
+            "bindingIssue": "模型标注的类型（field）与实际位置（condition）不一致，已按实际位置规范化",
+            "stage": "from_scratch"
+          },
+          {
+            "text": "论文在 WMT 2014 EN-DE 与 EN-FR 上以 BLEU 评估，用户若做机器翻译方向的课程项目可参考该数据集与指标。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "datasets",
+              "paperId": "p_arxiv_1706.03762",
+              "methodId": "m_p_arxiv_1706.03762"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_1706.03762",
+              "quote": "On the WMT 2014 English-to-German translation task, the big transformer model (Transformer (big)\n\nin Table 2) outperforms the best previously reported models (including ensembles) by more than 2.0\nBLEU, establishing a new state-of-the-art BLEU score of 28.4.",
+              "page": 8,
+              "start": 22979,
+              "end": 23237,
+              "section": "6 Results",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false,
+            "bindingIssue": "「datasets」在字段与条件中同时存在，已按模型声明的类型绑定到字段条目"
+          },
+          {
+            "text": "材料未给出小规模 Transformer 在笔记本上的可运行性证据，也未给出显存与并行策略，因此「在用户设备上从头训练」的可行性未验证。",
+            "basis": "gap",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "computeResources"
+            },
+            "evidenceLocated": false
+          }
+        ],
+        "applicability": "Transformer (big) 模型在 WMT 2014 English-to-German 翻译任务上的训练",
+        "missing": [
+          "论文未报告小规模配置下的算力与显存需求，无法确认在无 GPU 集群的笔记本上可运行",
+          "论文未报告训练配置细节（如并行策略）以支持缩放"
+        ],
+        "computeReported": true,
+        "computeStage": "from_scratch",
+        "computeScope": "Transformer (big) 模型在 WMT 2014 English-to-German 翻译任务上的训练",
+        "resourceFeasibility": "below_paper_scale",
+        "feasibilityNote": "论文报告的该阶段规模高于用户可及资源；缺少显存、并行策略与可缩放实现证据，不能用更长的可用时间反推「能够复现」。",
+        "goalMatch": {
+          "level": "recommended",
+          "reasons": [
+            "Transformer 的核心思路是编码器-解码器各由 N=6 个相同层堆叠，每层含多头自注意力与逐位置前馈子层，配合残差连接与层归一化，并用位置编码注入顺序信息，是理解后续预训练模型结构的基础。",
+            "论文报告的从头训练算力为 8 张 P100 GPU 训练 3.5 天（Transformer big，WMT 2014 English-to-German），属于从头训练阶段成本，用户无 GPU 集群，无法据此认为可自行复现。",
+            "论文在 WMT 2014 EN-DE 与 EN-FR 上以 BLEU 评估，用户若做机器翻译方向的课程项目可参考该数据集与指标。"
+          ]
+        },
+        "execution": [
+          {
+            "stage": "reading",
+            "status": "evidence_supported",
+            "note": "阅读与理解方法只依赖论文文本，不受算力条件限制；本页字段与引文都可回溯到原文。"
+          },
+          {
+            "stage": "inference",
+            "status": "insufficient_evidence",
+            "note": "论文原文声明权重/代码可获取（见下方引文，p.10），因此拿到现有权重这条路径**有原文依据**；但论文没有报告推理阶段的算力与资源需求，**能不能在你的设备上跑通仍未验证**（可获取 ≠ 可运行）。",
+            "page": 10,
+            "evidence": {
+              "paperId": "p_arxiv_1706.03762",
+              "quote": "The code we used to train and evaluate our models is available at https://github.",
+              "page": 10,
+              "start": 30316,
+              "end": 30397,
+              "section": "model outperforms even all previously reported ensembles.",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            }
+          },
+          {
+            "stage": "finetune",
+            "status": "insufficient_evidence",
+            "note": "论文没有报告微调阶段的算力；不能用预训练成本代替微调成本来判断。"
+          },
+          {
+            "stage": "pretrain",
+            "status": "insufficient_evidence",
+            "note": "论文报告的是「从头训练」阶段算力（8 x P100 GPU，训练 3.5 天（Transformer big，WMT 2014 English-to-German）），未报告语言模型预训练阶段的算力。",
+            "page": 8
+          }
+        ]
+      },
+      {
+        "methodId": "m_p_arxiv_2005.14165",
+        "paperId": "p_arxiv_2005.14165",
+        "fit": "unknown",
+        "targetStage": "pretrain",
+        "reasons": [
+          {
+            "text": "GPT-3 的核心思路是训练 1750 亿参数自回归语言模型，评估时不进行梯度更新或微调，仅通过上下文条件完成零样本、单样本、少样本任务，属于大规模预训练范式。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "coreIdea",
+              "paperId": "p_arxiv_2005.14165",
+              "methodId": "m_p_arxiv_2005.14165"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_2005.14165",
+              "quote": "For all tasks, GPT-3 is applied without any gradient updates or fine-tuning,\n\nwith tasks and few-shot demonstrations specified purely via text interaction with the model.",
+              "page": 1,
+              "start": 1419,
+              "end": 1589,
+              "section": "Abstract",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false
+          },
+          {
+            "text": "论文报告的预训练算力为 3.64E+03 PF-days、训练 3000 亿 token，属于预训练阶段成本，用户无 GPU 集群，无法据此认为可自行复现。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "condition",
+              "key": "computeResources",
+              "paperId": "p_arxiv_2005.14165",
+              "methodId": "m_p_arxiv_2005.14165"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_2005.14165",
+              "quote": "GPT-3 175B 3.64E+03 3.14E+23 174,600 300 6 3 2 1.0",
+              "page": 46,
+              "start": 161442,
+              "end": 161492,
+              "section": "Model",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false,
+            "bindingIssue": "模型标注的类型（field）与实际位置（condition）不一致，已按实际位置规范化",
+            "stage": "pretrain"
+          },
+          {
+            "text": "论文承认 GPT-3 的少样本学习在某些数据集上仍然表现不佳，并且一些数据集存在与大规模网络语料训练相关的方法学问题，说明其结论有适用边界。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "limitations",
+              "paperId": "p_arxiv_2005.14165",
+              "methodId": "m_p_arxiv_2005.14165"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_2005.14165",
+              "quote": "At the same\n\ntime, we also identify some datasets where GPT-3’s few-shot learning still struggles, as well as some\n\ndatasets where GPT-3 faces methodological issues related to training on large web corpora.",
+              "page": 1,
+              "start": 1886,
+              "end": 2092,
+              "section": "Abstract",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false
+          },
+          {
+            "text": "材料未给出 GPT-3 在用户设备上的推理可行性证据（模型规模、显存、部署方式均缺失），因此无法判断用户能否上手。",
+            "basis": "gap",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "computeResources"
+            },
+            "evidenceLocated": false
+          }
+        ],
+        "applicability": "GPT-3 175B 预训练",
+        "missing": [
+          "论文未报告推理阶段所需显存与部署配置，无法确认在无 GPU 集群的笔记本上可运行",
+          "论文未报告可缩放的小规模实现"
+        ],
+        "computeReported": true,
+        "computeStage": "pretrain",
+        "computeScope": "GPT-3 175B 预训练",
+        "resourceFeasibility": "paper_count_unknown",
+        "feasibilityNote": "论文只给出硬件类型与时长，没有可比的规模数字，无法判断用户资源是否满足。",
+        "goalMatch": {
+          "level": "worth_investigating",
+          "reasons": [
+            "GPT-3 的核心思路是训练 1750 亿参数自回归语言模型，评估时不进行梯度更新或微调，仅通过上下文条件完成零样本、单样本、少样本任务，属于大规模预训练范式。",
+            "论文报告的预训练算力为 3.64E+03 PF-days、训练 3000 亿 token，属于预训练阶段成本，用户无 GPU 集群，无法据此认为可自行复现。",
+            "论文承认 GPT-3 的少样本学习在某些数据集上仍然表现不佳，并且一些数据集存在与大规模网络语料训练相关的方法学问题，说明其结论有适用边界。"
+          ]
+        },
+        "execution": [
+          {
+            "stage": "reading",
+            "status": "evidence_supported",
+            "note": "阅读与理解方法只依赖论文文本，不受算力条件限制；本页字段与引文都可回溯到原文。"
+          },
+          {
+            "stage": "inference",
+            "status": "unverified",
+            "note": "全文未检索到「权重/检查点已发布」的表述，也没有报告推理阶段算力，因此该阶段无法判断。"
+          },
+          {
+            "stage": "finetune",
+            "status": "insufficient_evidence",
+            "note": "论文没有报告微调阶段的算力；不能用预训练成本代替微调成本来判断。"
+          },
+          {
+            "stage": "pretrain",
+            "status": "insufficient_evidence",
+            "note": "论文报告了预训练阶段算力，但缺少可用于对照的规模信息（GPT-3 175B：3.64E+03 PF-days（3.14E+23 flops），训练 3000 亿 token）。",
+            "page": 46
+          }
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "paperId": "p_arxiv_1706.03762",
+        "order": 1,
+        "focus": "重点看编码器-解码器堆叠结构、多头自注意力与位置编码，建立对 Transformer 结构的直观理解。",
+        "reason": "用户已能读懂 Transformer 基本结构，先读这篇可把后续 BERT/RoBERTa 的结构前提补齐。",
+        "basis": "paper"
+      },
+      {
+        "paperId": "p_arxiv_1810.04805",
+        "order": 2,
+        "focus": "重点看 MLM 与下一句预测两个预训练任务，以及「加一个输出层即可微调」的流程与下游评测数据集。",
+        "reason": "这是与用户「预训练+微调」目标最直接对应、且材料中唯一给出微调阶段算力条目的论文。",
+        "basis": "paper"
+      },
+      {
+        "paperId": "p_arxiv_1910.01108",
+        "order": 3,
+        "focus": "重点看知识蒸馏的三重损失设计与从教师模型隔层初始化的做法，理解小模型如何从大模型获得能力。",
+        "reason": "用户偏向可复现的小模型方向，蒸馏是材料中与「小模型」最相关的训练思路。",
+        "basis": "paper"
+      },
+      {
+        "paperId": "p_arxiv_1907.11692",
+        "order": 4,
+        "focus": "重点看预训练设计选择（动态掩码、NSP、批大小、数据规模、训练步数）如何影响下游性能。",
+        "reason": "在理解 BERT 与蒸馏之后，再看预训练设计选择的系统研究，能帮助理解训练与评测思路。",
+        "basis": "paper"
+      },
+      {
+        "paperId": "p_arxiv_2005.14165",
+        "order": 5,
+        "focus": "重点看零样本/单样本/少样本的评估协议与「不做梯度更新」的设定，了解大规模预训练模型的评测思路。",
+        "reason": "作为评测思路的对照阅读，但材料未给出推理可行性证据，不建议作为上手复现对象。",
+        "basis": "gap",
+        "gap": "缺少 GPT-3 推理阶段的显存、部署配置与可缩放实现证据，无法判断用户设备能否运行。"
+      }
+    ],
+    "questions": [],
+    "conditionSensitivity": "若用户获得带 GPU 的机器或云端额度，conditional 的预训练/蒸馏类方法可能转为更可行；若时间缩短或只能纯 CPU，则更应集中在 BERT 微调与评测流程上。",
+    "model": "deepseek-chat",
+    "cached": true,
+    "generatedAt": 1789718259190
+  },
+  "demoProfile": {
+    "background": "计算机相关专业，上过机器学习课，能读懂 Transformer 基本结构",
+    "interest": "想了解预训练语言模型的训练与评测思路，偏向可复现的小模型方向",
+    "time": "两周，每天约 2 小时",
+    "compute": "只有一台笔记本，无 GPU 集群",
+    "goal": "选一个能上手复现的小方向做课程项目"
+  },
+  "verification": {
+    "fieldsWithValue": 35,
+    "fieldsEvidenceVerified": 32,
+    "fieldsEvidenceFailed": 0,
+    "fieldsNoEvidence": 3,
+    "fieldsMissing": 0,
+    "totalFields": 35
+  },
+  "revalidatedOnly": true,
+  "revalidationNote": "本文件的「判定类结论」（字段校验问题、条件范围与状态、关系可信度三档、分歧种类与可比性、已检查论文对）已由程序按规则 r3.0.0 在模型输出上重算；模型给出的字段值、引文、理由文字来自提示词 v3.0.0 的那次真实调用（未在重算中重新调用模型）。"
+}

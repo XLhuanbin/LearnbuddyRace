@@ -1,0 +1,32 @@
+# 依赖与构建产物
+node_modules/
+dist/
+.build/
+
+# 样例 PDF：版权归原作者，不随仓库分发，用 samples/download-samples.mjs 获取
+samples/pdfs/
+
+# 本地密钥（本作品不使用 .env，此处为双重保险）
+.env
+.env.local
+*.key
+
+# 编辑器与系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 一次性补丁脚本（执行完即失效，仅本地保留）
+scripts/_*
+
+# 本地运行产物
+.build*/
+*.log
+
+# 走查截图只保留在本机：仓库不收录（文字报告仍保留在 docs/*.md）
+# 截图属于过程证据；赛事要求的是与 LearnBuddy 的对话记录，不依赖仓库内截图
+docs/**/*.png
+docs/**/*.jpg
+docs/**/*.jpeg
+docs/**/*.webp

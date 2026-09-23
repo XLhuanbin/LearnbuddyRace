@@ -1,0 +1,40 @@
+{
+  "domain": "Transformer 序列建模与预训练语言模型（开发流程验证用样例）",
+  "domainConfirmed": false,
+  "purpose": "开发流程验证样例：用于打通 PDF 解析、真实模型抽取、原文证据定位、不可比检测、关系可信度、方法决策与分歧发现。用户尚未确认最终参赛细分领域，本组样例不代表最终选题。",
+  "samplesAreDevOnly": true,
+  "demoProfile": {
+    "background": "计算机相关专业，上过机器学习课，能读懂 Transformer 基本结构",
+    "interest": "想了解预训练语言模型的训练与评测思路，偏向可复现的小模型方向",
+    "time": "两周，每天约 2 小时",
+    "compute": "只有一台笔记本，无 GPU 集群",
+    "goal": "选一个能上手复现的小方向做课程项目"
+  },
+  "papers": [
+    {
+      "file": "samples/pdfs/1706.03762.pdf",
+      "arxivId": "1706.03762",
+      "purpose": "开发流程验证样例（非最终参赛领域）"
+    },
+    {
+      "file": "samples/pdfs/1810.04805.pdf",
+      "arxivId": "1810.04805",
+      "purpose": "开发流程验证样例（非最终参赛领域）"
+    },
+    {
+      "file": "samples/pdfs/1907.11692.pdf",
+      "arxivId": "1907.11692",
+      "purpose": "开发流程验证样例（非最终参赛领域）"
+    },
+    {
+      "file": "samples/pdfs/1910.01108.pdf",
+      "arxivId": "1910.01108",
+      "purpose": "开发流程验证样例（非最终参赛领域）"
+    },
+    {
+      "file": "samples/pdfs/2005.14165.pdf",
+      "arxivId": "2005.14165",
+      "purpose": "开发流程验证样例（非最终参赛领域）"
+    }
+  ]
+}

@@ -1,0 +1,4375 @@
+{
+  "cacheVersion": 3,
+  "generatedBy": "scripts/analyze.mjs（本地离线真实模型分析）",
+  "notLive": true,
+  "notice": "本页预置样例的结构化结论由真实模型对各论文原文抽取产生，每条引文均通过全文定位校验；它属于预置样例，不是本次操作触发的实时分析。",
+  "meta": {
+    "generatedAt": "2026-09-18T09:53:01.068Z",
+    "model": "deepseek-chat",
+    "promptVersion": "v3.0.0",
+    "domain": "图像分类中 CNN 与视觉 Transformer 的方法演进与实验比较",
+    "domainConfirmed": true,
+    "samplesAreDevOnly": false,
+    "purpose": "正式参赛案例（真实论文、真实抽取；不是开发流程验证样例）",
+    "baseUrlHost": "api.deepseek.com"
+  },
+  "rulesVersion": "r3.0.0",
+  "inputsSignature": "p_arxiv_1512.03385,p_arxiv_2010.11929,p_arxiv_2012.12877,p_arxiv_2103.14030,p_arxiv_2201.03545",
+  "papers": [
+    {
+      "id": "p_arxiv_1512.03385",
+      "title": "Deep Residual Learning for Image Recognition",
+      "authors": [],
+      "year": 2015,
+      "source": {
+        "kind": "arxiv",
+        "url": "https://arxiv.org/abs/1512.03385"
+      },
+      "parseStatus": "ok",
+      "pageCount": 12,
+      "charCount": 60672,
+      "sample": {
+        "purpose": "背景与比较材料：CNN 路线的代表，后文方法的对照基准",
+        "license": "arXiv 公开预印本，示例用途，版权归原作者所有。"
+      },
+      "cached": true,
+      "createdAt": 1789725090656
+    },
+    {
+      "id": "p_arxiv_2010.11929",
+      "title": "AN IMAGE IS WORTH 16X16 WORDS: TRANSFORMERS FOR IMAGE RECOGNITION AT SCALE",
+      "authors": [
+        "Thomas Unterthiner",
+        "Mostafa Dehghani",
+        "Matthias Minderer"
+      ],
+      "year": 2020,
+      "source": {
+        "kind": "arxiv",
+        "url": "https://arxiv.org/abs/2010.11929"
+      },
+      "parseStatus": "ok",
+      "pageCount": 22,
+      "charCount": 68282,
+      "sample": {
+        "purpose": "背景与比较材料：首个把纯 Transformer 用于图像分类；首页明确标注 ICLR 2021",
+        "license": "arXiv 公开预印本，示例用途，版权归原作者所有。"
+      },
+      "cached": true,
+      "createdAt": 1789725104393,
+      "titleFrom": "model-verified"
+    },
+    {
+      "id": "p_arxiv_2012.12877",
+      "title": "Training data-efficient image transformers & distillation through attention",
+      "authors": [],
+      "year": 2020,
+      "source": {
+        "kind": "arxiv",
+        "url": "https://arxiv.org/abs/2012.12877"
+      },
+      "parseStatus": "ok",
+      "pageCount": 22,
+      "charCount": 54237,
+      "sample": {
+        "purpose": "核心案例：数据高效训练 + 蒸馏，直接回应「只有 ImageNet-1K 能否训练 Transformer」",
+        "license": "arXiv 公开预印本，示例用途，版权归原作者所有。"
+      },
+      "cached": true,
+      "createdAt": 1789725117531,
+      "titleFrom": "model-verified"
+    },
+    {
+      "id": "p_arxiv_2103.14030",
+      "title": "Swin Transformer: Hierarchical Vision Transformer using Shifted Windows",
+      "authors": [],
+      "year": 2021,
+      "source": {
+        "kind": "arxiv",
+        "url": "https://arxiv.org/abs/2103.14030"
+      },
+      "parseStatus": "ok",
+      "pageCount": 14,
+      "charCount": 69574,
+      "sample": {
+        "purpose": "核心案例：分层结构与移位窗口，分类与密集预测任务并存（需区分任务标签）",
+        "license": "arXiv 公开预印本，示例用途，版权归原作者所有。"
+      },
+      "cached": true,
+      "createdAt": 1789725130439,
+      "titleFrom": "model-verified"
+    },
+    {
+      "id": "p_arxiv_2201.03545",
+      "title": "A ConvNet for the 2020s",
+      "authors": [],
+      "year": 2022,
+      "source": {
+        "kind": "arxiv",
+        "url": "https://arxiv.org/abs/2201.03545"
+      },
+      "parseStatus": "ok",
+      "pageCount": 15,
+      "charCount": 73249,
+      "sample": {
+        "purpose": "核心案例：把 Transformer 的设计要素搬回 CNN，是「路线之争」最关键的对照",
+        "license": "arXiv 公开预印本，示例用途，版权归原作者所有。"
+      },
+      "cached": true,
+      "createdAt": 1789725143678
+    }
+  ],
+  "methods": [
+    {
+      "id": "m_p_arxiv_1512.03385",
+      "paperId": "p_arxiv_1512.03385",
+      "fields": {
+        "researchTask": {
+          "value": "解决深度神经网络难以训练的问题，提出残差学习框架以训练比以往深得多的网络，并在图像分类、检测、定位、分割等视觉识别任务上验证。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1512.03385",
+            "quote": "Deeper neural networks are more difficult to train. We\n\npresent a residual learning framework to ease the training\n\nof networks that are substantially deeper than those used\n\npreviously.",
+            "page": 1,
+            "start": 170,
+            "end": 356,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "引文来自 abstract 片段，该片段无 [[p.N]] 标记，故 page 为 null。"
+        },
+        "methodName": {
+          "value": "residual learning framework；residual nets / residual networks（ResNet）",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1512.03385",
+            "quote": "In this paper, we address the degradation problem by\n\nintroducing a deep residual learning framework.",
+            "page": 2,
+            "start": 4577,
+            "end": 4678,
+            "section": "model. The existence of this constructed solution indicates",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "该句位于 [[p.2]] 标记之后。",
+          "claimedPage": 2
+        },
+        "coreIdea": {
+          "value": "不再让若干堆叠层直接拟合目标底层映射 H(x)，而是让这些层拟合残差映射 F(x) := H(x) − x，原始映射被改写为 F(x)+x。该形式通过恒等映射的 shortcut connections 实现，shortcut 不增加额外参数与计算复杂度，整个网络仍可用 SGD 端到端训练。作者假设优化残差映射比优化原始无参照映射更容易。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1512.03385",
+            "quote": "In-\n\nstead of hoping each few stacked layers directly fit a\n\ndesired underlying mapping, we explicitly let these lay-\n\ners fit a residual mapping. Formally, denoting the desired\n\nunderlying mapping as H(x), we let the stacked nonlinear\n\nlayers fit another mapping of F(x) := H(x) − x. The orig-\n\ninal mapping is recast into F(x)+x.",
+            "page": 2,
+            "start": 4679,
+            "end": 5010,
+            "section": "model. The existence of this constructed solution indicates",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 2
+        },
+        "inputsConditions": {
+          "value": "ImageNet 分类：输入为图像，训练于 128 万训练图像，在 5 万验证图像上评估，并在 10 万测试图像上由测试服务器报告结果；评估 top-1 与 top-5 错误率。CIFAR-10：输入为 32×32 图像并减去逐像素均值，训练于 5 万训练图像、评估于 1 万测试图像；使用 weight decay 0.0001、momentum 0.9、BN、无 dropout，mini-batch 128、两块 GPU，初始学习率 0.1 并在 32k/48k 迭代除以 10，64k 迭代终止。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1512.03385",
+            "quote": "We evaluate our method on the ImageNet 2012 classifi-\n\ncation dataset [36] that consists of 1000 classes. The models\n\nare trained on the 1.28 million training images, and evalu-\n\nated on the 50k validation images.",
+            "page": 4,
+            "start": 19282,
+            "end": 19495,
+            "section": "4. Experiments",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "该引文来自 experiments 片段，片段内无 [[p.N]] 标记，故 page 为 null。CIFAR-10 训练条件来自另一段 method 片段（含 [[p.7]] 附近）。"
+        },
+        "datasets": {
+          "value": "ImageNet 2012 classification dataset (ILSVRC 2015 classification), CIFAR-10, COCO, PASCAL VOC 2007, PASCAL VOC 2012, ImageNet detection (DET), ImageNet localization (LOC)",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1512.03385",
+            "quote": "We evaluate our method on the ImageNet 2012 classifi-\n\ncation dataset [36] that consists of 1000 classes.",
+            "page": 4,
+            "start": 19282,
+            "end": 19387,
+            "section": "4. Experiments",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "该引文来自 experiments 片段，无 [[p.N]] 标记。CIFAR-10、COCO、PASCAL VOC、DET、LOC 分别在其他片段中出现。"
+        },
+        "metrics": {
+          "value": "top-1 error rate, top-5 error rate, classification error, mAP@.5, mAP, localization error",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1512.03385",
+            "quote": "We evaluate both top-1 and top-5 error rates.",
+            "page": 4,
+            "start": 19582,
+            "end": 19627,
+            "section": "result on the 100k test images, reported by the test server.",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "该引文来自 experiments 片段，无 [[p.N]] 标记。"
+        },
+        "limitations": {
+          "value": "未在提供的片段中找到作者明确承认的局限或适用范围限制。",
+          "status": "no_evidence",
+          "note": "片段中未出现明确的 limitation 表述。"
+        }
+      },
+      "conditions": {
+        "datasets": {
+          "values": [
+            "ImageNet 2012 classification dataset",
+            "CIFAR-10",
+            "COCO",
+            "PASCAL VOC 2007",
+            "PASCAL VOC 2012",
+            "ImageNet detection (DET)",
+            "ImageNet localization (LOC)"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1512.03385",
+            "quote": "We evaluate our method on the ImageNet 2012 classifi-\n\ncation dataset [36] that consists of 1000 classes.",
+            "page": 4,
+            "start": 19282,
+            "end": 19387,
+            "section": "4. Experiments",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "该引文来自 experiments 片段，无 [[p.N]] 标记。其他数据集在各自片段中出现。"
+        },
+        "dataSplits": {
+          "values": [
+            "ImageNet 2012 classification：1.28M 训练图像 / 50k 验证图像 / 100k 测试图像（测试结果由测试服务器报告）",
+            "CIFAR-10：50k 训练图像 / 10k 测试图像，训练于训练集、评估于测试集",
+            "ImageNet DET：验证集按 [8] 分为 val1/val2，用 DET 训练集与 val1 微调，val2 用于验证"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1512.03385",
+            "quote": "The models\n\nare trained on the 1.28 million training images, and evalu-\n\nated on the 50k validation images.",
+            "page": 4,
+            "start": 19388,
+            "end": 19495,
+            "section": "4. Experiments",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "该引文来自 experiments 片段，无 [[p.N]] 标记。CIFAR-10 与 DET 划分来自其他片段。"
+        },
+        "metrics": {
+          "values": [
+            "top-1 error rate",
+            "top-5 error rate",
+            "classification error",
+            "mAP@.5",
+            "mAP",
+            "localization error"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1512.03385",
+            "quote": "We evaluate both top-1 and top-5 error rates.",
+            "page": 4,
+            "start": 19582,
+            "end": 19627,
+            "section": "result on the 100k test images, reported by the test server.",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "该引文来自 experiments 片段，无 [[p.N]] 标记。"
+        },
+        "pretrainingCorpus": {
+          "values": [
+            "none"
+          ],
+          "status": "unverified",
+          "note": "提供的片段中未出现关于预训练语料的描述；ImageNet 分类实验为从头训练，但片段中无明确整篇论文级的预训练语料说明。"
+        },
+        "downstreamExtraData": {
+          "values": [
+            "none"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1512.03385",
+            "quote": "We do not use other\n\nILSVRC 2015 data.",
+            "page": 11,
+            "start": 54860,
+            "end": 54898,
+            "section": "model. With the single model on the COCO dataset (55.7%",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "该引文来自 method 片段，无 [[p.N]] 标记。仅针对 DET 任务说明未使用其他 ILSVRC 2015 数据，不能推广为整篇论文结论。",
+          "scope": "experiment",
+          "scopeDetail": "ImageNet Detection (DET) 任务"
+        },
+        "dataAugmentation": {
+          "values": [
+            "CIFAR-10：4 像素填充后随机采样 32×32 裁剪或其水平翻转；测试时仅评估原始 32×32 图像的单视图",
+            "ImageNet localization：随机采样 224×224 裁剪"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1512.03385",
+            "quote": "We follow the simple data augmen-\n\ntation in [24] for training: 4 pixels are padded on each side,\n\nand a 32×32 crop is randomly sampled from the padded\n\nimage or its horizontal flip.",
+            "page": 7,
+            "start": 32465,
+            "end": 32647,
+            "section": "method error (%)",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "该引文位于 [[p.7]] 附近。ImageNet localization 的 224×224 随机裁剪来自另一段 method 片段。",
+          "claimedPage": 7,
+          "scope": "experiment",
+          "scopeDetail": "CIFAR-10 训练"
+        },
+        "pretrainedModel": {
+          "values": [
+            "none（ImageNet 分类与 CIFAR-10 为从头训练）",
+            "ImageNet 1000-class classification set 预训练后微调（用于 DET 与 LOC）"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1512.03385",
+            "quote": "The networks are pre-\n\ntrained on the 1000-class ImageNet classification set, and\n\nare fine-tuned on the DET data",
+            "page": 11,
+            "start": 54556,
+            "end": 54669,
+            "section": "model. With the single model on the COCO dataset (55.7%",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          },
+          "note": "该引文来自 method 片段，无 [[p.N]] 标记。分类实验为从头训练，检测/定位使用分类预训练模型微调。",
+          "scope": "paper"
+        },
+        "experimentalSettings": {
+          "values": [
+            "ImageNet 分类：从头训练，评估 top-1/top-5 错误率，10-crop testing（Table 3）与 single-model（Table 4）",
+            "CIFAR-10：从头训练，weight decay 0.0001、momentum 0.9、BN、无 dropout，mini-batch 128、两块 GPU，初始学习率 0.1 并在 32k/48k 迭代除以 10，64k 迭代终止；测试时单视图",
+            "ImageNet DET：在 1000 类 ImageNet 分类集上预训练，在 DET 数据上微调，评估 mAP@.5",
+            "ImageNet LOC：在 ImageNet 分类上预训练后微调用于定位，评估 localization error"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1512.03385",
+            "quote": "We use a weight decay of 0.0001 and momentum of 0.9,\n\nand adopt the weight initialization in [13] and BN [16] but\n\nwith no dropout. These models are trained with a mini-\n\nbatch size of 128 on two GPUs",
+            "page": 7,
+            "start": 32088,
+            "end": 32288,
+            "section": "method error (%)",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          },
+          "note": "该引文位于 [[p.7]] 附近，描述 CIFAR-10 训练设置。其他设置来自不同片段。",
+          "claimedPage": 7
+        },
+        "computeResources": {
+          "values": [
+            "两块 GPU，CIFAR-10 训练（mini-batch 128，64k 迭代）"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_1512.03385",
+            "quote": "These models are trained with a mini-\n\nbatch size of 128 on two GPUs",
+            "page": 7,
+            "start": 32220,
+            "end": 32288,
+            "section": "method error (%)",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          },
+          "note": "该引文位于 [[p.7]] 附近。未给出具体 GPU 型号与训练时长。",
+          "claimedPage": 7,
+          "scopeDetail": "CIFAR-10 上的 ResNet/plain 网络训练",
+          "stage": "from_scratch"
+        }
+      },
+      "experiments": [
+        {
+          "id": "x_p_arxiv_1512.03385_1",
+          "paperId": "p_arxiv_1512.03385",
+          "taskTag": "classification",
+          "modelVariant": "ResNet-50",
+          "params": "未知",
+          "flops": "3.8 billion FLOPs",
+          "pretrainData": "none",
+          "trainData": "ImageNet 2012 训练集（1.28M 训练图像）",
+          "evalDataset": "ImageNet validation",
+          "evalSplit": "10-crop testing",
+          "inputResolution": "未知",
+          "metricName": "top-1 err.",
+          "metricValue": "22.85",
+          "metricUnit": "%",
+          "extraData": "未知",
+          "distillation": "未知",
+          "testTimeAug": "10-crop testing",
+          "inferenceMode": "single model",
+          "evidence": {
+            "paperId": "p_arxiv_1512.03385",
+            "quote": "ResNet-50 22.85 6.71",
+            "page": 6,
+            "start": 24345,
+            "end": 24365,
+            "section": "model top-1 err. top-5 err.",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "table": {
+            "caption": "Table 3. Error rates (%, 10-crop testing) on ImageNet validation.",
+            "rowLabel": "ResNet-50",
+            "colLabel": "top-1 err.",
+            "locator": "Table 3"
+          },
+          "verification": {
+            "quoteLocated": true,
+            "tableCaptionLocated": true,
+            "rowLabelLocated": true,
+            "colLabelLocated": true,
+            "rowColConfirmed": false,
+            "issues": [
+              "表题已在引文附近定位（逐字一致）",
+              "行标签已在引文附近定位（逐字一致）",
+              "版面核查：列头与指标无法确认一致（列头=未找到）"
+            ],
+            "matchTypes": {
+              "caption": "strict",
+              "rowLabel": "strict",
+              "colLabel": "strict"
+            },
+            "layout": {
+              "checked": true,
+              "valueFound": true,
+              "rowInBand": true,
+              "columnMatchesMetric": "unknown",
+              "bandText": "ResNet-50 22.85 6.71 building block (on 56 × 56 feature maps) as in Fig. 3 for ResNet- 34. Right: a “bottleneck” buildin"
+            }
+          },
+          "aliasNotes": [
+            "「ImageNet 2012 训练集（1.28M 训练图像）」按既定对应关系归一为「ImageNet-1K」"
+          ],
+          "note": "该表格片段无 [[p.N]] 标记，page 为 null。FLOPs 来自另一段 method 片段：\"This model has 3.8 billion FLOPs.\""
+        },
+        {
+          "id": "x_p_arxiv_1512.03385_2",
+          "paperId": "p_arxiv_1512.03385",
+          "taskTag": "classification",
+          "modelVariant": "ResNet-101",
+          "params": "未知",
+          "flops": "未知",
+          "pretrainData": "none",
+          "trainData": "ImageNet 2012 训练集（1.28M 训练图像）",
+          "evalDataset": "ImageNet validation",
+          "evalSplit": "10-crop testing",
+          "inputResolution": "未知",
+          "metricName": "top-1 err.",
+          "metricValue": "21.75",
+          "metricUnit": "%",
+          "extraData": "未知",
+          "distillation": "未知",
+          "testTimeAug": "10-crop testing",
+          "inferenceMode": "single model",
+          "evidence": {
+            "paperId": "p_arxiv_1512.03385",
+            "quote": "ResNet-101 21.75 6.05",
+            "page": 6,
+            "start": 24366,
+            "end": 24387,
+            "section": "model top-1 err. top-5 err.",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "table": {
+            "caption": "Table 3. Error rates (%, 10-crop testing) on ImageNet validation.",
+            "rowLabel": "ResNet-101",
+            "colLabel": "top-1 err.",
+            "locator": "Table 3"
+          },
+          "verification": {
+            "quoteLocated": true,
+            "tableCaptionLocated": true,
+            "rowLabelLocated": true,
+            "colLabelLocated": true,
+            "rowColConfirmed": false,
+            "issues": [
+              "表题已在引文附近定位（逐字一致）",
+              "行标签已在引文附近定位（逐字一致）",
+              "版面核查：列头与指标无法确认一致（列头=未找到）"
+            ],
+            "matchTypes": {
+              "caption": "strict",
+              "rowLabel": "strict",
+              "colLabel": "strict"
+            },
+            "layout": {
+              "checked": true,
+              "valueFound": true,
+              "rowInBand": true,
+              "columnMatchesMetric": "unknown",
+              "bandText": "ResNet-101 21.75 6.05"
+            }
+          },
+          "aliasNotes": [
+            "「ImageNet 2012 训练集（1.28M 训练图像）」按既定对应关系归一为「ImageNet-1K」"
+          ],
+          "note": "该表格片段无 [[p.N]] 标记，page 为 null。"
+        },
+        {
+          "id": "x_p_arxiv_1512.03385_3",
+          "paperId": "p_arxiv_1512.03385",
+          "taskTag": "classification",
+          "modelVariant": "ResNet-152",
+          "params": "未知",
+          "flops": "11.3 billion FLOPs",
+          "pretrainData": "none",
+          "trainData": "ImageNet 2012 训练集（1.28M 训练图像）",
+          "evalDataset": "ImageNet validation",
+          "evalSplit": "single-model results on the ImageNet validation set",
+          "inputResolution": "未知",
+          "metricName": "top-5 err.",
+          "metricValue": "4.49",
+          "metricUnit": "%",
+          "extraData": "未知",
+          "distillation": "未知",
+          "testTimeAug": "未知",
+          "inferenceMode": "single model",
+          "evidence": {
+            "paperId": "p_arxiv_1512.03385",
+            "quote": "ResNet-152 19.38 4.49",
+            "page": 6,
+            "start": 24863,
+            "end": 24884,
+            "section": "method top-1 err. top-5 err.",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "table": {
+            "caption": "Table 4. Error rates (%) of single-model results on the ImageNet validation set (except † reported on the test set).",
+            "rowLabel": "ResNet-152",
+            "colLabel": "top-5 err.",
+            "locator": "Table 4"
+          },
+          "verification": {
+            "quoteLocated": true,
+            "tableCaptionLocated": true,
+            "rowLabelLocated": true,
+            "colLabelLocated": true,
+            "rowColConfirmed": false,
+            "issues": [
+              "表题已在引文附近定位（逐字一致）",
+              "行标签已在引文附近定位（逐字一致）",
+              "版面核查：列头与指标无法确认一致（列头=未找到）"
+            ],
+            "matchTypes": {
+              "caption": "strict",
+              "rowLabel": "strict",
+              "colLabel": "strict"
+            },
+            "layout": {
+              "checked": true,
+              "valueFound": true,
+              "rowInBand": true,
+              "columnMatchesMetric": "unknown",
+              "bandText": "ResNet-152 19.38 4.49 not essential for addressing the degradation problem. So we"
+            }
+          },
+          "aliasNotes": [
+            "「ImageNet 2012 训练集（1.28M 训练图像）」按既定对应关系归一为「ImageNet-1K」"
+          ],
+          "note": "该表格片段无 [[p.N]] 标记，page 为 null。FLOPs 来自另一段 method 片段：\"the 152-layer ResNet (11.3 billion FLOPs)\"。"
+        },
+        {
+          "id": "x_p_arxiv_1512.03385_4",
+          "paperId": "p_arxiv_1512.03385",
+          "taskTag": "classification",
+          "modelVariant": "ResNet (ILSVRC’15)",
+          "params": "未知",
+          "flops": "未知",
+          "pretrainData": "none",
+          "trainData": "ImageNet 2012 训练集",
+          "evalDataset": "ImageNet test set",
+          "evalSplit": "test set（由测试服务器报告）",
+          "inputResolution": "未知",
+          "metricName": "top-5 err. (test)",
+          "metricValue": "3.57",
+          "metricUnit": "%",
+          "extraData": "未知",
+          "distillation": "未知",
+          "testTimeAug": "未知",
+          "inferenceMode": "ensemble",
+          "evidence": {
+            "paperId": "p_arxiv_1512.03385",
+            "quote": "ResNet (ILSVRC’15) 3.57",
+            "page": 6,
+            "start": 25152,
+            "end": 25175,
+            "section": "method top-5 err. (test)",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "table": {
+            "caption": "Table 5. Error rates (%) of ensembles. The top-5 error is on the test set of ImageNet and reported by the test server.",
+            "rowLabel": "ResNet (ILSVRC’15)",
+            "colLabel": "top-5 err. (test)",
+            "locator": "Table 5"
+          },
+          "verification": {
+            "quoteLocated": true,
+            "tableCaptionLocated": true,
+            "rowLabelLocated": true,
+            "colLabelLocated": true,
+            "rowColConfirmed": true,
+            "issues": [
+              "表题已在引文附近定位（逐字一致）",
+              "行标签已在引文附近定位（逐字一致）",
+              "版面核查：行标签与列头一致（列头=top-5 err. (）"
+            ],
+            "matchTypes": {
+              "caption": "strict",
+              "rowLabel": "strict",
+              "colLabel": "strict"
+            },
+            "layout": {
+              "checked": true,
+              "valueFound": true,
+              "rowInBand": true,
+              "columnHeader": "top-5 err. (",
+              "columnMatchesMetric": true,
+              "bandText": "ResNet (ILSVRC’15) 3.57 are 1 × 1, 3 × 3, and 1 × 1 convolutions, where the 1 × 1 layers"
+            }
+          },
+          "aliasNotes": [
+            "「ImageNet 2012 训练集」按既定对应关系归一为「ImageNet-1K」"
+          ],
+          "note": "该表格片段无 [[p.N]] 标记，page 为 null。原文说明为六个不同深度模型的集成：\"We combine six models of different depth to form an ensemble\"。"
+        },
+        {
+          "id": "x_p_arxiv_1512.03385_5",
+          "paperId": "p_arxiv_1512.03385",
+          "taskTag": "detection",
+          "modelVariant": "our single model (ILSVRC’15)",
+          "params": "未知",
+          "flops": "未知",
+          "pretrainData": "ImageNet 1000-class classification set",
+          "trainData": "ImageNet DET training set + val1 set",
+          "evalDataset": "ImageNet detection dataset (DET)",
+          "evalSplit": "val2 / test",
+          "inputResolution": "未知",
+          "metricName": "mAP",
+          "metricValue": "60.5",
+          "metricUnit": "%",
+          "extraData": "未知",
+          "distillation": "未知",
+          "testTimeAug": "未知",
+          "inferenceMode": "single model",
+          "evidence": {
+            "paperId": "p_arxiv_1512.03385",
+            "quote": "our single model (ILSVRC’15) 60.5 58.8",
+            "page": 11,
+            "start": 53905,
+            "end": 53943,
+            "section": "model. With the single model on the COCO dataset (55.7%",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "table": {
+            "caption": "Table 12. Our results (mAP, %) on the ImageNet detection dataset. Our detection system is Faster R-CNN [32] with the improvements in Table 9, using ResNet-101.",
+            "rowLabel": "our single model (ILSVRC’15)",
+            "colLabel": "val2",
+            "locator": "Table 12"
+          },
+          "verification": {
+            "quoteLocated": true,
+            "tableCaptionLocated": true,
+            "rowLabelLocated": true,
+            "colLabelLocated": true,
+            "rowColConfirmed": false,
+            "issues": [
+              "表题已在引文附近定位（逐字一致）",
+              "行标签已在引文附近定位（逐字一致）",
+              "版面核查：列头与指标无法确认一致（列头=val2）"
+            ],
+            "matchTypes": {
+              "caption": "strict",
+              "rowLabel": "strict",
+              "colLabel": "strict"
+            },
+            "layout": {
+              "checked": true,
+              "valueFound": true,
+              "rowInBand": true,
+              "columnHeader": "val2",
+              "columnMatchesMetric": "unknown",
+              "bandText": "the feature maps of these two scales [33], which are merged our single model (ILSVRC’15) 60.5 58.8"
+            }
+          },
+          "note": "该表格片段无 [[p.N]] 标记，page 为 null。检测系统为 Faster R-CNN，使用 ResNet-101。"
+        }
+      ],
+      "overrides": [],
+      "model": "deepseek-chat",
+      "promptVersion": "v3.0.0",
+      "extractedAt": 1789725104122,
+      "cached": true,
+      "paperTitleGuess": "Deep Residual Learning for Image Recognition",
+      "validation": [
+        {
+          "id": "vi_mu6seqsg_1",
+          "scope": "method",
+          "refId": "m_p_arxiv_1512.03385",
+          "field": "limitations",
+          "code": "evidence_missing",
+          "severity": "warn",
+          "message": "局限：模型给出了内容但没有提供任何原文引文，标记为「未找到证据」。",
+          "action": "该值不作为可核验结论使用，需要人工回到原文核对。",
+          "at": 1789725594400
+        },
+        {
+          "id": "vi_mu6seqsg_2",
+          "scope": "method",
+          "refId": "m_p_arxiv_1512.03385",
+          "field": "pretrainingCorpus",
+          "code": "evidence_not_located",
+          "severity": "warn",
+          "message": "预训练语料：有内容但引文未通过定位校验或未支撑该主张。",
+          "action": "该条件按「信息不足」处理，不参与一致性判断。",
+          "at": 1789725594400
+        }
+      ]
+    },
+    {
+      "id": "m_p_arxiv_2010.11929",
+      "paperId": "p_arxiv_2010.11929",
+      "fields": {
+        "researchTask": {
+          "value": "将纯 Transformer 直接应用于图像块序列，用于图像分类任务，并验证其在大规模预训练后迁移到多个图像识别基准上的表现。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2010.11929",
+            "quote": "We show that this reliance on CNNs is not necessary\n\nand a pure transformer applied directly to sequences of image patches can perform\n\nvery well on image classification tasks.",
+            "page": 1,
+            "start": 833,
+            "end": 1009,
+            "section": "ABSTRACT",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 1
+        },
+        "methodName": {
+          "value": "Vision Transformer (ViT)",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2010.11929",
+            "quote": "Vision Transformer (ViT) attains excellent\n\nresults compared to state-of-the-art convolutional networks while requiring sub-\n\nstantially fewer computational resources to train",
+            "page": 1,
+            "start": 1165,
+            "end": 1340,
+            "section": "ABSTRACT",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          },
+          "claimedPage": 1
+        },
+        "coreIdea": {
+          "value": "将 2D 图像 reshape 成扁平 2D patch 序列，用可训练线性投影映射到 D 维得到 patch embeddings，并加入可学习 1D 位置嵌入；序列前加一个类似 BERT [class] token 的可学习嵌入，其 Transformer encoder 输出作为图像表示，接分类头。Transformer encoder 由交替的 multiheaded self-attention 与 MLP 块组成，每个块前 LayerNorm、后残差连接。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2010.11929",
+            "quote": "To handle 2D images, we reshape the image x ∈ R\nH×W ×C\ninto a\n\nsequence of flattened 2D patches xp ∈ R\nN ×(P\n2\n·C)\n, where (H, W ) is the resolution of the original\n\nimage, C is the number of channels, (P, P ) is the resolution of each image patch, and N = HW/P\n2\nis the resulting number of patches",
+            "page": 3,
+            "start": 9418,
+            "end": 9716,
+            "section": "3 METHOD",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 3
+        },
+        "inputsConditions": {
+          "value": "输入为 2D 图像被切分为固定大小 patch 的扁平序列，经线性投影到 D 维并加位置嵌入；预训练与微调时均在 z0L 上接分类头（预训练为单隐层 MLP，微调为单线性层）。训练使用 Adam（β1=0.9, β2=0.999），batch size 4096，weight decay 0.1，线性学习率 warmup 与 decay；微调使用 SGD with momentum，batch size 512。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2010.11929",
+            "quote": "We train all models, including ResNets, using Adam (Kingma & Ba,\n\n2015) with β1 = 0.9, β2 = 0.999, a batch size of 4096 and apply a high weight decay of 0.1, which\n\nwe found to be useful for transfer of all models",
+            "page": 5,
+            "start": 17271,
+            "end": 17484,
+            "section": "Model Layers Hidden size D MLP size Heads Params",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 5
+        },
+        "datasets": {
+          "value": "ImageNet, ImageNet ReaL, CIFAR-10, CIFAR-100, Oxford-IIIT Pets, Oxford Flowers-102, VTAB (19 tasks)",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2010.11929",
+            "quote": "We transfer the models trained on these\n\ndataset to several benchmark tasks: ImageNet on the original validation labels and the cleaned-up\n\nReaL labels (Beyer et al., 2020), CIFAR-10/100 (Krizhevsky, 2009), Oxford-IIIT Pets (Parkhi et al.,\n\n2012), and Oxford Flowers-102 (Nilsback & Zisserman, 2008).",
+            "page": 4,
+            "start": 14892,
+            "end": 15192,
+            "section": "4 EXPERIMENTS",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 4
+        },
+        "metrics": {
+          "value": "few-shot accuracy, fine-tuning accuracy",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2010.11929",
+            "quote": "We report results on downstream datasets either through few-shot or fine-tuning accuracy.",
+            "page": 5,
+            "start": 18025,
+            "end": 18114,
+            "section": "Model Layers Hidden size D MLP size Heads Params",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 5
+        },
+        "limitations": {
+          "value": "ViT 在较小数据集上比 ResNet 更容易过拟合；自监督预训练的 ViT-B/16 在 ImageNet 上达到 79.9%，比从头训练提升 2%，但仍落后监督预训练 4%。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2010.11929",
+            "quote": "Vision Transformers overfit more than ResNets with\n\ncomparable computational cost on smaller datasets.",
+            "page": 7,
+            "start": 25629,
+            "end": 25731,
+            "section": "experiments.",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 7
+        }
+      },
+      "conditions": {
+        "datasets": {
+          "values": [
+            "ImageNet",
+            "ImageNet ReaL",
+            "CIFAR-10",
+            "CIFAR-100",
+            "Oxford-IIIT Pets",
+            "Oxford Flowers-102",
+            "VTAB (19 tasks)"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2010.11929",
+            "quote": "We transfer the models trained on these\n\ndataset to several benchmark tasks: ImageNet on the original validation labels and the cleaned-up\n\nReaL labels (Beyer et al., 2020), CIFAR-10/100 (Krizhevsky, 2009), Oxford-IIIT Pets (Parkhi et al.,\n\n2012), and Oxford Flowers-102 (Nilsback & Zisserman, 2008).",
+            "page": 4,
+            "start": 14892,
+            "end": 15192,
+            "section": "4 EXPERIMENTS",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 4
+        },
+        "dataSplits": {
+          "values": [
+            "ImageNet：original validation labels 与 cleaned-up ReaL labels",
+            "VTAB (19 tasks)：每任务 1000 个训练样本，分为 Natural/Specialized/Structured 三组"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2010.11929",
+            "quote": "VTAB evaluates\n\nlow-data transfer to diverse tasks, using 1 000 training examples per task. The tasks are divided into\n\nthree groups: Natural – tasks like the above, Pets, CIFAR, etc. Specialized – medical and satellite\n\nimagery, and Structured – tasks that require geometric understanding like localization.",
+            "page": 5,
+            "start": 15588,
+            "end": 15896,
+            "section": "Model Layers Hidden size D MLP size Heads Params",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 5
+        },
+        "metrics": {
+          "values": [
+            "few-shot accuracy",
+            "fine-tuning accuracy"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2010.11929",
+            "quote": "We report results on downstream datasets either through few-shot or fine-tuning accuracy.",
+            "page": 5,
+            "start": 18025,
+            "end": 18114,
+            "section": "Model Layers Hidden size D MLP size Heads Params",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 5
+        },
+        "pretrainingCorpus": {
+          "values": [
+            "ImageNet (1k classes, 1.3M images)",
+            "ImageNet-21k (21k classes, 14M images)",
+            "JFT (18k classes, 303M high-resolution images)"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2010.11929",
+            "quote": "To explore model scalability, we use the ILSVRC-2012 ImageNet dataset with 1k classes\n\nand 1.3M images (we refer to it as ImageNet in what follows), its superset ImageNet-21k with\n\n21k classes and 14M images (Deng et al., 2009), and JFT (Sun et al., 2017) with 18k classes and\n\n303M high-resolution images.",
+            "page": 4,
+            "start": 14461,
+            "end": 14767,
+            "section": "4 EXPERIMENTS",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 4
+        },
+        "downstreamExtraData": {
+          "values": [
+            "none"
+          ],
+          "status": "unclear",
+          "note": "片段中未明确说明下游实验是否引入额外训练数据，仅提到去重。",
+          "claimedPage": 4,
+          "scope": "paper"
+        },
+        "dataAugmentation": {
+          "values": [
+            "未知"
+          ],
+          "status": "unclear",
+          "note": "原文只说预处理遵循 Kolesnikov et al. (2020)，未在本片段中列出具体数据增强。",
+          "claimedPage": 4,
+          "scope": "experiment",
+          "scopeDetail": "ImageNet/CIFAR/Pets/Flowers 等下游数据集预处理"
+        },
+        "pretrainedModel": {
+          "values": [
+            "none（ViT 从头预训练）",
+            "ResNet (BiT) 基线使用 ResNet 替换 BatchNorm 为 GroupNorm 并标准化卷积"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2010.11929",
+            "quote": "For the baseline CNNs, we use ResNet (He et al., 2016), but replace the Batch Normalization lay-\n\ners (Ioffe & Szegedy, 2015) with Group Normalization (Wu & He, 2018), and used standardized\n\nconvolutions (Qiao et al., 2019",
+            "page": 5,
+            "start": 16461,
+            "end": 16683,
+            "section": "Model Layers Hidden size D MLP size Heads Params",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          },
+          "claimedPage": 5,
+          "scope": "paper"
+        },
+        "experimentalSettings": {
+          "values": [
+            "fine-tuning：预训练后移除预训练预测头，接零初始化 D×K 前馈层，微调至下游任务；可在更高分辨率微调并 2D 插值位置嵌入",
+            "few-shot：用正则化最小二乘回归将冻结表示映射到 {-1,1}^K 目标向量",
+            "从头训练：自监督预训练对比从头训练"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2010.11929",
+            "quote": "Typically, we pre-train ViT on large datasets, and fine-tune to (smaller) downstream tasks. For\n\nthis, we remove the pre-trained prediction head and attach a zero-initialized D × K feedforward\n\nlayer, where K is the number of downstream classes.",
+            "page": 4,
+            "start": 12888,
+            "end": 13133,
+            "section": "3 METHOD",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 4
+        },
+        "computeResources": {
+          "values": [
+            "TPUv3-core-days：ViT-H/14 2.5k，ViT-L/16 0.68k，ViT-L/16 (I21k) 0.23k，BiT-L 9.9k，Noisy Student 12.3k",
+            "ViT-L/16 在 ImageNet-21k 上可用标准云 TPUv3 8 核约 30 天训练"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2010.11929",
+            "quote": "All models were trained on TPUv3 hardware, and we\n\nreport the number of TPUv3-core-days taken to pre-train each of them, that is, the number of TPU\n\nv3 cores (2 per chip) used for training multiplied by the training time in days.",
+            "page": 5,
+            "start": 19222,
+            "end": 19451,
+            "section": "Model Layers Hidden size D MLP size Heads Params",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 6,
+          "scopeDetail": "Table 2 中各模型预训练算力",
+          "stage": "pretrain"
+        }
+      },
+      "experiments": [
+        {
+          "id": "x_p_arxiv_2010.11929_1",
+          "paperId": "p_arxiv_2010.11929",
+          "taskTag": "classification",
+          "modelVariant": "ViT-H/14",
+          "params": "632M",
+          "flops": "未知",
+          "pretrainData": "JFT-300M",
+          "trainData": "ImageNet",
+          "evalDataset": "ImageNet",
+          "evalSplit": "未知",
+          "inputResolution": "518",
+          "metricName": "ImageNet",
+          "metricValue": "88.55 ± 0.04",
+          "metricUnit": "%",
+          "extraData": "未知",
+          "distillation": "未知",
+          "testTimeAug": "未知",
+          "inferenceMode": "未知",
+          "evidence": {
+            "paperId": "p_arxiv_2010.11929",
+            "quote": "Ours-JFT Ours-JFT Ours-I21k BiT-L Noisy Student\n\n(ViT-H/14) (ViT-L/16) (ViT-L/16) (ResNet152x4) (EfficientNet-L2)\n\nImageNet 88.55 ± 0.04 87.76 ± 0.03 85.30 ± 0.02 87.54 ± 0.02 88.4/88.5",
+            "page": 6,
+            "start": 19898,
+            "end": 20083,
+            "section": "Model Layers Hidden size D MLP size Heads Params",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "table": {
+            "caption": "Comparison with state of the art on popular image classification benchmarks. We re- port mean and standard deviation of the accuracies, averaged over three fine-tuning runs. Vision Transformer models pre-trained on the JFT-300M dataset outperform ResNet-based baselines on all datasets, while taking ",
+            "rowLabel": "ImageNet",
+            "colLabel": "Ours-JFT (ViT-H/14)",
+            "locator": "Table 2"
+          },
+          "verification": {
+            "quoteLocated": true,
+            "tableCaptionLocated": true,
+            "rowLabelLocated": true,
+            "colLabelLocated": false,
+            "rowColConfirmed": false,
+            "issues": [
+              "列标签未在引文附近定位到",
+              "表题已在引文附近定位（归一化后一致）",
+              "行标签已在引文附近定位（逐字一致）",
+              "版面核查：未能在该页找到该数值的文字块"
+            ],
+            "matchTypes": {
+              "caption": "loose",
+              "rowLabel": "strict",
+              "colLabel": "none"
+            },
+            "layout": {
+              "checked": false,
+              "valueFound": false,
+              "rowInBand": false,
+              "columnMatchesMetric": "unknown"
+            }
+          },
+          "aliasNotes": [
+            "「ImageNet」按既定对应关系归一为「ImageNet-1K」"
+          ],
+          "note": "原文只写 ImageNet，未写 ImageNet-1K；分辨率 518 来自正文对 Table 2 的说明。"
+        },
+        {
+          "id": "x_p_arxiv_2010.11929_2",
+          "paperId": "p_arxiv_2010.11929",
+          "taskTag": "classification",
+          "modelVariant": "ViT-L/16",
+          "params": "307M",
+          "flops": "未知",
+          "pretrainData": "JFT-300M",
+          "trainData": "ImageNet",
+          "evalDataset": "ImageNet",
+          "evalSplit": "未知",
+          "inputResolution": "512",
+          "metricName": "ImageNet",
+          "metricValue": "87.76 ± 0.03",
+          "metricUnit": "%",
+          "extraData": "未知",
+          "distillation": "未知",
+          "testTimeAug": "未知",
+          "inferenceMode": "未知",
+          "evidence": {
+            "paperId": "p_arxiv_2010.11929",
+            "quote": "Ours-JFT Ours-JFT Ours-I21k BiT-L Noisy Student\n\n(ViT-H/14) (ViT-L/16) (ViT-L/16) (ResNet152x4) (EfficientNet-L2)\n\nImageNet 88.55 ± 0.04 87.76 ± 0.03 85.30 ± 0.02 87.54 ± 0.02 88.4/88.5",
+            "page": 6,
+            "start": 19898,
+            "end": 20083,
+            "section": "Model Layers Hidden size D MLP size Heads Params",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "table": {
+            "caption": "Comparison with state of the art on popular image classification benchmarks. We re- port mean and standard deviation of the accuracies, averaged over three fine-tuning runs. Vision Transformer models pre-trained on the JFT-300M dataset outperform ResNet-based baselines on all datasets, while taking ",
+            "rowLabel": "ImageNet",
+            "colLabel": "Ours-JFT (ViT-L/16)",
+            "locator": "Table 2"
+          },
+          "verification": {
+            "quoteLocated": true,
+            "tableCaptionLocated": true,
+            "rowLabelLocated": true,
+            "colLabelLocated": false,
+            "rowColConfirmed": false,
+            "issues": [
+              "列标签未在引文附近定位到",
+              "表题已在引文附近定位（归一化后一致）",
+              "行标签已在引文附近定位（逐字一致）",
+              "版面核查：未能在该页找到该数值的文字块"
+            ],
+            "matchTypes": {
+              "caption": "loose",
+              "rowLabel": "strict",
+              "colLabel": "none"
+            },
+            "layout": {
+              "checked": false,
+              "valueFound": false,
+              "rowInBand": false,
+              "columnMatchesMetric": "unknown"
+            }
+          },
+          "aliasNotes": [
+            "「ImageNet」按既定对应关系归一为「ImageNet-1K」"
+          ],
+          "note": "原文只写 ImageNet，未写 ImageNet-1K；分辨率 512 来自正文对 Table 2 的说明。"
+        },
+        {
+          "id": "x_p_arxiv_2010.11929_3",
+          "paperId": "p_arxiv_2010.11929",
+          "taskTag": "classification",
+          "modelVariant": "ViT-L/16",
+          "params": "307M",
+          "flops": "未知",
+          "pretrainData": "ImageNet-21k",
+          "trainData": "ImageNet",
+          "evalDataset": "ImageNet",
+          "evalSplit": "未知",
+          "inputResolution": "未知",
+          "metricName": "ImageNet",
+          "metricValue": "85.30 ± 0.02",
+          "metricUnit": "%",
+          "extraData": "未知",
+          "distillation": "未知",
+          "testTimeAug": "未知",
+          "inferenceMode": "未知",
+          "evidence": {
+            "paperId": "p_arxiv_2010.11929",
+            "quote": "Ours-JFT Ours-JFT Ours-I21k BiT-L Noisy Student\n\n(ViT-H/14) (ViT-L/16) (ViT-L/16) (ResNet152x4) (EfficientNet-L2)\n\nImageNet 88.55 ± 0.04 87.76 ± 0.03 85.30 ± 0.02 87.54 ± 0.02 88.4/88.5",
+            "page": 6,
+            "start": 19898,
+            "end": 20083,
+            "section": "Model Layers Hidden size D MLP size Heads Params",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "table": {
+            "caption": "Comparison with state of the art on popular image classification benchmarks. We re- port mean and standard deviation of the accuracies, averaged over three fine-tuning runs. Vision Transformer models pre-trained on the JFT-300M dataset outperform ResNet-based baselines on all datasets, while taking ",
+            "rowLabel": "ImageNet",
+            "colLabel": "Ours-I21k (ViT-L/16)",
+            "locator": "Table 2"
+          },
+          "verification": {
+            "quoteLocated": true,
+            "tableCaptionLocated": true,
+            "rowLabelLocated": true,
+            "colLabelLocated": false,
+            "rowColConfirmed": false,
+            "issues": [
+              "列标签未在引文附近定位到",
+              "表题已在引文附近定位（归一化后一致）",
+              "行标签已在引文附近定位（逐字一致）",
+              "版面核查：未能在该页找到该数值的文字块"
+            ],
+            "matchTypes": {
+              "caption": "loose",
+              "rowLabel": "strict",
+              "colLabel": "none"
+            },
+            "layout": {
+              "checked": false,
+              "valueFound": false,
+              "rowInBand": false,
+              "columnMatchesMetric": "unknown"
+            }
+          },
+          "aliasNotes": [
+            "「ImageNet-21k」按既定对应关系归一为「ImageNet-21K」",
+            "「ImageNet」按既定对应关系归一为「ImageNet-1K」"
+          ],
+          "note": "原文只写 ImageNet，未写 ImageNet-1K。"
+        },
+        {
+          "id": "x_p_arxiv_2010.11929_4",
+          "paperId": "p_arxiv_2010.11929",
+          "taskTag": "classification",
+          "modelVariant": "ViT-B/16",
+          "params": "86M",
+          "flops": "未知",
+          "pretrainData": "自监督预训练（masked patch prediction）",
+          "trainData": "ImageNet",
+          "evalDataset": "ImageNet",
+          "evalSplit": "未知",
+          "inputResolution": "未知",
+          "metricName": "accuracy",
+          "metricValue": "79.9",
+          "metricUnit": "%",
+          "extraData": "未知",
+          "distillation": "未知",
+          "testTimeAug": "未知",
+          "inferenceMode": "未知",
+          "evidence": {
+            "paperId": "p_arxiv_2010.11929",
+            "quote": "With\n\nself-supervised pre-training, our smaller ViT-B/16 model achieves 79.9% accuracy on ImageNet, a\n\nsignificant improvement of 2% to training from scratch, but still 4% behind supervised pre-training.",
+            "page": 9,
+            "start": 31594,
+            "end": 31797,
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "table": {},
+          "verification": {
+            "quoteLocated": true,
+            "tableCaptionLocated": false,
+            "rowLabelLocated": false,
+            "colLabelLocated": false,
+            "rowColConfirmed": false,
+            "issues": [
+              "未给出表题，无法核查表格语境",
+              "未给出行标签，无法核查该行对应哪一列",
+              "版面核查：该数值所在行未找到模型行标签"
+            ],
+            "matchTypes": {
+              "caption": "none",
+              "rowLabel": "none",
+              "colLabel": "none"
+            },
+            "layout": {
+              "checked": true,
+              "valueFound": true,
+              "rowInBand": false,
+              "columnHeader": "prediction",
+              "columnMatchesMetric": "unknown",
+              "bandText": "self-supervised pre-training, our smaller ViT-B/16 model achieves 79.9% accuracy on ImageNet, a"
+            }
+          },
+          "aliasNotes": [
+            "「ImageNet」按既定对应关系归一为「ImageNet-1K」"
+          ],
+          "note": "该数值来自正文而非表格，无表题/行标签/列标签。"
+        }
+      ],
+      "overrides": [],
+      "model": "deepseek-chat",
+      "promptVersion": "v3.0.0",
+      "extractedAt": 1789725117373,
+      "cached": true,
+      "paperTitleGuess": "AN IMAGE IS WORTH 16X16 WORDS: TRANSFORMERS FOR IMAGE RECOGNITION AT SCALE",
+      "validation": [
+        {
+          "id": "vi_mu6seqtu_3",
+          "scope": "method",
+          "refId": "m_p_arxiv_2010.11929",
+          "field": "downstreamExtraData",
+          "code": "condition_unconfirmed",
+          "severity": "warn",
+          "message": "下游额外训练数据：无法确认（表述含糊）。",
+          "action": "需要人工回到原文确认后再用于比较。",
+          "at": 1789725594450
+        },
+        {
+          "id": "vi_mu6seqtu_4",
+          "scope": "method",
+          "refId": "m_p_arxiv_2010.11929",
+          "field": "dataAugmentation",
+          "code": "condition_unconfirmed",
+          "severity": "warn",
+          "message": "数据增强：无法确认（表述含糊）。",
+          "action": "需要人工回到原文确认后再用于比较。",
+          "at": 1789725594450
+        }
+      ]
+    },
+    {
+      "id": "m_p_arxiv_2012.12877",
+      "paperId": "p_arxiv_2012.12877",
+      "fields": {
+        "researchTask": {
+          "value": "在仅使用 ImageNet 训练、单机数天内，训练出有竞争力的无卷积视觉 Transformer，并引入面向 Transformer 的教师-学生蒸馏策略。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2012.12877",
+            "quote": "In this work, we produce competitive convolution-free transformers by\n\ntraining on Imagenet only. We train them on a single computer in less than\n\n3 days.",
+            "page": 1,
+            "start": 526,
+            "end": 680,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          }
+        },
+        "methodName": {
+          "value": "DeiT (data-efficient image transformers)；蒸馏版本记为 DeiT⚗",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2012.12877",
+            "quote": "Our reference vision transformer (86M parameters) achieves top-1\n\naccuracy of 83.1% (single-crop) on ImageNet with no external data.",
+            "page": 1,
+            "start": 681,
+            "end": 813,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "片段中未出现 DeiT 全称展开，仅出现缩写 DeiT 与 DeiT⚗；全称由标题启发式给出，未在片段中逐字出现。"
+        },
+        "coreIdea": {
+          "value": "在 ImageNet 上直接训练无卷积的视觉 Transformer，通过强数据增强、正则化与优化设置实现数据高效训练；并引入一个专门的蒸馏 token，让学生通过注意力从教师（尤其是卷积网络教师）学习，与类别 token 互补。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2012.12877",
+            "quote": "More importantly, we introduce a teacher-student strategy specific to\n\ntransformers. It relies on a distillation token ensuring that the student\n\nlearns from the teacher through attention.",
+            "page": 1,
+            "start": 815,
+            "end": 1003,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          }
+        },
+        "inputsConditions": {
+          "value": "输入为图像；默认在 224×224 分辨率训练，随后在 384×384 微调；使用 AdamW 优化器、cosine 学习率衰减、强数据增强（Rand-Augment、Mixup、Cutmix、random erasing、repeated augmentation）与 stochastic depth。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2012.12877",
+            "quote": "By default and similar to ViT [15] we train DeiT models with at resolution\n224 and we fine-tune at resolution 384.",
+            "page": 17,
+            "start": 39927,
+            "end": 40041,
+            "section": "Methods ViT-B [15] DeiT-B",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          }
+        },
+        "datasets": {
+          "value": "ImageNet, ImageNet Real, ImageNet V2 matched frequency, CIFAR-10, CIFAR-100, Flowers-102, Stanford Cars, iNaturalist 2018, iNaturalist 2019",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2012.12877",
+            "quote": "Table 6: Datasets used for our different tasks.",
+            "page": 14,
+            "start": 31764,
+            "end": 31811,
+            "section": "Method RegNetY-16GF DeiT-B DeiT-B⚗",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "Table 6 列出 ImageNet、iNaturalist 2018、iNaturalist 2019、Flowers-102、Stanford Cars、CIFAR-100、CIFAR-10；Table 5 另含 ImageNet Real 与 ImageNet V2 matched frequency。",
+          "claimedPage": 14
+        },
+        "metrics": {
+          "value": "top-1 accuracy, image throughput (image/s)",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2012.12877",
+            "quote": "We focus in Figure 1 on the tradeoff between the throughput (images pro-\n\ncessed per second) and the top-1 classification accuracy on ImageNet.",
+            "page": 11,
+            "start": 26655,
+            "end": 26798,
+            "section": "method ↓ label teacher Ti 224 S 224 B 224 B↑384",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 11
+        },
+        "limitations": {
+          "value": "在 CIFAR-10 上仅用其自身数据训练的效果不如 ImageNet 预训练（98.5% vs 99.1%），作者认为这是预期的，因为网络见到的多样性低得多。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2012.12877",
+            "quote": "The\n\nresults are not as good as with Imagenet pre-training (98.5% vs 99.1%), which\n\nis expected since the network has seen a much lower diversity.",
+            "page": 14,
+            "start": 33143,
+            "end": 33289,
+            "section": "Method RegNetY-16GF DeiT-B DeiT-B⚗",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 14
+        }
+      },
+      "conditions": {
+        "datasets": {
+          "values": [
+            "ImageNet",
+            "ImageNet Real",
+            "ImageNet V2 matched frequency",
+            "CIFAR-10",
+            "CIFAR-100",
+            "Flowers-102",
+            "Stanford Cars",
+            "iNaturalist 2018",
+            "iNaturalist 2019"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2012.12877",
+            "quote": "Table 6: Datasets used for our different tasks.",
+            "page": 14,
+            "start": 31764,
+            "end": 31811,
+            "section": "Method RegNetY-16GF DeiT-B DeiT-B⚗",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "Table 6 列出 ImageNet、iNaturalist 2018、iNaturalist 2019、Flowers-102、Stanford Cars、CIFAR-100、CIFAR-10；Table 5 另含 ImageNet Real 与 ImageNet V2 matched frequency。",
+          "claimedPage": 14
+        },
+        "dataSplits": {
+          "values": [
+            "ImageNet：train 1,281,167 / test 50,000，1000 类",
+            "iNaturalist 2018：train 437,513 / test 24,426，8,142 类",
+            "iNaturalist 2019：train 265,240 / test 3,003，1,010 类",
+            "Flowers-102：train 2,040 / test 6,149，102 类",
+            "Stanford Cars：train 8,144 / test 8,041，196 类",
+            "CIFAR-100：train 50,000 / test 10,000，100 类",
+            "CIFAR-10：train 50,000 / test 10,000，10 类"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2012.12877",
+            "quote": "ImageNet [42] 1,281,167 50,000 1000",
+            "page": 14,
+            "start": 31851,
+            "end": 31886,
+            "section": "Method RegNetY-16GF DeiT-B DeiT-B⚗",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "Table 6 给出各数据集的 Train size / Test size / #classes。",
+          "claimedPage": 14
+        },
+        "metrics": {
+          "values": [
+            "top-1 accuracy",
+            "image throughput (image/s)"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2012.12877",
+            "quote": "We focus in Figure 1 on the tradeoff between the throughput (images pro-\n\ncessed per second) and the top-1 classification accuracy on ImageNet.",
+            "page": 11,
+            "start": 26655,
+            "end": 26798,
+            "section": "method ↓ label teacher Ti 224 S 224 B 224 B↑384",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "claimedPage": 11
+        },
+        "pretrainingCorpus": {
+          "values": [
+            "none（不使用外部预训练数据，仅在 ImageNet 上训练）"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2012.12877",
+            "quote": "In this work, we produce competitive convolution-free transformers by\n\ntraining on Imagenet only.",
+            "page": 1,
+            "start": 526,
+            "end": 623,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "论文强调不使用外部数据，因此无独立预训练语料。",
+          "scope": "paper"
+        },
+        "downstreamExtraData": {
+          "values": [
+            "none"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2012.12877",
+            "quote": "Our reference vision transformer (86M parameters) achieves top-1\n\naccuracy of 83.1% (single-crop) on ImageNet with no external data.",
+            "page": 1,
+            "start": 681,
+            "end": 813,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "scope": "paper",
+          "scopeDetail": "整篇论文的 ImageNet 训练与迁移实验均声明不使用外部数据"
+        },
+        "dataAugmentation": {
+          "values": [
+            "Rand-Augment",
+            "Mixup",
+            "Cutmix",
+            "random erasing",
+            "repeated augmentation",
+            "stochastic depth",
+            "Auto-Augment（被评估但最终未采用）"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2012.12877",
+            "quote": "Auto-Augment [11], Rand-Augment [12], and random erasing [62] im-\n\nprove the results. For the two latter we use the timm [55] customizations, and\n\nafter ablation we choose Rand-Augment instead of AutoAugment.",
+            "page": 15,
+            "start": 36170,
+            "end": 36378,
+            "section": "Method RegNetY-16GF DeiT-B DeiT-B⚗",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "Table 9 列出 Rand Augment 9/0.5、Mixup prob. 0.8、Cutmix prob. 1.0、Erasing prob. 0.25、Stoch. Depth 0.1、Repeated Aug 3。",
+          "claimedPage": 15,
+          "scope": "paper",
+          "scopeDetail": "DeiT 默认训练配置（Table 9）"
+        },
+        "pretrainedModel": {
+          "values": [
+            "none（从头训练，不使用外部预训练权重）"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2012.12877",
+            "quote": "In this work, we produce competitive convolution-free transformers by\n\ntraining on Imagenet only.",
+            "page": 1,
+            "start": 526,
+            "end": 623,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "论文强调不使用外部数据，模型在 ImageNet 上从头训练。",
+          "scope": "paper"
+        },
+        "experimentalSettings": {
+          "values": [
+            "fine-tuning：在 ImageNet 上训练 300 epochs，随后在 384×384 分辨率微调（约 25 epochs）",
+            "知识蒸馏：使用硬蒸馏（hard distillation），教师为 RegNetY-16GF，蒸馏 token 参与注意力",
+            "从头训练：DeiT 在 ImageNet-1k 上从头训练，无外部数据"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2012.12877",
+            "quote": "By default and similar to ViT [15] we train DeiT models with at resolution\n224 and we fine-tune at resolution 384.",
+            "page": 17,
+            "start": 39927,
+            "end": 40041,
+            "section": "Methods ViT-B [15] DeiT-B",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "Table 9 给出默认超参数：AdamW、batch size 1024、cosine 衰减、warmup 5 epochs、label smoothing 0.1 等。",
+          "claimedPage": 17
+        },
+        "computeResources": {
+          "values": [
+            "DeiT-B 训练 300 epochs：2 节点 37 小时，或单节点 53 小时",
+            "DeiT-S 与 DeiT-Ti：4 GPU 上少于 3 天",
+            "384×384 微调：单节点 8 GPU 20 小时（25 epochs）"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2012.12877",
+            "quote": "A typical training of 300 epochs takes 37 hours with 2 nodes\n\nor 53 hours on a single node for the DeiT-B.",
+            "page": 17,
+            "start": 40259,
+            "end": 40365,
+            "section": "Methods ViT-B [15] DeiT-B",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "原文未明确 GPU 型号与节点内 GPU 数（除微调写 8 GPU）。",
+          "claimedPage": 17,
+          "scopeDetail": "DeiT-B 在 ImageNet 上 300 epochs 训练及 384×384 微调",
+          "stage": "finetune"
+        }
+      },
+      "experiments": [
+        {
+          "id": "x_p_arxiv_2012.12877_1",
+          "paperId": "p_arxiv_2012.12877",
+          "taskTag": "classification",
+          "modelVariant": "DeiT-B",
+          "params": "86M",
+          "flops": "未知",
+          "throughput": {
+            "value": "292.3",
+            "unit": "image/s",
+            "hardware": "one 16GB V100 GPU",
+            "batchSize": "未知",
+            "note": "Table 5 说明吞吐量在单张 16GB V100 GPU 上测量，取该模型常用分辨率下最大 batch，30 次运行取平均。"
+          },
+          "pretrainData": "none",
+          "trainData": "ImageNet-1k",
+          "evalDataset": "ImageNet-1K",
+          "evalSplit": "未知",
+          "inputResolution": "224",
+          "metricName": "top-1 accuracy",
+          "metricValue": "81.8",
+          "metricUnit": "%",
+          "extraData": "no external data",
+          "distillation": "无蒸馏",
+          "testTimeAug": "未知",
+          "inferenceMode": "single model",
+          "evidence": {
+            "paperId": "p_arxiv_2012.12877",
+            "quote": "DeiT-B 86M 224\n2\n292.3 81.8 86.7 71.5",
+            "page": 12,
+            "start": 29134,
+            "end": 29171,
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "table": {
+            "caption": "Table 5: Throughput on and accuracy on Imagenet [42], Imagenet Real [5] and Imagenet V2 matched frequency [41] of DeiT and of several state-of-the-art convnets, for models trained with no external data.",
+            "rowLabel": "DeiT-B",
+            "colLabel": "top-1",
+            "locator": "Table 5"
+          },
+          "verification": {
+            "quoteLocated": true,
+            "tableCaptionLocated": true,
+            "rowLabelLocated": true,
+            "colLabelLocated": true,
+            "rowColConfirmed": true,
+            "issues": [
+              "表题已在引文附近定位（逐字一致）",
+              "行标签已在引文附近定位（逐字一致）",
+              "版面核查：行标签与列头一致（列头=top-1）"
+            ],
+            "matchTypes": {
+              "caption": "strict",
+              "rowLabel": "strict",
+              "colLabel": "strict"
+            },
+            "layout": {
+              "checked": true,
+              "valueFound": true,
+              "rowInBand": true,
+              "columnHeader": "top-1",
+              "columnMatchesMetric": true,
+              "bandText": "DeiT-B 86M 224 2 292.3 81.8 86.7 71.5"
+            }
+          },
+          "aliasNotes": [
+            "「ImageNet-1k」按既定对应关系归一为「ImageNet-1K」"
+          ],
+          "note": "原文只写 ImageNet，未区分 1K/21K；此处按 ImageNet-1k 记录。"
+        },
+        {
+          "id": "x_p_arxiv_2012.12877_2",
+          "paperId": "p_arxiv_2012.12877",
+          "taskTag": "classification",
+          "modelVariant": "DeiT-B↑384",
+          "params": "86M",
+          "flops": "未知",
+          "throughput": {
+            "value": "85.9",
+            "unit": "image/s",
+            "hardware": "one 16GB V100 GPU",
+            "batchSize": "未知",
+            "note": "Table 5 说明吞吐量在单张 16GB V100 GPU 上测量。"
+          },
+          "pretrainData": "none",
+          "trainData": "ImageNet-1k",
+          "evalDataset": "ImageNet-1K",
+          "evalSplit": "未知",
+          "inputResolution": "384",
+          "metricName": "top-1 accuracy",
+          "metricValue": "83.1",
+          "metricUnit": "%",
+          "extraData": "no external data",
+          "distillation": "无蒸馏",
+          "testTimeAug": "未知",
+          "inferenceMode": "single model",
+          "evidence": {
+            "paperId": "p_arxiv_2012.12877",
+            "quote": "DeiT-B↑384 86M 384\n2\n85.9 83.1 87.7 72.4",
+            "page": 12,
+            "start": 29173,
+            "end": 29213,
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "table": {
+            "caption": "Table 5: Throughput on and accuracy on Imagenet [42], Imagenet Real [5] and Imagenet V2 matched frequency [41] of DeiT and of several state-of-the-art convnets, for models trained with no external data.",
+            "rowLabel": "DeiT-B↑384",
+            "colLabel": "top-1",
+            "locator": "Table 5"
+          },
+          "verification": {
+            "quoteLocated": true,
+            "tableCaptionLocated": true,
+            "rowLabelLocated": true,
+            "colLabelLocated": true,
+            "rowColConfirmed": false,
+            "issues": [
+              "表题已在引文附近定位（逐字一致）",
+              "行标签已在引文附近定位（逐字一致）",
+              "版面核查：该数值所在行未找到模型行标签"
+            ],
+            "matchTypes": {
+              "caption": "strict",
+              "rowLabel": "strict",
+              "colLabel": "strict"
+            },
+            "layout": {
+              "checked": true,
+              "valueFound": true,
+              "rowInBand": false,
+              "columnHeader": "top-1",
+              "columnMatchesMetric": true,
+              "bandText": "DeiT-B ↑ 384 86M 384 2 85.9 83.1 87.7 72.4"
+            }
+          },
+          "aliasNotes": [
+            "「ImageNet-1k」按既定对应关系归一为「ImageNet-1K」"
+          ],
+          "note": "原文只写 ImageNet，未区分 1K/21K。"
+        },
+        {
+          "id": "x_p_arxiv_2012.12877_3",
+          "paperId": "p_arxiv_2012.12877",
+          "taskTag": "classification",
+          "modelVariant": "DeiT-B⚗",
+          "params": "87M",
+          "flops": "未知",
+          "throughput": {
+            "value": "290.9",
+            "unit": "image/s",
+            "hardware": "one 16GB V100 GPU",
+            "batchSize": "未知",
+            "note": "Table 5 说明吞吐量在单张 16GB V100 GPU 上测量。"
+          },
+          "pretrainData": "none",
+          "trainData": "ImageNet-1k",
+          "evalDataset": "ImageNet-1K",
+          "evalSplit": "未知",
+          "inputResolution": "224",
+          "metricName": "top-1 accuracy",
+          "metricValue": "83.4",
+          "metricUnit": "%",
+          "extraData": "no external data",
+          "distillation": "使用硬蒸馏，教师为 RegNetY-16GF（Table 5 脚注说明 RegNet 作为教师）",
+          "testTimeAug": "未知",
+          "inferenceMode": "single model",
+          "evidence": {
+            "paperId": "p_arxiv_2012.12877",
+            "quote": "DeiT-B⚗ 87M 224\n2\n290.9 83.4 88.3 73.2",
+            "page": 12,
+            "start": 29296,
+            "end": 29334,
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "table": {
+            "caption": "Table 5: Throughput on and accuracy on Imagenet [42], Imagenet Real [5] and Imagenet V2 matched frequency [41] of DeiT and of several state-of-the-art convnets, for models trained with no external data.",
+            "rowLabel": "DeiT-B⚗",
+            "colLabel": "top-1",
+            "locator": "Table 5"
+          },
+          "verification": {
+            "quoteLocated": true,
+            "tableCaptionLocated": true,
+            "rowLabelLocated": true,
+            "colLabelLocated": true,
+            "rowColConfirmed": false,
+            "issues": [
+              "表题已在引文附近定位（逐字一致）",
+              "行标签已在引文附近定位（逐字一致）",
+              "版面核查：该数值所在行未找到模型行标签"
+            ],
+            "matchTypes": {
+              "caption": "strict",
+              "rowLabel": "strict",
+              "colLabel": "strict"
+            },
+            "layout": {
+              "checked": true,
+              "valueFound": true,
+              "rowInBand": false,
+              "columnHeader": "top-1",
+              "columnMatchesMetric": true,
+              "bandText": "DeiT-B ⚗ 87M 224 2 290.9 83.4 88.3 73.2"
+            }
+          },
+          "aliasNotes": [
+            "「ImageNet-1k」按既定对应关系归一为「ImageNet-1K」"
+          ],
+          "note": "教师来源依据 Table 5 脚注「These networks serve as teachers when we use our distillation strategy.」"
+        },
+        {
+          "id": "x_p_arxiv_2012.12877_4",
+          "paperId": "p_arxiv_2012.12877",
+          "taskTag": "classification",
+          "modelVariant": "DeiT-B⚗ ↑384 / 1000 epochs",
+          "params": "87M",
+          "flops": "未知",
+          "throughput": {
+            "value": "85.8",
+            "unit": "image/s",
+            "hardware": "one 16GB V100 GPU",
+            "batchSize": "未知",
+            "note": "Table 5 说明吞吐量在单张 16GB V100 GPU 上测量。"
+          },
+          "pretrainData": "none",
+          "trainData": "ImageNet-1k",
+          "evalDataset": "ImageNet-1K",
+          "evalSplit": "未知",
+          "inputResolution": "384",
+          "metricName": "top-1 accuracy",
+          "metricValue": "85.2",
+          "metricUnit": "%",
+          "extraData": "no external data",
+          "distillation": "使用硬蒸馏，教师为 RegNetY-16GF",
+          "testTimeAug": "未知",
+          "inferenceMode": "single model",
+          "evidence": {
+            "paperId": "p_arxiv_2012.12877",
+            "quote": "DeiT-B⚗ ↑384 / 1000 epochs 87M 384\n2\n85.8 85.2 89.3 75.2",
+            "page": 12,
+            "start": 29543,
+            "end": 29599,
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "table": {
+            "caption": "Table 5: Throughput on and accuracy on Imagenet [42], Imagenet Real [5] and Imagenet V2 matched frequency [41] of DeiT and of several state-of-the-art convnets, for models trained with no external data.",
+            "rowLabel": "DeiT-B⚗ ↑384 / 1000 epochs",
+            "colLabel": "top-1",
+            "locator": "Table 5"
+          },
+          "verification": {
+            "quoteLocated": true,
+            "tableCaptionLocated": true,
+            "rowLabelLocated": true,
+            "colLabelLocated": true,
+            "rowColConfirmed": false,
+            "issues": [
+              "表题已在引文附近定位（逐字一致）",
+              "行标签已在引文附近定位（逐字一致）",
+              "版面核查：该数值所在行未找到模型行标签"
+            ],
+            "matchTypes": {
+              "caption": "strict",
+              "rowLabel": "strict",
+              "colLabel": "strict"
+            },
+            "layout": {
+              "checked": true,
+              "valueFound": true,
+              "rowInBand": false,
+              "columnHeader": "top-1",
+              "columnMatchesMetric": true,
+              "bandText": "DeiT-B ⚗ ↑ 384 / 1000 epochs 87M 384 2 85.8 85.2 89.3 75.2"
+            }
+          },
+          "aliasNotes": [
+            "「ImageNet-1k」按既定对应关系归一为「ImageNet-1K」"
+          ],
+          "note": "原文只写 ImageNet，未区分 1K/21K。"
+        }
+      ],
+      "overrides": [],
+      "model": "deepseek-chat",
+      "promptVersion": "v3.0.0",
+      "extractedAt": 1789725130282,
+      "cached": true,
+      "paperTitleGuess": "Training data-efficient image transformers & distillation through attention",
+      "validation": []
+    },
+    {
+      "id": "m_p_arxiv_2103.14030",
+      "paperId": "p_arxiv_2103.14030",
+      "fields": {
+        "researchTask": {
+          "value": "提出一种可作为计算机视觉通用骨干网络的层级式视觉 Transformer，用于图像分类、目标检测与语义分割等任务。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2103.14030",
+            "quote": "This paper presents a new vision Transformer, called\n\nSwin Transformer, that capably serves as a general-purpose\n\nbackbone for computer vision.",
+            "page": 1,
+            "start": 276,
+            "end": 419,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          }
+        },
+        "methodName": {
+          "value": "Swin Transformer（Swin Transformer，缩写 Swin）",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2103.14030",
+            "quote": "This paper presents a new vision Transformer, called\n\nSwin Transformer, that capably serves as a general-purpose\n\nbackbone for computer vision.",
+            "page": 1,
+            "start": 276,
+            "end": 419,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          }
+        },
+        "coreIdea": {
+          "value": "构建层级式 Transformer，用 patch merging 逐级下采样产生多尺度特征图；自注意力在非重叠局部窗口内计算以降低复杂度，并通过在相邻层之间移位窗口（shifted window）引入跨窗口连接。窗口内加入相对位置偏置，并用循环移位+掩码实现高效批量计算。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2103.14030",
+            "quote": "To address these\n\ndifferences, we propose a hierarchical Transformer whose\n\nrepresentation is computed with Shifted windows. The\n\nshifted windowing scheme brings greater efficiency by lim-\n\niting self-attention computation to non-overlapping local\n\nwindows while also allowing for cross-window connection.",
+            "page": 1,
+            "start": 659,
+            "end": 964,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          }
+        },
+        "inputsConditions": {
+          "value": "输入为 RGB 图像，先按 4×4 非重叠 patch 切分，每个 patch 特征为 4×4×3=48 维原始像素拼接，再经线性嵌入投影到维度 C；窗口大小默认 M=7，每头 query 维度 d=32，MLP 扩展系数 α=4。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2103.14030",
+            "quote": "It first splits an input RGB image into non-overlapping\n\npatches by a patch splitting module, like ViT. Each patch is\n\ntreated as a “token” and its feature is set as a concatenation\n\nof the raw pixel RGB values. In our implementation, we use\n\na patch size of 4 × 4 and thus the feature dimension of each\n\npatch is 4 × 4 × 3 = 48.",
+            "page": 3,
+            "start": 13754,
+            "end": 14083,
+            "section": "3. Method",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          }
+        },
+        "datasets": {
+          "value": "ImageNet-1K, ImageNet-22K, COCO, ADE20K",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2103.14030",
+            "quote": "These qualities of Swin Trans-\n\nformer make it compatible with a broad range of vision\n\ntasks, including image classification (87.3 top-1 accuracy\n\non ImageNet-1K) and dense prediction tasks such as object\n\ndetection (58.7 box AP and 51.1 mask AP on COCO test-\n\ndev) and semantic segmentation (53.5 mIoU on ADE20K\n\nval",
+            "page": 1,
+            "start": 1114,
+            "end": 1432,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          },
+          "note": "ImageNet-22K 出现在表 1(b) 标题 “(b) ImageNet-22K pre-trained models” 中。"
+        },
+        "metrics": {
+          "value": "top-1 accuracy, top-5 accuracy, box AP, mask AP, mIoU",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2103.14030",
+            "quote": "including image classification (87.3 top-1 accuracy\n\non ImageNet-1K) and dense prediction tasks such as object\n\ndetection (58.7 box AP and 51.1 mask AP on COCO test-\n\ndev) and semantic segmentation (53.5 mIoU on ADE20K\n\nval",
+            "page": 1,
+            "start": 1209,
+            "end": 1432,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          }
+        },
+        "limitations": {
+          "value": "作者指出推理速度方面，ResNe(X)t 由高度优化的 Cudnn 函数实现，而本架构使用未完全优化的 PyTorch 内置函数，彻底的 kernel 优化超出本文范围。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2103.14030",
+            "quote": "Regarding inference speed, while ResNe(X)t is\n\nbuilt by highly optimized Cudnn functions, our architecture\n\nis implemented with built-in PyTorch functions that are not\n\nall well-optimized. A thorough kernel optimization is be-\n\nyond the scope of this paper.",
+            "page": 7,
+            "start": 33111,
+            "end": 33368,
+            "section": "Method Backbone mIoU score",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          }
+        }
+      },
+      "conditions": {
+        "datasets": {
+          "values": [
+            "ImageNet-1K",
+            "ImageNet-22K",
+            "COCO",
+            "ADE20K"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2103.14030",
+            "quote": "These qualities of Swin Trans-\n\nformer make it compatible with a broad range of vision\n\ntasks, including image classification (87.3 top-1 accuracy\n\non ImageNet-1K) and dense prediction tasks such as object\n\ndetection (58.7 box AP and 51.1 mask AP on COCO test-\n\ndev) and semantic segmentation (53.5 mIoU on ADE20K\n\nval",
+            "page": 1,
+            "start": 1114,
+            "end": 1432,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          },
+          "note": "ImageNet-22K 出现在表 1(b) 标题 “(b) ImageNet-22K pre-trained models”。"
+        },
+        "dataSplits": {
+          "values": [
+            "COCO：118K training, 5K validation and 20K test-dev images",
+            "ADE20K：25K images in total, with 20K for training, 2K for validation, and another 3K for testing"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2103.14030",
+            "quote": "Object detection and instance segmentation ex-\n\nperiments are conducted on COCO 2017, which contains\n\n118K training, 5K validation and 20K test-dev images.",
+            "page": 6,
+            "start": 28063,
+            "end": 28218,
+            "section": "method",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "ADE20K 划分来自 “It has 25K images in total, with 20K for training, 2K for validation, and another 3K for testing.”；ImageNet-1K/22K 的划分未在片段中说明。"
+        },
+        "metrics": {
+          "values": [
+            "top-1 accuracy",
+            "top-5 accuracy",
+            "box AP",
+            "mask AP",
+            "mIoU"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2103.14030",
+            "quote": "including image classification (87.3 top-1 accuracy\n\non ImageNet-1K) and dense prediction tasks such as object\n\ndetection (58.7 box AP and 51.1 mask AP on COCO test-\n\ndev) and semantic segmentation (53.5 mIoU on ADE20K\n\nval",
+            "page": 1,
+            "start": 1209,
+            "end": 1432,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          },
+          "note": "top-5 accuracy 出现在表 4 的 ImageNet top-5 列。"
+        },
+        "pretrainingCorpus": {
+          "values": [
+            "ImageNet-22K（表 1(b) 标题为 “(b) ImageNet-22K pre-trained models”，规模未在片段中给出）"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2103.14030",
+            "quote": "(b) ImageNet-22K pre-trained models",
+            "page": 6,
+            "start": 27472,
+            "end": 27507,
+            "section": "method",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "片段中未给出 ImageNet-22K 的具体规模；表 3 脚注也提到 ‡ indicates that the model is pre-trained on ImageNet-22K。"
+        },
+        "downstreamExtraData": {
+          "values": [
+            "none"
+          ],
+          "status": "unclear",
+          "note": "该引文只说明对比对象 Copy-paste 未使用外部数据，不能支持整篇论文级「未使用额外数据」的结论。",
+          "scope": "experiment",
+          "scopeDetail": "COCO test-dev 与 Copy-paste 的对比"
+        },
+        "dataAugmentation": {
+          "values": [
+            "未知"
+          ],
+          "status": "unverified",
+          "note": "本次提供的片段中未找到数据增强的描述。",
+          "scope": "paper"
+        },
+        "pretrainedModel": {
+          "values": [
+            "none（Swin-T/S/B 在 ImageNet-1K 上从头训练，片段未明确说明初始化来源）",
+            "ImageNet-22K 预训练权重（Swin-B/Swin-L 用于 ImageNet-1K 分类与 ADE20K 分割）"
+          ],
+          "status": "unclear",
+          "note": "片段只给出表 1(b) 的 ImageNet-22K 预训练模型标题与表 3 脚注 “‡ indicates that the model is pre-trained on ImageNet-22K”，未明确说明表 1(a) 各行是否从头训练。"
+        },
+        "experimentalSettings": {
+          "values": [
+            "ImageNet-1K 分类：fine-tuning/从头训练（片段未明确），评估协议未在片段中说明",
+            "COCO 目标检测与实例分割：在 COCO 2017 上训练与评估，对比时只更换 backbone，其他设置不变",
+            "ADE20K 语义分割：以 UperNet [69] in mmseg [16] 为 base framework"
+          ],
+          "status": "unclear",
+          "note": "片段未明确写出分类实验的评估协议类型（fine-tuning / zero-shot / few-shot / 从头训练）。"
+        },
+        "computeResources": {
+          "values": [
+            "V100 GPU（用于吞吐量测量，具体数量与时长未给出）"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2103.14030",
+            "quote": "Throughput is measured using the GitHub repository\n\nof [68] and a V100 GPU, following [63].",
+            "page": 6,
+            "start": 27932,
+            "end": 28023,
+            "section": "method",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "片段未给出训练/预训练所用算力与时长。",
+          "scopeDetail": "表 1 中各 backbone 在 ImageNet 分类上的吞吐量测量",
+          "stage": "inference"
+        }
+      },
+      "experiments": [
+        {
+          "id": "x_p_arxiv_2103.14030_1",
+          "paperId": "p_arxiv_2103.14030",
+          "taskTag": "classification",
+          "modelVariant": "Swin-T",
+          "params": "29M",
+          "flops": "4.5G",
+          "throughput": {
+            "value": "755.2",
+            "unit": "image / s",
+            "hardware": "V100 GPU",
+            "note": "Table 1 标题说明吞吐量用 [68] 的 GitHub 仓库、V100 GPU、遵循 [63] 测量；批量大小未给出。"
+          },
+          "pretrainData": "未知",
+          "trainData": "未知",
+          "evalDataset": "ImageNet-1K",
+          "evalSplit": "未知",
+          "inputResolution": "224",
+          "metricName": "ImageNet top-1 acc.",
+          "metricValue": "81.3",
+          "metricUnit": "%",
+          "extraData": "未知",
+          "distillation": "未知",
+          "testTimeAug": "未知",
+          "inferenceMode": "未知",
+          "evidence": {
+            "paperId": "p_arxiv_2103.14030",
+            "quote": "Swin-T 224\n2\n29M 4.5G 755.2 81.3",
+            "page": 6,
+            "start": 27336,
+            "end": 27368,
+            "section": "method",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "table": {
+            "caption": "Table 1. Comparison of different backbones on ImageNet-1K clas-sification. Throughput is measured using the GitHub repository of [68] and a V100 GPU, following [63].",
+            "rowLabel": "Swin-T",
+            "colLabel": "ImageNet top-1 acc.",
+            "locator": "Table 1"
+          },
+          "verification": {
+            "quoteLocated": true,
+            "tableCaptionLocated": true,
+            "rowLabelLocated": true,
+            "colLabelLocated": true,
+            "rowColConfirmed": false,
+            "issues": [
+              "表题已在引文附近定位（归一化后一致）",
+              "行标签已在引文附近定位（逐字一致）",
+              "版面核查：列头与指标无法确认一致（列头=and）"
+            ],
+            "matchTypes": {
+              "caption": "loose",
+              "rowLabel": "strict",
+              "colLabel": "strict"
+            },
+            "layout": {
+              "checked": true,
+              "valueFound": true,
+              "rowInBand": true,
+              "columnHeader": "and",
+              "columnMatchesMetric": "unknown",
+              "bandText": "similar complexities: +1.5% for Swin-T (81.3%) over Table 1. Comparison of different backbones on ImageNet-1K clas-"
+            }
+          },
+          "note": "该行属于表 1(a) 部分（ImageNet-1K 分类）。"
+        },
+        {
+          "id": "x_p_arxiv_2103.14030_2",
+          "paperId": "p_arxiv_2103.14030",
+          "taskTag": "classification",
+          "modelVariant": "Swin-B",
+          "params": "88M",
+          "flops": "15.4G",
+          "throughput": {
+            "value": "278.1",
+            "unit": "image / s",
+            "hardware": "V100 GPU",
+            "note": "Table 1 标题说明吞吐量用 [68] 的 GitHub 仓库、V100 GPU、遵循 [63] 测量；批量大小未给出。"
+          },
+          "pretrainData": "未知",
+          "trainData": "未知",
+          "evalDataset": "ImageNet-1K",
+          "evalSplit": "未知",
+          "inputResolution": "224",
+          "metricName": "ImageNet top-1 acc.",
+          "metricValue": "83.5",
+          "metricUnit": "%",
+          "extraData": "未知",
+          "distillation": "未知",
+          "testTimeAug": "未知",
+          "inferenceMode": "未知",
+          "evidence": {
+            "paperId": "p_arxiv_2103.14030",
+            "quote": "Swin-B 224\n2\n88M 15.4G 278.1 83.5",
+            "page": 6,
+            "start": 27404,
+            "end": 27437,
+            "section": "method",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "table": {
+            "caption": "Table 1. Comparison of different backbones on ImageNet-1K clas-sification. Throughput is measured using the GitHub repository of [68] and a V100 GPU, following [63].",
+            "rowLabel": "Swin-B",
+            "colLabel": "ImageNet top-1 acc.",
+            "locator": "Table 1"
+          },
+          "verification": {
+            "quoteLocated": true,
+            "tableCaptionLocated": true,
+            "rowLabelLocated": true,
+            "colLabelLocated": true,
+            "rowColConfirmed": false,
+            "issues": [
+              "表题已在引文附近定位（归一化后一致）",
+              "行标签已在引文附近定位（逐字一致）",
+              "版面核查：列头与指标无法确认一致（列头=ImageNet）"
+            ],
+            "matchTypes": {
+              "caption": "loose",
+              "rowLabel": "strict",
+              "colLabel": "strict"
+            },
+            "layout": {
+              "checked": true,
+              "valueFound": true,
+              "rowInBand": true,
+              "columnHeader": "ImageNet",
+              "columnMatchesMetric": "unknown",
+              "bandText": "1024, a constant learning rate of 10 , and a weight − 8 Swin-B 224 2 88M 15.4G 278.1 83.5"
+            }
+          },
+          "note": "该行属于表 1(a) 部分（ImageNet-1K 分类）。"
+        },
+        {
+          "id": "x_p_arxiv_2103.14030_3",
+          "paperId": "p_arxiv_2103.14030",
+          "taskTag": "classification",
+          "modelVariant": "Swin-B",
+          "params": "88M",
+          "flops": "47.0G",
+          "throughput": {
+            "value": "84.7",
+            "unit": "image / s",
+            "hardware": "V100 GPU",
+            "note": "Table 1 标题说明吞吐量用 [68] 的 GitHub 仓库、V100 GPU、遵循 [63] 测量；批量大小未给出。"
+          },
+          "pretrainData": "未知",
+          "trainData": "未知",
+          "evalDataset": "ImageNet-1K",
+          "evalSplit": "未知",
+          "inputResolution": "384",
+          "metricName": "ImageNet top-1 acc.",
+          "metricValue": "84.5",
+          "metricUnit": "%",
+          "extraData": "未知",
+          "distillation": "未知",
+          "testTimeAug": "未知",
+          "inferenceMode": "未知",
+          "evidence": {
+            "paperId": "p_arxiv_2103.14030",
+            "quote": "Swin-B 384\n2\n88M 47.0G 84.7 84.5",
+            "page": 6,
+            "start": 27439,
+            "end": 27471,
+            "section": "method",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "table": {
+            "caption": "Table 1. Comparison of different backbones on ImageNet-1K clas-sification. Throughput is measured using the GitHub repository of [68] and a V100 GPU, following [63].",
+            "rowLabel": "Swin-B",
+            "colLabel": "ImageNet top-1 acc.",
+            "locator": "Table 1"
+          },
+          "verification": {
+            "quoteLocated": true,
+            "tableCaptionLocated": true,
+            "rowLabelLocated": true,
+            "colLabelLocated": true,
+            "rowColConfirmed": false,
+            "issues": [
+              "表题已在引文附近定位（归一化后一致）",
+              "行标签已在引文附近定位（逐字一致）",
+              "版面核查：列头与指标无法确认一致（列头=DeiT-S (79.8%) using 224）"
+            ],
+            "matchTypes": {
+              "caption": "loose",
+              "rowLabel": "strict",
+              "colLabel": "strict"
+            },
+            "layout": {
+              "checked": true,
+              "valueFound": true,
+              "rowInBand": true,
+              "columnHeader": "DeiT-S (79.8%) using 224",
+              "columnMatchesMetric": "unknown",
+              "bandText": "Swin-B (83.3%/84.5%) over DeiT-B (81.8%/83.1%) using of [68] and a V100 GPU, following [63]."
+            }
+          },
+          "note": "该行属于表 1(a) 部分（ImageNet-1K 分类），分辨率为 384。"
+        },
+        {
+          "id": "x_p_arxiv_2103.14030_4",
+          "paperId": "p_arxiv_2103.14030",
+          "taskTag": "classification",
+          "modelVariant": "Swin-L",
+          "params": "197M",
+          "flops": "103.9G",
+          "throughput": {
+            "value": "42.1",
+            "unit": "image / s",
+            "hardware": "V100 GPU",
+            "note": "Table 1 标题说明吞吐量用 [68] 的 GitHub 仓库、V100 GPU、遵循 [63] 测量；批量大小未给出。"
+          },
+          "pretrainData": "ImageNet-22K",
+          "trainData": "未知",
+          "evalDataset": "ImageNet-1K",
+          "evalSplit": "未知",
+          "inputResolution": "384",
+          "metricName": "ImageNet top-1 acc.",
+          "metricValue": "87.3",
+          "metricUnit": "%",
+          "extraData": "未知",
+          "distillation": "未知",
+          "testTimeAug": "未知",
+          "inferenceMode": "未知",
+          "evidence": {
+            "paperId": "p_arxiv_2103.14030",
+            "quote": "Swin-L 384\n2\n197M 103.9G 42.1 87.3",
+            "page": 6,
+            "start": 27819,
+            "end": 27853,
+            "section": "method",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "table": {
+            "caption": "Table 1. Comparison of different backbones on ImageNet-1K clas-sification. Throughput is measured using the GitHub repository of [68] and a V100 GPU, following [63].",
+            "rowLabel": "Swin-L",
+            "colLabel": "ImageNet top-1 acc.",
+            "locator": "Table 1"
+          },
+          "verification": {
+            "quoteLocated": true,
+            "tableCaptionLocated": true,
+            "rowLabelLocated": true,
+            "colLabelLocated": true,
+            "rowColConfirmed": false,
+            "issues": [
+              "表题已在引文附近定位（归一化后一致）",
+              "行标签已在引文附近定位（逐字一致）",
+              "版面核查：列头与指标无法确认一致（列头=22K pre-training brings 1.8%）"
+            ],
+            "matchTypes": {
+              "caption": "loose",
+              "rowLabel": "strict",
+              "colLabel": "strict"
+            },
+            "layout": {
+              "checked": true,
+              "valueFound": true,
+              "rowInBand": true,
+              "columnHeader": "22K pre-training brings 1.8%",
+              "columnMatchesMetric": "unknown",
+              "bandText": "55.4G). The larger Swin-L model achieves 87.3% top-1 ac- pre-trained model as initialization."
+            }
+          },
+          "aliasNotes": [
+            "「ImageNet-22K」按既定对应关系归一为「ImageNet-21K」"
+          ],
+          "note": "该行属于表 1(b) “(b) ImageNet-22K pre-trained models” 部分，预训练数据为 ImageNet-22K。"
+        },
+        {
+          "id": "x_p_arxiv_2103.14030_5",
+          "paperId": "p_arxiv_2103.14030",
+          "taskTag": "detection",
+          "modelVariant": "Swin-L (HTC++)*",
+          "params": "284M",
+          "flops": "未知",
+          "pretrainData": "未知",
+          "trainData": "未知",
+          "evalDataset": "COCO",
+          "evalSplit": "test-dev",
+          "inputResolution": "未知",
+          "metricName": "AP box",
+          "metricValue": "58.7",
+          "extraData": "未知",
+          "distillation": "未知",
+          "testTimeAug": "未知",
+          "inferenceMode": "未知",
+          "evidence": {
+            "paperId": "p_arxiv_2103.14030",
+            "quote": "Swin-L (HTC++)* 58.0 50.4 58.7 51.1 284M",
+            "page": 7,
+            "start": 30633,
+            "end": 30673,
+            "section": "Method",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          },
+          "table": {
+            "caption": "Table 2. Results on COCO object detection and instance segmen-tation.",
+            "rowLabel": "Swin-L (HTC++)*",
+            "colLabel": "AP box",
+            "locator": "Table 2"
+          },
+          "verification": {
+            "quoteLocated": true,
+            "tableCaptionLocated": true,
+            "rowLabelLocated": true,
+            "colLabelLocated": true,
+            "rowColConfirmed": false,
+            "issues": [
+              "表题已在引文附近定位（归一化后一致）",
+              "行标签已在引文附近定位（逐字一致）",
+              "版面核查：列头与指标无法确认一致（列头=AP）"
+            ],
+            "matchTypes": {
+              "caption": "loose",
+              "rowLabel": "strict",
+              "colLabel": "strict"
+            },
+            "layout": {
+              "checked": true,
+              "valueFound": true,
+              "rowInBand": true,
+              "columnHeader": "AP",
+              "columnMatchesMetric": "unknown",
+              "bandText": "Swin-L (HTC++)* 58.0 50.4 58.7 51.1 284M - all well-optimized. A thorough kernel optimization is be-"
+            }
+          },
+          "note": "该行位于表 2(c) System-level Comparison 部分，* 表示 multi-scale testing；test-dev 列给出 58.7 box AP 与 51.1 mask AP。"
+        }
+      ],
+      "overrides": [],
+      "model": "deepseek-chat",
+      "promptVersion": "v3.0.0",
+      "extractedAt": 1789725143506,
+      "cached": true,
+      "paperTitleGuess": "Swin Transformer: Hierarchical Vision Transformer using Shifted Windows",
+      "validation": [
+        {
+          "id": "vi_mu6seqvs_5",
+          "scope": "method",
+          "refId": "m_p_arxiv_2103.14030",
+          "field": "downstreamExtraData",
+          "code": "condition_unconfirmed",
+          "severity": "warn",
+          "message": "下游额外训练数据：无法确认（表述含糊）。",
+          "action": "需要人工回到原文确认后再用于比较。",
+          "at": 1789725594520
+        },
+        {
+          "id": "vi_mu6seqvs_6",
+          "scope": "method",
+          "refId": "m_p_arxiv_2103.14030",
+          "field": "dataAugmentation",
+          "code": "evidence_not_located",
+          "severity": "warn",
+          "message": "数据增强：有内容但引文未通过定位校验或未支撑该主张。",
+          "action": "该条件按「信息不足」处理，不参与一致性判断。",
+          "at": 1789725594520
+        },
+        {
+          "id": "vi_mu6seqvs_7",
+          "scope": "method",
+          "refId": "m_p_arxiv_2103.14030",
+          "field": "pretrainedModel",
+          "code": "condition_unconfirmed",
+          "severity": "warn",
+          "message": "预训练模型：无法确认（表述含糊）。",
+          "action": "需要人工回到原文确认后再用于比较。",
+          "at": 1789725594520
+        },
+        {
+          "id": "vi_mu6seqvs_8",
+          "scope": "method",
+          "refId": "m_p_arxiv_2103.14030",
+          "field": "experimentalSettings",
+          "code": "condition_unconfirmed",
+          "severity": "warn",
+          "message": "实验设置：无法确认（表述含糊）。",
+          "action": "需要人工回到原文确认后再用于比较。",
+          "at": 1789725594520
+        }
+      ]
+    },
+    {
+      "id": "m_p_arxiv_2201.03545",
+      "paperId": "p_arxiv_2201.03545",
+      "fields": {
+        "researchTask": {
+          "value": "面向视觉识别，重新设计纯卷积网络（ConvNet），使其在 ImageNet 分类及下游检测/分割任务上能与视觉 Transformer 竞争。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2201.03545",
+            "quote": "model, named ConvNeXt, can outperform the Swin Transformer.",
+            "page": 3,
+            "start": 11470,
+            "end": 11529,
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "片段来自 method 章节，未标注页码。"
+        },
+        "methodName": {
+          "value": "ConvNeXt",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2201.03545",
+            "quote": "model, named ConvNeXt, can outperform the Swin Transformer.",
+            "page": 3,
+            "start": 11470,
+            "end": 11529,
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          }
+        },
+        "coreIdea": {
+          "value": "以 ResNet-50 为起点，先用视觉 Transformer 的训练技巧训练得到改进基线，再逐步引入 Swin Transformer 的宏观设计（stage 计算比、patchify stem）、ResNeXt 化（深度可分离卷积并加宽）、倒置瓶颈、大卷积核以及逐层微观设计，从而把标准 ConvNet「现代化」为 ConvNeXt。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2201.03545",
+            "quote": "Our starting point is a ResNet-50 model. We first\n\ntrain it with similar training techniques used to train vision\n\nTransformers and obtain much improved results compared to\n\nthe original ResNet-50. This will be our baseline. We then\n\nstudy a series of design decisions which we summarized\n\nas 1) macro design, 2) ResNeXt, 3) inverted bottleneck, 4)\n\nlarge kernel size, and 5) various layer-wise micro designs.",
+            "page": 3,
+            "start": 11539,
+            "end": 11948,
+            "section": "model, named ConvNeXt, can outperform the Swin Transformer.",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          }
+        },
+        "inputsConditions": {
+          "value": "输入为图像，训练/评估分辨率 224^2 或 384^2；使用 AdamW 优化器、300 epochs（ImageNet-1K 预训练）、batch size 4096、cosine decay、warmup 20 epochs，以及 Mixup、Cutmix、RandAugment、Random Erasing、Stochastic Depth、Label Smoothing 等增强与正则。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2201.03545",
+            "quote": "The training is extended to 300\n\nepochs from the original 90 epochs for ResNets. We use the\n\nAdamW optimizer [46], data augmentation techniques such\n\nas Mixup [90], Cutmix [89], RandAugment [14], Random\n\nErasing [91], and regularization schemes including Stochas-\n\ntic Depth [36] and Label Smoothing [69].",
+            "page": 3,
+            "start": 13189,
+            "end": 13494,
+            "section": "model, named ConvNeXt, can outperform the Swin Transformer.",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "训练超参细节见 Appendix A.1 的 Table 5。"
+        },
+        "datasets": {
+          "value": "ImageNet-1K, ImageNet-22K, COCO, ADE20K, ImageNet-A, ImageNet-R, ImageNet-Sketch, ImageNet-C, ImageNet-C̄",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2201.03545",
+            "quote": "All models are trained and evaluated on ImageNet-1K.",
+            "page": 3,
+            "start": 12314,
+            "end": 12366,
+            "section": "model, named ConvNeXt, can outperform the Swin Transformer.",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "ImageNet-1K 为主要分类评估集；COCO/ADE20K 为下游任务；ImageNet-A/R/Sketch/C/C̄ 为鲁棒性评估集。"
+        },
+        "metrics": {
+          "value": "top-1 accuracy, mCE, corruption error, mIoU, AP_box, AP_box_50, AP_box_75, AP_mask, AP_mask_50, AP_mask_75",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2201.03545",
+            "quote": "We report mean corruption error\n\n(mCE) for ImageNet-C, corruption error for ImageNet-\n¯\nC,\n\nand top-1 Accuracy for all other datasets",
+            "page": 10,
+            "start": 49387,
+            "end": 49520,
+            "section": "Appendix",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          },
+          "note": "分类用 top-1 accuracy；鲁棒性用 mCE/corruption error/top-1；分割用 mIoU；检测用 AP。"
+        },
+        "limitations": {
+          "value": "论文在附录中声明会讨论 limitations（§F），但本次提供的片段未包含该节内容。",
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2201.03545",
+            "quote": "Finally, we discuss the limitations (§F) and\n\nsocietal impact (§G) of our work.",
+            "page": 9,
+            "start": 44163,
+            "end": 44242,
+            "section": "Appendix",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "仅提到存在 limitations 章节，未给出具体内容，无法确认具体局限。"
+        }
+      },
+      "conditions": {
+        "datasets": {
+          "values": [
+            "ImageNet-1K",
+            "ImageNet-22K",
+            "COCO",
+            "ADE20K",
+            "ImageNet-A",
+            "ImageNet-R",
+            "ImageNet-Sketch",
+            "ImageNet-C",
+            "ImageNet-C̄"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2201.03545",
+            "quote": "We directly test our\n\nImageNet-1K trained/fine-tuned classification models on sev-\n\neral robustness benchmark datasets such as ImageNet-A [33],\n\nImageNet-R [30], ImageNet-Sketch [78] and ImageNet-\n\nC/\n¯\nC [31, 48] datasets",
+            "page": 10,
+            "start": 49163,
+            "end": 49385,
+            "section": "Appendix",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          },
+          "note": "ImageNet-1K/22K 为分类（预）训练与评估；COCO/ADE20K 为下游任务；其余为鲁棒性评估。"
+        },
+        "dataSplits": {
+          "values": [
+            "ADE20K：validation（报告 validation mIoU）",
+            "COCO：未说明具体划分",
+            "ImageNet-1K：未说明具体划分"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2201.03545",
+            "quote": "We report validation mIoU results using multi-scale testing.",
+            "page": 10,
+            "start": 48643,
+            "end": 48703,
+            "section": "Appendix",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "仅 ADE20K 明确提到 validation；COCO 与 ImageNet-1K 的划分在片段中未说明。"
+        },
+        "metrics": {
+          "values": [
+            "top-1 accuracy",
+            "mCE",
+            "corruption error",
+            "mIoU",
+            "AP_box",
+            "AP_box_50",
+            "AP_box_75",
+            "AP_mask",
+            "AP_mask_50",
+            "AP_mask_75"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2201.03545",
+            "quote": "We report mean corruption error\n\n(mCE) for ImageNet-C, corruption error for ImageNet-\n¯\nC,\n\nand top-1 Accuracy for all other datasets",
+            "page": 10,
+            "start": 49387,
+            "end": 49520,
+            "section": "Appendix",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          },
+          "note": "检测/分割指标 AP 与 mIoU 见 Table 3 与 Table 7。"
+        },
+        "pretrainingCorpus": {
+          "values": [
+            "ImageNet-1K",
+            "ImageNet-22K"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2201.03545",
+            "quote": "We provide ConvNeXts’ ImageNet-1K training and\n\nImageNet-22K pre-training settings in Table 5.",
+            "page": 9,
+            "start": 44297,
+            "end": 44391,
+            "section": "Appendix",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "原文使用 ImageNet-22K 作为大规模预训练数据（非 21K）。"
+        },
+        "downstreamExtraData": {
+          "values": [
+            "none"
+          ],
+          "status": "unclear",
+          "note": "该句仅说明鲁棒性评估未做额外微调，不能支持整篇论文级的「无额外数据」结论。",
+          "scope": "experiment",
+          "scopeDetail": "鲁棒性评估（ImageNet-A/R/Sketch/C/C̄，Table 8）"
+        },
+        "dataAugmentation": {
+          "values": [
+            "Mixup",
+            "Cutmix",
+            "RandAugment",
+            "Random Erasing",
+            "Stochastic Depth",
+            "Label Smoothing"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2201.03545",
+            "quote": "We use the\n\nAdamW optimizer [46], data augmentation techniques such\n\nas Mixup [90], Cutmix [89], RandAugment [14], Random\n\nErasing [91], and regularization schemes including Stochas-\n\ntic Depth [36] and Label Smoothing [69].",
+            "page": 3,
+            "start": 13270,
+            "end": 13494,
+            "section": "model, named ConvNeXt, can outperform the Swin Transformer.",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "微调阶段（Table 6）mixup/cutmix 为 None，仅保留 randaugment 与 random erasing。",
+          "scope": "experiment",
+          "scopeDetail": "ImageNet-1K 预训练/现代化探索阶段（Table 5 设置）"
+        },
+        "pretrainedModel": {
+          "values": [
+            "none（ImageNet-1K trained models 从头训练）",
+            "ImageNet-22K 预训练权重（ImageNet-22K pre-trained models）"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2201.03545",
+            "quote": "We use the final model weights (instead of EMA weights)\n\nfrom ImageNet pre-training as network initializations.",
+            "page": 10,
+            "start": 48000,
+            "end": 48111,
+            "section": "Appendix",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "下游任务使用 ImageNet 预训练权重初始化；分类主结果分 ImageNet-1K 训练与 ImageNet-22K 预训练两类。",
+          "scope": "paper"
+        },
+        "experimentalSettings": {
+          "values": [
+            "分类：从头训练（ImageNet-1K，300 epochs）或 ImageNet-22K 预训练后 ImageNet-1K 微调（30 epochs，384^2）",
+            "检测/分割：在 COCO/ADE20K 上微调（fine-tuning），Mask R-CNN / Cascade Mask R-CNN，3× schedule",
+            "鲁棒性：直接评估，无额外微调"
+          ],
+          "status": "verified",
+          "evidence": {
+            "paperId": "p_arxiv_2201.03545",
+            "quote": "We fine-\n\ntune Mask R-CNN [27] and Cascade Mask R-CNN [9] on\n\nthe COCO dataset with ConvNeXt backbones. Following\n\nSwin Transformer [45], we use multi-scale training, AdamW\n\noptimizer, and a 3× schedule",
+            "page": 8,
+            "start": 38196,
+            "end": 38398,
+            "section": "model #param. FLOPs",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          },
+          "note": "分类主结果协议为从头训练或预训练+微调；下游为 fine-tuning。"
+        },
+        "computeResources": {
+          "values": [
+            "未知"
+          ],
+          "status": "unverified",
+          "note": "片段中未给出训练硬件数量与时长；仅提到吞吐量在 V100/A100 GPU 上测量。"
+        }
+      },
+      "experiments": [
+        {
+          "id": "x_p_arxiv_2201.03545_1",
+          "paperId": "p_arxiv_2201.03545",
+          "taskTag": "classification",
+          "modelVariant": "ConvNeXt-T",
+          "params": "29M",
+          "flops": "4.5G",
+          "throughput": {
+            "value": "774.7",
+            "unit": "image/s",
+            "hardware": "V100 GPU",
+            "note": "Table 1 caption 说明 inference throughput 在 V100 GPU 上测量，遵循 [45]。"
+          },
+          "pretrainData": "none",
+          "trainData": "ImageNet-1K",
+          "evalDataset": "ImageNet-1K",
+          "evalSplit": "未知",
+          "inputResolution": "224^2",
+          "metricName": "top-1 acc.",
+          "metricValue": "82.1",
+          "metricUnit": "%",
+          "extraData": "否",
+          "distillation": "未知",
+          "testTimeAug": "未知",
+          "inferenceMode": "未知",
+          "evidence": {
+            "paperId": "p_arxiv_2201.03545",
+            "quote": "• ConvNeXt-T 224\n2\n29M 4.5G 774.7 82.1",
+            "page": 7,
+            "start": 31937,
+            "end": 31975,
+            "section": "model",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "table": {
+            "caption": "Classification accuracy on ImageNet-1K. Similar to Transformers, ConvNeXt also shows promising scaling behavior with higher-capacity models and a larger (pre-training) dataset. Inference throughput is measured on a V100 GPU, following [45]. On an A100 GPU, ConvNeXt can have a much higher throughput ",
+            "rowLabel": "• ConvNeXt-T",
+            "colLabel": "IN-1K top-1 acc.",
+            "locator": "Table 1"
+          },
+          "verification": {
+            "quoteLocated": true,
+            "tableCaptionLocated": true,
+            "rowLabelLocated": true,
+            "colLabelLocated": true,
+            "rowColConfirmed": false,
+            "issues": [
+              "表题已在引文附近定位（逐字一致）",
+              "行标签已在引文附近定位（逐字一致）",
+              "版面核查：该数值所在行未找到模型行标签"
+            ],
+            "matchTypes": {
+              "caption": "strict",
+              "rowLabel": "strict",
+              "colLabel": "strict"
+            },
+            "layout": {
+              "checked": true,
+              "valueFound": true,
+              "rowInBand": false,
+              "columnHeader": "IN-1K",
+              "columnMatchesMetric": "unknown",
+              "bandText": "• ConvNeXt-T 224 2 29M 4.5G 774.7 82.1 Our results demonstrate that properly designed ConvNets"
+            }
+          },
+          "note": "位于 ImageNet-1K trained models 区块。"
+        },
+        {
+          "id": "x_p_arxiv_2201.03545_2",
+          "paperId": "p_arxiv_2201.03545",
+          "taskTag": "classification",
+          "modelVariant": "ConvNeXt-B",
+          "params": "89M",
+          "flops": "15.4G",
+          "throughput": {
+            "value": "292.1",
+            "unit": "image/s",
+            "hardware": "V100 GPU",
+            "note": "Table 1 caption 说明 inference throughput 在 V100 GPU 上测量。"
+          },
+          "pretrainData": "none",
+          "trainData": "ImageNet-1K",
+          "evalDataset": "ImageNet-1K",
+          "evalSplit": "未知",
+          "inputResolution": "224^2",
+          "metricName": "top-1 acc.",
+          "metricValue": "83.8",
+          "metricUnit": "%",
+          "extraData": "否",
+          "distillation": "未知",
+          "testTimeAug": "未知",
+          "inferenceMode": "未知",
+          "evidence": {
+            "paperId": "p_arxiv_2201.03545",
+            "quote": "• ConvNeXt-B 224\n2\n89M 15.4G 292.1 83.8",
+            "page": 7,
+            "start": 32086,
+            "end": 32125,
+            "section": "model",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "table": {
+            "caption": "Classification accuracy on ImageNet-1K. Similar to Transformers, ConvNeXt also shows promising scaling behavior with higher-capacity models and a larger (pre-training) dataset. Inference throughput is measured on a V100 GPU, following [45]. On an A100 GPU, ConvNeXt can have a much higher throughput ",
+            "rowLabel": "• ConvNeXt-B",
+            "colLabel": "IN-1K top-1 acc.",
+            "locator": "Table 1"
+          },
+          "verification": {
+            "quoteLocated": true,
+            "tableCaptionLocated": true,
+            "rowLabelLocated": true,
+            "colLabelLocated": true,
+            "rowColConfirmed": false,
+            "issues": [
+              "表题已在引文附近定位（逐字一致）",
+              "行标签已在引文附近定位（逐字一致）",
+              "版面核查：该数值所在行未找到模型行标签"
+            ],
+            "matchTypes": {
+              "caption": "strict",
+              "rowLabel": "strict",
+              "colLabel": "strict"
+            },
+            "layout": {
+              "checked": true,
+              "valueFound": true,
+              "rowInBand": false,
+              "columnHeader": "IN-1K",
+              "columnMatchesMetric": "unknown",
+              "bandText": "• ConvNeXt-B 224 2 89M 15.4G 292.1 83.8 better than similarly-sized Swin Transformers, with slightly"
+            }
+          },
+          "note": "位于 ImageNet-1K trained models 区块。"
+        },
+        {
+          "id": "x_p_arxiv_2201.03545_3",
+          "paperId": "p_arxiv_2201.03545",
+          "taskTag": "classification",
+          "modelVariant": "ConvNeXt-B",
+          "params": "89M",
+          "flops": "45.1G",
+          "throughput": {
+            "value": "95.7",
+            "unit": "image/s",
+            "hardware": "V100 GPU",
+            "note": "Table 1 caption 说明 inference throughput 在 V100 GPU 上测量。"
+          },
+          "pretrainData": "ImageNet-22K",
+          "trainData": "ImageNet-1K",
+          "evalDataset": "ImageNet-1K",
+          "evalSplit": "未知",
+          "inputResolution": "384^2",
+          "metricName": "top-1 acc.",
+          "metricValue": "86.8",
+          "metricUnit": "%",
+          "extraData": "是（ImageNet-22K 预训练）",
+          "distillation": "未知",
+          "testTimeAug": "未知",
+          "inferenceMode": "未知",
+          "evidence": {
+            "paperId": "p_arxiv_2201.03545",
+            "quote": "• ConvNeXt-B 384\n2\n89M 45.1G 95.7 86.8",
+            "page": 7,
+            "start": 32848,
+            "end": 32886,
+            "section": "model",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "table": {
+            "caption": "Classification accuracy on ImageNet-1K. Similar to Transformers, ConvNeXt also shows promising scaling behavior with higher-capacity models and a larger (pre-training) dataset. Inference throughput is measured on a V100 GPU, following [45]. On an A100 GPU, ConvNeXt can have a much higher throughput ",
+            "rowLabel": "• ConvNeXt-B",
+            "colLabel": "IN-1K top-1 acc.",
+            "locator": "Table 1"
+          },
+          "verification": {
+            "quoteLocated": true,
+            "tableCaptionLocated": true,
+            "rowLabelLocated": true,
+            "colLabelLocated": true,
+            "rowColConfirmed": false,
+            "issues": [
+              "表题已在引文附近定位（逐字一致）",
+              "行标签已在引文附近定位（逐字一致）",
+              "版面核查：该数值所在行未找到模型行标签"
+            ],
+            "matchTypes": {
+              "caption": "strict",
+              "rowLabel": "strict",
+              "colLabel": "strict"
+            },
+            "layout": {
+              "checked": true,
+              "valueFound": true,
+              "rowInBand": false,
+              "columnHeader": "IN-1K",
+              "columnMatchesMetric": "unknown",
+              "bandText": "• EffNetV2-L [72] 480 2 120M 53.0G 83.7 86.8 top performance. However, with ImageNet-22K pre-training,"
+            }
+          },
+          "aliasNotes": [
+            "「ImageNet-22K」按既定对应关系归一为「ImageNet-21K」"
+          ],
+          "note": "位于 ImageNet-22K pre-trained models 区块。"
+        },
+        {
+          "id": "x_p_arxiv_2201.03545_4",
+          "paperId": "p_arxiv_2201.03545",
+          "taskTag": "classification",
+          "modelVariant": "ConvNeXt-XL",
+          "params": "350M",
+          "flops": "179.0G",
+          "throughput": {
+            "value": "30.2",
+            "unit": "image/s",
+            "hardware": "V100 GPU",
+            "note": "Table 1 caption 说明 inference throughput 在 V100 GPU 上测量。"
+          },
+          "pretrainData": "ImageNet-22K",
+          "trainData": "ImageNet-1K",
+          "evalDataset": "ImageNet-1K",
+          "evalSplit": "未知",
+          "inputResolution": "384^2",
+          "metricName": "top-1 acc.",
+          "metricValue": "87.8",
+          "metricUnit": "%",
+          "extraData": "是（ImageNet-22K 预训练）",
+          "distillation": "未知",
+          "testTimeAug": "未知",
+          "inferenceMode": "未知",
+          "evidence": {
+            "paperId": "p_arxiv_2201.03545",
+            "quote": "• ConvNeXt-XL 384\n2\n350M 179.0G 30.2 87.8",
+            "page": 7,
+            "start": 33084,
+            "end": 33125,
+            "section": "model",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "table": {
+            "caption": "Classification accuracy on ImageNet-1K. Similar to Transformers, ConvNeXt also shows promising scaling behavior with higher-capacity models and a larger (pre-training) dataset. Inference throughput is measured on a V100 GPU, following [45]. On an A100 GPU, ConvNeXt can have a much higher throughput ",
+            "rowLabel": "• ConvNeXt-XL",
+            "colLabel": "IN-1K top-1 acc.",
+            "locator": "Table 1"
+          },
+          "verification": {
+            "quoteLocated": true,
+            "tableCaptionLocated": true,
+            "rowLabelLocated": true,
+            "colLabelLocated": true,
+            "rowColConfirmed": false,
+            "issues": [
+              "表题已在引文附近定位（逐字一致）",
+              "行标签已在引文附近定位（逐字一致）",
+              "版面核查：该数值所在行未找到模型行标签"
+            ],
+            "matchTypes": {
+              "caption": "strict",
+              "rowLabel": "strict",
+              "colLabel": "strict"
+            },
+            "layout": {
+              "checked": true,
+              "valueFound": true,
+              "rowInBand": false,
+              "columnHeader": "IN-1K",
+              "columnMatchesMetric": "unknown",
+              "bandText": "• ConvNeXt-XL 384 2 350M 179.0G 30.2 87.8 supervised training results from DeiT [73] for ViT-S/B and"
+            }
+          },
+          "aliasNotes": [
+            "「ImageNet-22K」按既定对应关系归一为「ImageNet-21K」"
+          ],
+          "note": "位于 ImageNet-22K pre-trained models 区块。"
+        },
+        {
+          "id": "x_p_arxiv_2201.03545_5",
+          "paperId": "p_arxiv_2201.03545",
+          "taskTag": "detection",
+          "modelVariant": "ConvNeXt-T",
+          "params": "未知",
+          "flops": "741G",
+          "throughput": {
+            "value": "13.5",
+            "unit": "FPS",
+            "hardware": "A100 GPU",
+            "note": "Table 3 caption 说明 FPS 在 A100 GPU 上测量，FLOPs 以图像尺寸 (1280, 800) 计算。"
+          },
+          "pretrainData": "ImageNet-1K",
+          "trainData": "COCO",
+          "evalDataset": "COCO",
+          "evalSplit": "未知",
+          "inputResolution": "(1280, 800)",
+          "metricName": "AP_box",
+          "metricValue": "50.4",
+          "metricUnit": "%",
+          "extraData": "否",
+          "distillation": "未知",
+          "testTimeAug": "未知",
+          "inferenceMode": "未知",
+          "evidence": {
+            "paperId": "p_arxiv_2201.03545",
+            "quote": "• ConvNeXt-T 741G 13.5 50.4 69.1 54.8 43.7 66.5 47.3",
+            "page": 8,
+            "start": 37209,
+            "end": 37261,
+            "section": "model #param. FLOPs",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "table": {
+            "caption": "COCO object detection and segmentation results using Mask-RCNN and Cascade Mask-RCNN. ‡ indicates that the model is pre-trained on ImageNet-22K. ImageNet-1K pre-trained Swin results are from their Github repository [3]. AP numbers of the ResNet-50 and X101 models are from [45]. We measure FPS on an ",
+            "rowLabel": "• ConvNeXt-T",
+            "colLabel": "AP_box",
+            "locator": "Table 3"
+          },
+          "verification": {
+            "quoteLocated": true,
+            "tableCaptionLocated": true,
+            "rowLabelLocated": true,
+            "colLabelLocated": true,
+            "rowColConfirmed": false,
+            "issues": [
+              "表题已在引文附近定位（逐字一致）",
+              "行标签已在引文附近定位（逐字一致）",
+              "版面核查：该数值所在行未找到模型行标签"
+            ],
+            "matchTypes": {
+              "caption": "strict",
+              "rowLabel": "strict",
+              "colLabel": "loose"
+            },
+            "layout": {
+              "checked": true,
+              "valueFound": true,
+              "rowInBand": false,
+              "columnHeader": "Mask-RCNN 3",
+              "columnMatchesMetric": "unknown",
+              "bandText": "◦ Swin-T 745G 12.2 50.4 69.2 54.7 43.7 66.6 47.3 • ConvNeXt-B 512 2 49.9 122M 1170G"
+            }
+          },
+          "note": "位于 Cascade Mask-RCNN 3× schedule 区块；该行无 ‡，为 ImageNet-1K 预训练。"
+        }
+      ],
+      "overrides": [],
+      "model": "deepseek-chat",
+      "promptVersion": "v3.0.0",
+      "extractedAt": 1789725157572,
+      "cached": true,
+      "paperTitleGuess": "A ConvNet for the 2020s",
+      "validation": [
+        {
+          "id": "vi_mu6seqwx_9",
+          "scope": "method",
+          "refId": "m_p_arxiv_2201.03545",
+          "field": "downstreamExtraData",
+          "code": "condition_unconfirmed",
+          "severity": "warn",
+          "message": "下游额外训练数据：无法确认（表述含糊）。",
+          "action": "需要人工回到原文确认后再用于比较。",
+          "at": 1789725594561
+        },
+        {
+          "id": "vi_mu6seqwx_10",
+          "scope": "method",
+          "refId": "m_p_arxiv_2201.03545",
+          "field": "computeResources",
+          "code": "evidence_not_located",
+          "severity": "warn",
+          "message": "算力/训练时长：有内容但引文未通过定位校验或未支撑该主张。",
+          "action": "该条件按「信息不足」处理，不参与一致性判断。",
+          "at": 1789725594561
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "id": "r_0_m_p_arxiv_1512.03385_m_p_arxiv_2010.11929",
+      "fromMethodId": "m_p_arxiv_1512.03385",
+      "toMethodId": "m_p_arxiv_2010.11929",
+      "type": "unclear",
+      "evidenceState": "inferred",
+      "rationale": "检索到的句子只表明 ViT 在 JFT-300M 预训练后优于 ResNet-based baselines（性能对比），并未说明 ViT 基于或改进 ResNet。ViT 的核心是标准 Transformer 直接作用于图像 patch，与残差学习框架无继承关系。ResNet 在 ViT 论文中仅作为对比基线出现，不足以认证方法继承关系，故标为 candidate。",
+      "aiOriginal": {
+        "type": "unclear",
+        "evidenceState": "inferred",
+        "rationale": "检索到的句子只表明 ViT 在 JFT-300M 预训练后优于 ResNet-based baselines（性能对比），并未说明 ViT 基于或改进 ResNet。ViT 的核心是标准 Transformer 直接作用于图像 patch，与残差学习框架无继承关系。ResNet 在 ViT 论文中仅作为对比基线出现，不足以认证方法继承关系，故标为 candidate。"
+      },
+      "stateAdjusted": [],
+      "cached": true
+    },
+    {
+      "id": "r_1_m_p_arxiv_1512.03385_m_p_arxiv_2012.12877",
+      "fromMethodId": "m_p_arxiv_1512.03385",
+      "toMethodId": "m_p_arxiv_2012.12877",
+      "type": "unclear",
+      "evidenceState": "inferred",
+      "rationale": "检索到的 DeiT 片段仅提到 DeiT-S 和 DeiT-Ti 可视为 ResNet-50 和 ResNet-18 的对应物（counterpart），这是参数量/规模上的类比，并非方法继承或改进。DeiT 基于 ViT 与蒸馏 token，与残差学习框架无直接继承关系。故标为 candidate。",
+      "aiOriginal": {
+        "type": "unclear",
+        "evidenceState": "inferred",
+        "rationale": "检索到的 DeiT 片段仅提到 DeiT-S 和 DeiT-Ti 可视为 ResNet-50 和 ResNet-18 的对应物（counterpart），这是参数量/规模上的类比，并非方法继承或改进。DeiT 基于 ViT 与蒸馏 token，与残差学习框架无直接继承关系。故标为 candidate。"
+      },
+      "stateAdjusted": [],
+      "cached": true
+    },
+    {
+      "id": "r_2_m_p_arxiv_1512.03385_m_p_arxiv_2103.14030",
+      "fromMethodId": "m_p_arxiv_1512.03385",
+      "toMethodId": "m_p_arxiv_2103.14030",
+      "type": "unclear",
+      "evidenceState": "inferred",
+      "rationale": "Swin Transformer 论文中 ResNet 仅作为 CNN 架构发展史中的一员被列举（e.g., VGG, GoogleNet, ResNet, DenseNet...），并未说明 Swin 基于或改进 ResNet。Swin 明确 adapted from the standard Transformer，与残差学习框架无继承关系。故标为 candidate。",
+      "aiOriginal": {
+        "type": "unclear",
+        "evidenceState": "inferred",
+        "rationale": "Swin Transformer 论文中 ResNet 仅作为 CNN 架构发展史中的一员被列举（e.g., VGG, GoogleNet, ResNet, DenseNet...），并未说明 Swin 基于或改进 ResNet。Swin 明确 adapted from the standard Transformer，与残差学习框架无继承关系。故标为 candidate。"
+      },
+      "stateAdjusted": [],
+      "cached": true
+    },
+    {
+      "id": "r_3_m_p_arxiv_1512.03385_m_p_arxiv_2201.03545",
+      "fromMethodId": "m_p_arxiv_1512.03385",
+      "toMethodId": "m_p_arxiv_2201.03545",
+      "type": "extends",
+      "evidenceState": "candidate",
+      "evidence": {
+        "paperId": "p_arxiv_2201.03545",
+        "quote": "Our starting point is a ResNet-50 model. We first\n\ntrain it with similar training techniques used to train vision\n\nTransformers and obtain much improved results compared to\n\nthe original ResNet-50. This will be our baseline.",
+        "page": 3,
+        "start": 11539,
+        "end": 11763,
+        "section": "model, named ConvNeXt, can outperform the Swin Transformer.",
+        "locator": "page+offset",
+        "verified": true,
+        "matchType": "strict",
+        "coverage": 1
+      },
+      "evidenceList": [
+        {
+          "paperId": "p_arxiv_2201.03545",
+          "quote": "Our starting point is a ResNet-50 model. We first\n\ntrain it with similar training techniques used to train vision\n\nTransformers and obtain much improved results compared to\n\nthe original ResNet-50. This will be our baseline.",
+          "page": 3,
+          "start": 11539,
+          "end": 11763,
+          "section": "model, named ConvNeXt, can outperform the Swin Transformer.",
+          "locator": "page+offset",
+          "verified": true,
+          "matchType": "strict",
+          "coverage": 1
+        }
+      ],
+      "rationale": "ConvNeXt 论文明确指出以 ResNet-50 为起点（starting point），并在其基础上逐步引入现代设计决策，属于对 ResNet 的扩展/现代化。引文指名了 ResNet-50 并给出 starting point 的继承措辞，满足 explicit 标准。",
+      "aiOriginal": {
+        "type": "extends",
+        "evidenceState": "explicit",
+        "rationale": "ConvNeXt 论文明确指出以 ResNet-50 为起点（starting point），并在其基础上逐步引入现代设计决策，属于对 ResNet 的扩展/现代化。引文指名了 ResNet-50 并给出 starting point 的继承措辞，满足 explicit 标准。",
+        "evidenceQuote": "Our starting point is a ResNet-50 model. We first train it with similar training techniques used to train vision Transformers and obtain much improved results compared to the original ResNet-50. This will be our baseline."
+      },
+      "stateAdjusted": [],
+      "evidenceAssessment": "引文提到了被继承方法「ResNet」。缺少继承/组合措辞或引用标记。",
+      "cached": true
+    },
+    {
+      "id": "r_4_m_p_arxiv_2010.11929_m_p_arxiv_2012.12877",
+      "fromMethodId": "m_p_arxiv_2010.11929",
+      "toMethodId": "m_p_arxiv_2012.12877",
+      "type": "extends",
+      "evidenceState": "inferred",
+      "rationale": "DeiT 论文明确以 ViT 为参考视觉 Transformer（reference vision transformer），并在此基础上引入蒸馏 token 与数据高效训练策略。检索片段未直接出现指名 ViT 的继承措辞，但 DeiT 的核心架构与训练流程承接自 ViT，属于技术承接关系，故标为 inferred。",
+      "aiOriginal": {
+        "type": "extends",
+        "evidenceState": "inferred",
+        "rationale": "DeiT 论文明确以 ViT 为参考视觉 Transformer（reference vision transformer），并在此基础上引入蒸馏 token 与数据高效训练策略。检索片段未直接出现指名 ViT 的继承措辞，但 DeiT 的核心架构与训练流程承接自 ViT，属于技术承接关系，故标为 inferred。"
+      },
+      "stateAdjusted": [],
+      "cached": true
+    },
+    {
+      "id": "r_5_m_p_arxiv_2010.11929_m_p_arxiv_2103.14030",
+      "fromMethodId": "m_p_arxiv_2010.11929",
+      "toMethodId": "m_p_arxiv_2103.14030",
+      "type": "extends",
+      "evidenceState": "inferred",
+      "rationale": "Swin Transformer 明确 adapted from the standard Transformer，并针对 ViT 类架构单分辨率、二次复杂度的问题提出层级式与移位窗口设计。检索片段未直接指名 ViT 并给出继承措辞，但技术承接关系清晰，故标为 inferred。",
+      "aiOriginal": {
+        "type": "extends",
+        "evidenceState": "inferred",
+        "rationale": "Swin Transformer 明确 adapted from the standard Transformer，并针对 ViT 类架构单分辨率、二次复杂度的问题提出层级式与移位窗口设计。检索片段未直接指名 ViT 并给出继承措辞，但技术承接关系清晰，故标为 inferred。"
+      },
+      "stateAdjusted": [],
+      "cached": true
+    },
+    {
+      "id": "r_6_m_p_arxiv_2010.11929_m_p_arxiv_2201.03545",
+      "fromMethodId": "m_p_arxiv_2010.11929",
+      "toMethodId": "m_p_arxiv_2201.03545",
+      "type": "unclear",
+      "evidenceState": "inferred",
+      "rationale": "ConvNeXt 论文提到使用训练视觉 Transformer 的技巧，但检索片段未指名 ViT 并给出继承措辞。ConvNeXt 的宏观设计主要借鉴 Swin Transformer，与 ViT 的直接继承关系不明确，故标为 candidate。",
+      "aiOriginal": {
+        "type": "unclear",
+        "evidenceState": "inferred",
+        "rationale": "ConvNeXt 论文提到使用训练视觉 Transformer 的技巧，但检索片段未指名 ViT 并给出继承措辞。ConvNeXt 的宏观设计主要借鉴 Swin Transformer，与 ViT 的直接继承关系不明确，故标为 candidate。"
+      },
+      "stateAdjusted": [],
+      "cached": true
+    },
+    {
+      "id": "r_7_m_p_arxiv_2012.12877_m_p_arxiv_2103.14030",
+      "fromMethodId": "m_p_arxiv_2012.12877",
+      "toMethodId": "m_p_arxiv_2103.14030",
+      "type": "unclear",
+      "evidenceState": "inferred",
+      "rationale": "检索片段中未出现 DeiT 与 Swin Transformer 之间的直接继承或改进措辞。两者均为视觉 Transformer 变体，但无明确证据表明 Swin 基于或改进 DeiT，故标为 candidate。",
+      "aiOriginal": {
+        "type": "unclear",
+        "evidenceState": "inferred",
+        "rationale": "检索片段中未出现 DeiT 与 Swin Transformer 之间的直接继承或改进措辞。两者均为视觉 Transformer 变体，但无明确证据表明 Swin 基于或改进 DeiT，故标为 candidate。"
+      },
+      "stateAdjusted": [],
+      "cached": true
+    },
+    {
+      "id": "r_8_m_p_arxiv_2012.12877_m_p_arxiv_2201.03545",
+      "fromMethodId": "m_p_arxiv_2012.12877",
+      "toMethodId": "m_p_arxiv_2201.03545",
+      "type": "unclear",
+      "evidenceState": "inferred",
+      "rationale": "检索片段中未出现 DeiT 与 ConvNeXt 之间的直接继承或改进措辞。ConvNeXt 主要借鉴 Swin Transformer 的设计，与 DeiT 的关系不明确，故标为 candidate。",
+      "aiOriginal": {
+        "type": "unclear",
+        "evidenceState": "inferred",
+        "rationale": "检索片段中未出现 DeiT 与 ConvNeXt 之间的直接继承或改进措辞。ConvNeXt 主要借鉴 Swin Transformer 的设计，与 DeiT 的关系不明确，故标为 candidate。"
+      },
+      "stateAdjusted": [],
+      "cached": true
+    },
+    {
+      "id": "r_9_m_p_arxiv_2103.14030_m_p_arxiv_2201.03545",
+      "fromMethodId": "m_p_arxiv_2103.14030",
+      "toMethodId": "m_p_arxiv_2201.03545",
+      "type": "extends",
+      "evidenceState": "candidate",
+      "evidence": {
+        "paperId": "p_arxiv_2201.03545",
+        "quote": "model, named ConvNeXt, can outperform the Swin Transformer.",
+        "page": 3,
+        "start": 11470,
+        "end": 11529,
+        "locator": "page+offset",
+        "verified": true,
+        "matchType": "strict",
+        "coverage": 1
+      },
+      "evidenceList": [
+        {
+          "paperId": "p_arxiv_2201.03545",
+          "quote": "model, named ConvNeXt, can outperform the Swin Transformer.",
+          "page": 3,
+          "start": 11470,
+          "end": 11529,
+          "locator": "page+offset",
+          "verified": true,
+          "matchType": "strict",
+          "coverage": 1
+        }
+      ],
+      "rationale": "ConvNeXt 论文明确以 Swin Transformer 为对标与借鉴对象，逐步引入 Swin 的宏观设计（stage 计算比、patchify stem）等，属于对 Swin Transformer 的扩展/现代化。引文指名 Swin Transformer 并给出 outperform 的改进措辞，满足 explicit 标准。",
+      "aiOriginal": {
+        "type": "extends",
+        "evidenceState": "explicit",
+        "rationale": "ConvNeXt 论文明确以 Swin Transformer 为对标与借鉴对象，逐步引入 Swin 的宏观设计（stage 计算比、patchify stem）等，属于对 Swin Transformer 的扩展/现代化。引文指名 Swin Transformer 并给出 outperform 的改进措辞，满足 explicit 标准。",
+        "evidenceQuote": "model, named ConvNeXt, can outperform the Swin Transformer."
+      },
+      "stateAdjusted": [],
+      "evidenceAssessment": "引文提到了被继承方法「Swin Transformer」；提到了关系另一端「ConvNeXt」。缺少继承/组合措辞或引用标记。",
+      "cached": true
+    }
+  ],
+  "divergences": {
+    "findings": [
+      {
+        "id": "dv_0",
+        "kind": "condition_confounded",
+        "topic": "ViT 与 ResNet 在小数据集上的过拟合倾向对比",
+        "paperIds": [
+          "p_arxiv_2010.11929",
+          "p_arxiv_1512.03385"
+        ],
+        "sides": [
+          {
+            "paperId": "p_arxiv_2010.11929",
+            "claim": "ViT 在较小数据集上比同等计算量的 ResNet 更容易过拟合",
+            "quote": "Vision Transformers overfit more than ResNets with\n\ncomparable computational cost on smaller datasets.",
+            "page": 7
+          },
+          {
+            "paperId": "p_arxiv_1512.03385",
+            "claim": "ResNet 通过残差学习框架在 CIFAR-10 等数据集上从头训练，未在提供片段中讨论过拟合倾向"
+          }
+        ],
+        "claimType": "qualitative",
+        "commonScope": "在较小数据集（如 CIFAR-10 等）上，Transformer 类架构与 ResNet 类卷积架构相比是否更容易过拟合",
+        "conditionDifferences": [
+          {
+            "dimension": "datasets",
+            "label": "数据集",
+            "detail": "ViT 使用 ImageNet、ImageNet ReaL、CIFAR-10、CIFAR-100、Oxford-IIIT Pets、Oxford Flowers-102、VTAB；ResNet 使用 ImageNet 2012、CIFAR-10、COCO、PASCAL VOC 等"
+          },
+          {
+            "dimension": "metrics",
+            "label": "评价指标",
+            "detail": "ViT 报告 few-shot accuracy、fine-tuning accuracy；ResNet 报告 top-1/top-5 error rate、classification error、mAP 等"
+          },
+          {
+            "dimension": "experimentalSettings",
+            "label": "实验设置",
+            "detail": "ViT 的过拟合观察基于其自身预训练/微调流程；ResNet 的 CIFAR-10 训练使用 weight decay 0.0001、momentum 0.9、BN、无 dropout、mini-batch 128、特定学习率调度"
+          }
+        ],
+        "explanation": "ViT 论文明确声称在较小数据集上比同等计算量的 ResNet 更容易过拟合，但双方的数据集、评价指标与实验设置均不一致，系统判定为当前不能直接比较。因此无法排除条件差异的影响，也不能将该差异归因于架构本身。",
+        "nextAction": "核查在完全相同的数据集划分、训练轮数、数据增强与正则化设置下，ViT 与 ResNet 的过拟合程度是否仍有差异。",
+        "comparabilityLevel": "not_comparable",
+        "disclaimer": "条件不一致时无法排除条件差异的影响，也不能把结果差异归因于方法本身；要判断方法优劣需要先对齐实验条件。"
+      },
+      {
+        "id": "dv_1",
+        "kind": "individual_limitations",
+        "topic": "各论文自述的局限",
+        "paperIds": [
+          "p_arxiv_2010.11929",
+          "p_arxiv_2012.12877",
+          "p_arxiv_2103.14030",
+          "p_arxiv_2201.03545"
+        ],
+        "sides": [
+          {
+            "paperId": "p_arxiv_2010.11929",
+            "claim": "ViT 在较小数据集上比 ResNet 更容易过拟合；自监督预训练的 ViT-B/16 在 ImageNet 上达到 79.9%，比从头训练提升 2%，但仍落后监督预训练 4%",
+            "quote": "Vision Transformers overfit more than ResNets with\n\ncomparable computational cost on smaller datasets.",
+            "page": 7
+          },
+          {
+            "paperId": "p_arxiv_2012.12877",
+            "claim": "DeiT 在 CIFAR-10 上仅用自身数据训练的效果不如 ImageNet 预训练（98.5% vs 99.1%），作者认为这是预期的，因为网络见到的多样性低得多",
+            "quote": "The\n\nresults are not as good as with Imagenet pre-training (98.5% vs 99.1%), which\n\nis expected since the network has seen a much lower diversity.",
+            "page": 14
+          },
+          {
+            "paperId": "p_arxiv_2103.14030",
+            "claim": "推理速度方面，ResNe(X)t 由高度优化的 Cudnn 函数实现，而本架构使用未完全优化的 PyTorch 内置函数，彻底的 kernel 优化超出本文范围",
+            "quote": "Regarding inference speed, while ResNe(X)t is\n\nbuilt by highly optimized Cudnn functions, our architecture\n\nis implemented with built-in PyTorch functions that are not\n\nall well-optimized. A thorough kernel optimization is be-\n\nyond the scope of this paper.",
+            "page": 7
+          },
+          {
+            "paperId": "p_arxiv_2201.03545",
+            "claim": "论文在附录中声明会讨论 limitations（§F），但本次提供的片段未包含该节内容",
+            "quote": "Finally, we discuss the limitations (§F) and\n\nsocietal impact (§G) of our work.",
+            "page": 9
+          }
+        ],
+        "claimType": "qualitative",
+        "explanation": "各论文自述的局限分别针对不同对象（ViT 的小数据集过拟合、DeiT 的 CIFAR-10 训练多样性、Swin 的推理速度实现、ConvNeXt 的未提供局限章节），不构成同一对象/任务/约束下的共同局限，因此分别列出。",
+        "nextAction": "分别核查各论文局限的具体适用条件与影响范围。",
+        "comparabilityLevel": "not_comparable",
+        "ruleNotes": [
+          "未给出共同的局限对象/任务/约束，因此按各自局限分别展示；没有共同对象时不聚合为共同局限。"
+        ],
+        "disclaimer": "这些局限针对的对象不同，分别列出仅供参考，不构成共同结论。"
+      }
+    ],
+    "checkedPairs": [
+      {
+        "pair": "Deep Residual Learning for Image Recognition ↔ AN IMAGE IS WORTH 16X16 WORDS: TRANSFORMERS FOR IMAGE RECOGNITION AT SCALE",
+        "result": "可比性=当前不能直接比较；条件差异：数据集、评价指标、预训练模型、实验设置"
+      },
+      {
+        "pair": "Deep Residual Learning for Image Recognition ↔ Training data-efficient image transformers & distillation through attention",
+        "result": "可比性=当前不能直接比较；条件差异：数据集、数据划分、评价指标、预训练模型、实验设置"
+      },
+      {
+        "pair": "Deep Residual Learning for Image Recognition ↔ Swin Transformer: Hierarchical Vision Transformer using Shifted Windows",
+        "result": "可比性=当前不能直接比较；条件差异：数据集、评价指标"
+      },
+      {
+        "pair": "Deep Residual Learning for Image Recognition ↔ A ConvNet for the 2020s",
+        "result": "可比性=当前不能直接比较；条件差异：数据集、评价指标、预训练模型"
+      },
+      {
+        "pair": "AN IMAGE IS WORTH 16X16 WORDS: TRANSFORMERS FOR IMAGE RECOGNITION AT SCALE ↔ Training data-efficient image transformers & distillation through attention",
+        "result": "可比性=当前不能直接比较；条件差异：数据集、数据划分、评价指标、预训练语料、预训练模型、实验设置"
+      },
+      {
+        "pair": "AN IMAGE IS WORTH 16X16 WORDS: TRANSFORMERS FOR IMAGE RECOGNITION AT SCALE ↔ Swin Transformer: Hierarchical Vision Transformer using Shifted Windows",
+        "result": "可比性=当前不能直接比较；条件差异：数据集、评价指标、预训练语料"
+      },
+      {
+        "pair": "AN IMAGE IS WORTH 16X16 WORDS: TRANSFORMERS FOR IMAGE RECOGNITION AT SCALE ↔ A ConvNet for the 2020s",
+        "result": "可比性=当前不能直接比较；条件差异：数据集、评价指标、预训练语料、预训练模型、实验设置"
+      },
+      {
+        "pair": "Training data-efficient image transformers & distillation through attention ↔ Swin Transformer: Hierarchical Vision Transformer using Shifted Windows",
+        "result": "可比性=当前不能直接比较；条件差异：数据集、评价指标、预训练语料"
+      },
+      {
+        "pair": "Training data-efficient image transformers & distillation through attention ↔ A ConvNet for the 2020s",
+        "result": "可比性=当前不能直接比较；条件差异：数据集、评价指标、预训练语料、预训练模型、实验设置"
+      },
+      {
+        "pair": "Swin Transformer: Hierarchical Vision Transformer using Shifted Windows ↔ A ConvNet for the 2020s",
+        "result": "可比性=当前不能直接比较；条件差异：数据集、数据划分、评价指标、预训练语料"
+      }
+    ],
+    "derivedFrom": {
+      "rulesVersion": "r3.0.0",
+      "paperSignature": "p_arxiv_1512.03385,p_arxiv_2010.11929,p_arxiv_2012.12877,p_arxiv_2103.14030,p_arxiv_2201.03545"
+    },
+    "model": "deepseek-chat",
+    "promptVersion": "v3.0.0",
+    "cached": true,
+    "stale": true,
+    "generatedAt": 1789725167589,
+    "staleReasons": [
+      "本文件的分歧种类与可比性已由程序按规则 r3.0.0 重算（规则重算，未重新调用模型）"
+    ]
+  },
+  "decisionSample": {
+    "profile": {
+      "background": "刚进入视觉方向的研究生/高年级本科生，学过深度学习基础课程，读过 CNN 与注意力机制的基本材料，但还没有系统做过视觉实验",
+      "interest": "想搞清楚 ImageNet 分类上这些方法到底能不能直接比准确率，以及自己应该先读哪几篇",
+      "time": "一学期，每周约 10 小时",
+      "compute": "实验室有 4 张 RTX 3090，可做小规模微调；没有大规模预训练资源",
+      "goal": "为课程/开题做一份「图像分类方法演进」的调研，需要判断哪些结果可比、哪些不能直接比"
+    },
+    "candidates": [
+      {
+        "methodId": "m_p_arxiv_1512.03385",
+        "paperId": "p_arxiv_1512.03385",
+        "fit": "conditional",
+        "targetStage": "from_scratch",
+        "reasons": [
+          {
+            "text": "该论文是 ImageNet 分类上残差学习框架的原始工作，直接给出 top-1/top-5 error rate 与 10-crop / single-model 评测协议，是判断「哪些结果可比」的基准锚点之一。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "metrics",
+              "paperId": "p_arxiv_1512.03385",
+              "methodId": "m_p_arxiv_1512.03385"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_1512.03385",
+              "quote": "We evaluate both top-1 and top-5 error rates.",
+              "page": 4,
+              "start": 19582,
+              "end": 19627,
+              "section": "result on the 100k test images, reported by the test server.",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false,
+            "bindingIssue": "「metrics」在字段与条件中同时存在，已按模型声明的类型绑定到字段条目"
+          },
+          {
+            "text": "论文报告了 CIFAR-10 从头训练（from_scratch 阶段）的算力条目：两块 GPU、mini-batch 128、64k 迭代，这是材料中唯一与用户「小规模微调」之外可对照的同阶段训练证据；但该条目仅覆盖 CIFAR-10，不能外推到 ImageNet 从头训练。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "condition",
+              "key": "computeResources",
+              "paperId": "p_arxiv_1512.03385",
+              "methodId": "m_p_arxiv_1512.03385"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_1512.03385",
+              "quote": "These models are trained with a mini-\n\nbatch size of 128 on two GPUs",
+              "page": 7,
+              "start": 32220,
+              "end": 32288,
+              "section": "method error (%)",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "loose",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false,
+            "bindingIssue": "模型标注的类型（field）与实际位置（condition）不一致，已按实际位置规范化",
+            "stage": "from_scratch"
+          },
+          {
+            "text": "论文未报告 ImageNet 从头训练的 GPU 数量、显存、并行策略与训练时长，因此用户 4 张 RTX 3090 能否复现 ImageNet 规模训练属于可行性未验证。",
+            "basis": "gap",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "computeResources"
+            },
+            "evidenceLocated": false
+          }
+        ],
+        "applicability": "ImageNet 分类：从头训练，评估 top-1/top-5 错误率，10-crop testing（Table 3）与 single-model（Table 4）；CIFAR-10：从头训练，weight decay 0.0001、momentum 0.9、BN、无 dropout，mini-batch 128、两块 GPU，初始学习率 0.1 并在 32k/48k 迭代除以 10，64k 迭代终止；测试时单视图。",
+        "missing": [
+          "ImageNet 从头训练的 GPU 数量、显存、并行策略与训练时长未报告，无法确认在 4 张 RTX 3090 上的可运行性",
+          "论文未报告算力与训练时长（ImageNet 部分），无法确认可运行性"
+        ],
+        "computeReported": true,
+        "computeStage": "from_scratch",
+        "computeScope": "CIFAR-10 上的 ResNet/plain 网络训练",
+        "resourceFeasibility": "user_scale_unknown",
+        "feasibilityNote": "用户算力描述无法解析出可比的规模（例如只写了「有服务器」），无法与论文报告值对照。",
+        "goalMatch": {
+          "level": "recommended",
+          "reasons": [
+            "该论文是 ImageNet 分类上残差学习框架的原始工作，直接给出 top-1/top-5 error rate 与 10-crop / single-model 评测协议，是判断「哪些结果可比」的基准锚点之一。",
+            "论文报告了 CIFAR-10 从头训练（from_scratch 阶段）的算力条目：两块 GPU、mini-batch 128、64k 迭代，这是材料中唯一与用户「小规模微调」之外可对照的同阶段训练证据；但该条目仅覆盖 CIFAR-10，不能外推到 ImageNet 从头训练。"
+          ]
+        },
+        "execution": [
+          {
+            "stage": "reading",
+            "status": "evidence_supported",
+            "note": "阅读与理解方法只依赖论文文本，不受算力条件限制；本页字段与引文都可回溯到原文。"
+          },
+          {
+            "stage": "inference",
+            "status": "unverified",
+            "note": "全文未检索到「权重/检查点已发布」的表述，也没有报告推理阶段算力，因此该阶段无法判断。"
+          },
+          {
+            "stage": "finetune",
+            "status": "insufficient_evidence",
+            "note": "论文没有报告微调阶段的算力；不能用预训练成本代替微调成本来判断。"
+          },
+          {
+            "stage": "pretrain",
+            "status": "insufficient_evidence",
+            "note": "论文报告的是「从头训练」阶段算力（两块 GPU，CIFAR-10 训练（mini-batch 128，64k 迭代）），未报告语言模型预训练阶段的算力。",
+            "page": 7
+          }
+        ]
+      },
+      {
+        "methodId": "m_p_arxiv_2010.11929",
+        "paperId": "p_arxiv_2010.11929",
+        "fit": "conditional",
+        "targetStage": "pretrain",
+        "reasons": [
+          {
+            "text": "ViT 的核心思路是把图像切成 patch 序列送入 Transformer encoder，并明确区分「从头训练」「自监督预训练」「微调」三种设置，正好对应用户要判断的「结果可比性」问题：不同预训练数据规模下的准确率不可直接横向比较。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "coreIdea",
+              "paperId": "p_arxiv_2010.11929",
+              "methodId": "m_p_arxiv_2010.11929"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_2010.11929",
+              "quote": "To handle 2D images, we reshape the image x ∈ R\nH×W ×C\ninto a\n\nsequence of flattened 2D patches xp ∈ R\nN ×(P\n2\n·C)\n, where (H, W ) is the resolution of the original\n\nimage, C is the number of channels, (P, P ) is the resolution of each image patch, and N = HW/P\n2\nis the resulting number of patches",
+              "page": 3,
+              "start": 9418,
+              "end": 9716,
+              "section": "3 METHOD",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false
+          },
+          {
+            "text": "论文报告的算力条目全部属于 pretrain 阶段（TPUv3-core-days：ViT-H/14 2.5k、ViT-L/16 0.68k、ViT-L/16 (I21k) 0.23k；ViT-L/16 在 ImageNet-21k 上约 30 天），用户没有大规模预训练资源，因此该阶段不可复现；但该条目可作为「预训练成本量级」的引用证据，用于说明为何 ViT 的 ImageNet 准确率不能与从头训练的 CNN 直接比。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "condition",
+              "key": "computeResources",
+              "paperId": "p_arxiv_2010.11929",
+              "methodId": "m_p_arxiv_2010.11929"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_2010.11929",
+              "quote": "All models were trained on TPUv3 hardware, and we\n\nreport the number of TPUv3-core-days taken to pre-train each of them, that is, the number of TPU\n\nv3 cores (2 per chip) used for training multiplied by the training time in days.",
+              "page": 5,
+              "start": 19222,
+              "end": 19451,
+              "section": "Model Layers Hidden size D MLP size Heads Params",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false,
+            "bindingIssue": "模型标注的类型（field）与实际位置（condition）不一致，已按实际位置规范化",
+            "stage": "pretrain"
+          },
+          {
+            "text": "论文自述 ViT 在较小数据集上比 ResNet 更容易过拟合，且自监督预训练 ViT-B/16 在 ImageNet 上 79.9%，仍落后监督预训练 4%，这是判断「可比性」时必须注意的适用边界。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "limitations",
+              "paperId": "p_arxiv_2010.11929",
+              "methodId": "m_p_arxiv_2010.11929"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_2010.11929",
+              "quote": "Vision Transformers overfit more than ResNets with\n\ncomparable computational cost on smaller datasets.",
+              "page": 7,
+              "start": 25629,
+              "end": 25731,
+              "section": "experiments.",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false
+          }
+        ],
+        "applicability": "Table 2 中各模型预训练算力；fine-tuning：预训练后移除预训练预测头，接零初始化 D×K 前馈层，微调至下游任务；few-shot：用正则化最小二乘回归将冻结表示映射到 {-1,1}^K 目标向量。",
+        "missing": [
+          "论文未报告微调阶段在单卡/小规模 GPU 上的显存与并行策略，无法确认 4 张 RTX 3090 上微调 ViT 的可行性",
+          "论文未报告 ImageNet 从头训练 ViT 的算力条目，无法确认该阶段可运行性"
+        ],
+        "computeReported": true,
+        "computeStage": "pretrain",
+        "computeScope": "Table 2 中各模型预训练算力",
+        "resourceFeasibility": "user_scale_unknown",
+        "feasibilityNote": "用户算力描述无法解析出可比的规模（例如只写了「有服务器」），无法与论文报告值对照。",
+        "goalMatch": {
+          "level": "recommended",
+          "reasons": [
+            "ViT 的核心思路是把图像切成 patch 序列送入 Transformer encoder，并明确区分「从头训练」「自监督预训练」「微调」三种设置，正好对应用户要判断的「结果可比性」问题：不同预训练数据规模下的准确率不可直接横向比较。",
+            "论文报告的算力条目全部属于 pretrain 阶段（TPUv3-core-days：ViT-H/14 2.5k、ViT-L/16 0.68k、ViT-L/16 (I21k) 0.23k；ViT-L/16 在 ImageNet-21k 上约 30 天），用户没有大规模预训练资源，因此该阶段不可复现；但该条目可作为「预训练成本量级」的引用证据，用于说明为何 ViT 的 ImageNet 准确率不能与从头训练的 CNN 直接比。",
+            "论文自述 ViT 在较小数据集上比 ResNet 更容易过拟合，且自监督预训练 ViT-B/16 在 ImageNet 上 79.9%，仍落后监督预训练 4%，这是判断「可比性」时必须注意的适用边界。"
+          ]
+        },
+        "execution": [
+          {
+            "stage": "reading",
+            "status": "evidence_supported",
+            "note": "阅读与理解方法只依赖论文文本，不受算力条件限制；本页字段与引文都可回溯到原文。"
+          },
+          {
+            "stage": "inference",
+            "status": "insufficient_evidence",
+            "note": "论文原文声明权重/代码可获取（见下方引文，p.1），因此拿到现有权重这条路径**有原文依据**；但论文没有报告推理阶段的算力与资源需求，**能不能在你的设备上跑通仍未验证**（可获取 ≠ 可运行）。",
+            "page": 1,
+            "evidence": {
+              "paperId": "p_arxiv_2010.11929",
+              "quote": "This\n\nseemingly discouraging outcome may be expected: Transformers lack some of the inductive biases\n1\nFine-tuning code and pre-trained models are available at https://github.",
+              "page": 1,
+              "start": 3302,
+              "end": 3477,
+              "section": "1 INTRODUCTION",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            }
+          },
+          {
+            "stage": "finetune",
+            "status": "insufficient_evidence",
+            "note": "论文没有报告微调阶段的算力；不能用预训练成本代替微调成本来判断。"
+          },
+          {
+            "stage": "pretrain",
+            "status": "insufficient_evidence",
+            "note": "论文报告了预训练阶段算力，但缺少可用于对照的规模信息（TPUv3-core-days：ViT-H/14 2.5k，ViT-L/16 0.68k，ViT-L/16 (I21k) 0.23k，BiT-L 9.9k，Noisy Student 12.3k、ViT-L/16 在 ImageNet-21k 上可用标准云 TPUv3 8 核约 30 天训练）。",
+            "page": 5
+          }
+        ]
+      },
+      {
+        "methodId": "m_p_arxiv_2012.12877",
+        "paperId": "p_arxiv_2012.12877",
+        "fit": "conditional",
+        "targetStage": "finetune",
+        "reasons": [
+          {
+            "text": "DeiT 的核心思路是在 ImageNet 上直接训练无卷积视觉 Transformer，并用强数据增强、正则化与蒸馏 token 实现数据高效训练，是「不依赖大规模外部预训练也能得到可比 ImageNet 准确率」的代表，直接回应用户「哪些结果可比」的问题。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "coreIdea",
+              "paperId": "p_arxiv_2012.12877",
+              "methodId": "m_p_arxiv_2012.12877"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_2012.12877",
+              "quote": "More importantly, we introduce a teacher-student strategy specific to\n\ntransformers. It relies on a distillation token ensuring that the student\n\nlearns from the teacher through attention.",
+              "page": 1,
+              "start": 815,
+              "end": 1003,
+              "section": "Abstract",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false
+          },
+          {
+            "text": "论文报告的算力条目属于 finetune 阶段：DeiT-B 训练 300 epochs 为 2 节点 37 小时或单节点 53 小时，DeiT-S/Ti 在 4 GPU 上少于 3 天，384×384 微调为单节点 8 GPU 20 小时（25 epochs）。这是材料中与用户「4 张 RTX 3090 可做小规模微调」最接近的同阶段证据，但论文给的是节点/GPU 数量而非显存与并行策略，因此只能作为量级参考，不能断言资源已满足。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "condition",
+              "key": "computeResources",
+              "paperId": "p_arxiv_2012.12877",
+              "methodId": "m_p_arxiv_2012.12877"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_2012.12877",
+              "quote": "A typical training of 300 epochs takes 37 hours with 2 nodes\n\nor 53 hours on a single node for the DeiT-B.",
+              "page": 17,
+              "start": 40259,
+              "end": 40365,
+              "section": "Methods ViT-B [15] DeiT-B",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false,
+            "bindingIssue": "模型标注的类型（field）与实际位置（condition）不一致，已按实际位置规范化",
+            "stage": "finetune"
+          },
+          {
+            "text": "论文自述在 CIFAR-10 上仅用自身数据训练不如 ImageNet 预训练（98.5% vs 99.1%），说明数据多样性会显著影响可比性，是调研中必须标注的适用边界。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "limitations",
+              "paperId": "p_arxiv_2012.12877",
+              "methodId": "m_p_arxiv_2012.12877"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_2012.12877",
+              "quote": "The\n\nresults are not as good as with Imagenet pre-training (98.5% vs 99.1%), which\n\nis expected since the network has seen a much lower diversity.",
+              "page": 14,
+              "start": 33143,
+              "end": 33289,
+              "section": "Method RegNetY-16GF DeiT-B DeiT-B⚗",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false
+          }
+        ],
+        "applicability": "DeiT-B 在 ImageNet 上 300 epochs 训练及 384×384 微调；fine-tuning：在 ImageNet 上训练 300 epochs，随后在 384×384 分辨率微调（约 25 epochs）；知识蒸馏：使用硬蒸馏，教师为 RegNetY-16GF，蒸馏 token 参与注意力；从头训练：DeiT 在 ImageNet-1k 上从头训练，无外部数据。",
+        "missing": [
+          "论文未报告训练时的显存占用与并行策略，无法确认 4 张 RTX 3090 上能否复现 DeiT-B 300 epochs",
+          "论文未报告从头训练阶段的独立算力条目，无法确认该阶段可运行性"
+        ],
+        "computeReported": true,
+        "computeStage": "finetune",
+        "computeScope": "DeiT-B 在 ImageNet 上 300 epochs 训练及 384×384 微调",
+        "resourceFeasibility": "user_scale_unknown",
+        "feasibilityNote": "用户算力描述无法解析出可比的规模（例如只写了「有服务器」），无法与论文报告值对照。",
+        "goalMatch": {
+          "level": "recommended",
+          "reasons": [
+            "DeiT 的核心思路是在 ImageNet 上直接训练无卷积视觉 Transformer，并用强数据增强、正则化与蒸馏 token 实现数据高效训练，是「不依赖大规模外部预训练也能得到可比 ImageNet 准确率」的代表，直接回应用户「哪些结果可比」的问题。",
+            "论文报告的算力条目属于 finetune 阶段：DeiT-B 训练 300 epochs 为 2 节点 37 小时或单节点 53 小时，DeiT-S/Ti 在 4 GPU 上少于 3 天，384×384 微调为单节点 8 GPU 20 小时（25 epochs）。这是材料中与用户「4 张 RTX 3090 可做小规模微调」最接近的同阶段证据，但论文给的是节点/GPU 数量而非显存与并行策略，因此只能作为量级参考，不能断言资源已满足。",
+            "论文自述在 CIFAR-10 上仅用自身数据训练不如 ImageNet 预训练（98.5% vs 99.1%），说明数据多样性会显著影响可比性，是调研中必须标注的适用边界。"
+          ]
+        },
+        "execution": [
+          {
+            "stage": "reading",
+            "status": "evidence_supported",
+            "note": "阅读与理解方法只依赖论文文本，不受算力条件限制；本页字段与引文都可回溯到原文。"
+          },
+          {
+            "stage": "inference",
+            "status": "unverified",
+            "note": "全文未检索到「权重/检查点已发布」的表述，也没有报告推理阶段算力，因此该阶段无法判断。"
+          },
+          {
+            "stage": "finetune",
+            "status": "known_gap",
+            "note": "论文报告的微调阶段算力高于用户可及资源（DeiT-B 训练 300 epochs：2 节点 37 小时，或单节点 53 小时、DeiT-S 与 DeiT-Ti：4 GPU 上少于 3 天、384×384 微调：单节点 8 GPU 20 小时（25 epochs））。",
+            "page": 17
+          },
+          {
+            "stage": "pretrain",
+            "status": "insufficient_evidence",
+            "note": "论文没有报告预训练阶段的算力与训练时长，无法判断该阶段是否可执行。"
+          }
+        ]
+      },
+      {
+        "methodId": "m_p_arxiv_2103.14030",
+        "paperId": "p_arxiv_2103.14030",
+        "fit": "unknown",
+        "targetStage": "inference",
+        "reasons": [
+          {
+            "text": "Swin Transformer 的核心思路是层级式 Transformer + 移位窗口注意力，是 ImageNet 分类演进中「宏观设计」的关键一环，用户调研方法演进时需要理解其与 ResNet、ViT 的结构差异。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "coreIdea",
+              "paperId": "p_arxiv_2103.14030",
+              "methodId": "m_p_arxiv_2103.14030"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_2103.14030",
+              "quote": "To address these\n\ndifferences, we propose a hierarchical Transformer whose\n\nrepresentation is computed with Shifted windows. The\n\nshifted windowing scheme brings greater efficiency by lim-\n\niting self-attention computation to non-overlapping local\n\nwindows while also allowing for cross-window connection.",
+              "page": 1,
+              "start": 659,
+              "end": 964,
+              "section": "Abstract",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false
+          },
+          {
+            "text": "论文报告的算力条目仅属于 inference 阶段（V100 GPU 用于吞吐量测量，具体数量与时长未给出），不能用于判断训练或微调的资源门槛；用户若想复现其 ImageNet 分类训练，材料中没有同阶段算力证据。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "condition",
+              "key": "computeResources",
+              "paperId": "p_arxiv_2103.14030",
+              "methodId": "m_p_arxiv_2103.14030"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_2103.14030",
+              "quote": "Throughput is measured using the GitHub repository\n\nof [68] and a V100 GPU, following [63].",
+              "page": 6,
+              "start": 27932,
+              "end": 28023,
+              "section": "method",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false,
+            "bindingIssue": "模型标注的类型（field）与实际位置（condition）不一致，已按实际位置规范化",
+            "stage": "inference"
+          },
+          {
+            "text": "论文自述推理速度方面 ResNe(X)t 由高度优化的 Cudnn 函数实现，而本架构使用未完全优化的 PyTorch 内置函数，这意味着吞吐量对比本身存在实现差异，是判断「结果可比性」时的重要警示。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "limitations",
+              "paperId": "p_arxiv_2103.14030",
+              "methodId": "m_p_arxiv_2103.14030"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_2103.14030",
+              "quote": "Regarding inference speed, while ResNe(X)t is\n\nbuilt by highly optimized Cudnn functions, our architecture\n\nis implemented with built-in PyTorch functions that are not\n\nall well-optimized. A thorough kernel optimization is be-\n\nyond the scope of this paper.",
+              "page": 7,
+              "start": 33111,
+              "end": 33368,
+              "section": "Method Backbone mIoU score",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false
+          }
+        ],
+        "applicability": "表 1 中各 backbone 在 ImageNet 分类上的吞吐量测量；ImageNet-1K 分类：fine-tuning/从头训练（片段未明确），评估协议未在片段中说明；COCO 目标检测与实例分割：在 COCO 2017 上训练与评估，对比时只更换 backbone，其他设置不变；ADE20K 语义分割：以 UperNet in mmseg 为 base framework。",
+        "missing": [
+          "论文未报告 ImageNet 分类训练/微调的算力与训练时长，无法确认可运行性",
+          "ImageNet-1K 分类是 fine-tuning 还是从头训练在片段中未明确",
+          "评估协议未在片段中说明"
+        ],
+        "computeReported": true,
+        "computeStage": "inference",
+        "computeScope": "表 1 中各 backbone 在 ImageNet 分类上的吞吐量测量",
+        "resourceFeasibility": "user_scale_unknown",
+        "feasibilityNote": "用户算力描述无法解析出可比的规模（例如只写了「有服务器」），无法与论文报告值对照。",
+        "goalMatch": {
+          "level": "worth_investigating",
+          "reasons": [
+            "Swin Transformer 的核心思路是层级式 Transformer + 移位窗口注意力，是 ImageNet 分类演进中「宏观设计」的关键一环，用户调研方法演进时需要理解其与 ResNet、ViT 的结构差异。",
+            "论文报告的算力条目仅属于 inference 阶段（V100 GPU 用于吞吐量测量，具体数量与时长未给出），不能用于判断训练或微调的资源门槛；用户若想复现其 ImageNet 分类训练，材料中没有同阶段算力证据。",
+            "论文自述推理速度方面 ResNe(X)t 由高度优化的 Cudnn 函数实现，而本架构使用未完全优化的 PyTorch 内置函数，这意味着吞吐量对比本身存在实现差异，是判断「结果可比性」时的重要警示。"
+          ]
+        },
+        "execution": [
+          {
+            "stage": "reading",
+            "status": "evidence_supported",
+            "note": "阅读与理解方法只依赖论文文本，不受算力条件限制；本页字段与引文都可回溯到原文。"
+          },
+          {
+            "stage": "inference",
+            "status": "known_gap",
+            "note": "论文报告了推理阶段算力（V100 GPU（用于吞吐量测量，具体数量与时长未给出））；这属于论文证据判断，仍需要你在本机确认环境与显存。",
+            "page": 6
+          },
+          {
+            "stage": "finetune",
+            "status": "insufficient_evidence",
+            "note": "论文没有报告微调阶段的算力；不能用预训练成本代替微调成本来判断。"
+          },
+          {
+            "stage": "pretrain",
+            "status": "insufficient_evidence",
+            "note": "论文没有报告预训练阶段的算力与训练时长，无法判断该阶段是否可执行。"
+          }
+        ]
+      },
+      {
+        "methodId": "m_p_arxiv_2201.03545",
+        "paperId": "p_arxiv_2201.03545",
+        "fit": "unknown",
+        "targetStage": "from_scratch",
+        "reasons": [
+          {
+            "text": "ConvNeXt 的核心思路是以 ResNet-50 为起点、逐步引入 Swin Transformer 的宏观与微观设计，把标准 ConvNet 现代化，是「CNN vs Transformer 在 ImageNet 上是否可比」这一问题的直接对照材料。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "coreIdea",
+              "paperId": "p_arxiv_2201.03545",
+              "methodId": "m_p_arxiv_2201.03545"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_2201.03545",
+              "quote": "Our starting point is a ResNet-50 model. We first\n\ntrain it with similar training techniques used to train vision\n\nTransformers and obtain much improved results compared to\n\nthe original ResNet-50. This will be our baseline. We then\n\nstudy a series of design decisions which we summarized\n\nas 1) macro design, 2) ResNeXt, 3) inverted bottleneck, 4)\n\nlarge kernel size, and 5) various layer-wise micro designs.",
+              "page": 3,
+              "start": 11539,
+              "end": 11948,
+              "section": "model, named ConvNeXt, can outperform the Swin Transformer.",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false
+          },
+          {
+            "text": "论文的算力条目状态为 unverified、阶段未说明、适用范围未说明，因此无法引用任何同阶段算力来判断用户 4 张 RTX 3090 能否复现其 ImageNet-1K 从头训练（300 epochs）或 ImageNet-22K 预训练后微调（30 epochs，384^2）。",
+            "basis": "gap",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "computeResources"
+            },
+            "evidenceLocated": false
+          },
+          {
+            "text": "论文在附录中声明会讨论 limitations（§F），但提供的片段未包含该节内容，因此无法引用作者自述的适用边界。",
+            "basis": "gap",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "limitations"
+            },
+            "evidenceLocated": false
+          }
+        ],
+        "applicability": "分类：从头训练（ImageNet-1K，300 epochs）或 ImageNet-22K 预训练后 ImageNet-1K 微调（30 epochs，384^2）；检测/分割：在 COCO/ADE20K 上微调，Mask R-CNN / Cascade Mask R-CNN，3× schedule；鲁棒性：直接评估，无额外微调。",
+        "missing": [
+          "论文未报告算力与训练时长，无法确认可运行性",
+          "算力条目状态为 unverified、阶段未说明、适用范围未说明",
+          "提供的片段未包含 §F limitations 内容"
+        ],
+        "computeReported": false,
+        "resourceFeasibility": "no_matching_stage_evidence",
+        "feasibilityNote": "论文没有报告与用户目标阶段一致的算力，无法据此判断可运行性。",
+        "goalMatch": {
+          "level": "worth_investigating",
+          "reasons": [
+            "ConvNeXt 的核心思路是以 ResNet-50 为起点、逐步引入 Swin Transformer 的宏观与微观设计，把标准 ConvNet 现代化，是「CNN vs Transformer 在 ImageNet 上是否可比」这一问题的直接对照材料。"
+          ]
+        },
+        "execution": [
+          {
+            "stage": "reading",
+            "status": "evidence_supported",
+            "note": "阅读与理解方法只依赖论文文本，不受算力条件限制；本页字段与引文都可回溯到原文。"
+          },
+          {
+            "stage": "inference",
+            "status": "unverified",
+            "note": "全文未检索到「权重/检查点已发布」的表述，也没有报告推理阶段算力，因此该阶段无法判断。"
+          },
+          {
+            "stage": "finetune",
+            "status": "insufficient_evidence",
+            "note": "论文没有报告微调阶段的算力；不能用预训练成本代替微调成本来判断。"
+          },
+          {
+            "stage": "pretrain",
+            "status": "insufficient_evidence",
+            "note": "论文没有报告预训练阶段的算力与训练时长，无法判断该阶段是否可执行。"
+          }
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "paperId": "p_arxiv_1512.03385",
+        "order": 1,
+        "focus": "重点看残差映射 F(x)+x 的动机、ImageNet 上 10-crop 与 single-model 两种评测协议的差异，以及 CIFAR-10 从头训练的超参与迭代设置。",
+        "reason": "作为 ImageNet 分类的经典基准，先建立「从头训练 + top-1/top-5 error」这一可比性锚点，后续方法才能对照。",
+        "basis": "paper"
+      },
+      {
+        "paperId": "p_arxiv_2010.11929",
+        "order": 2,
+        "focus": "重点看 patch embedding + [class] token 的做法、预训练数据规模（ImageNet vs ImageNet-21k/JFT）对结果的影响，以及论文自述的小数据集过拟合与自监督仍落后监督预训练 4% 的边界。",
+        "reason": "在理解 CNN 基准后，读 ViT 才能看清「预训练规模不同导致准确率不可直接比」这一核心可比性问题。",
+        "basis": "paper"
+      },
+      {
+        "paperId": "p_arxiv_2012.12877",
+        "order": 3,
+        "focus": "重点看无外部数据、仅 ImageNet-1k 从头训练 300 epochs 的设置，以及蒸馏 token 与卷积教师的作用；对照其与 ViT 在数据需求上的差异。",
+        "reason": "DeiT 是「不依赖大规模预训练也能得到可比 ImageNet 准确率」的关键节点，放在 ViT 之后读能直接回答「哪些结果可比」。",
+        "basis": "paper"
+      },
+      {
+        "paperId": "p_arxiv_2103.14030",
+        "order": 4,
+        "focus": "重点看层级式设计与移位窗口如何改变计算复杂度，以及论文自述的推理速度实现差异（Cudnn vs 未完全优化的 PyTorch）对吞吐量对比的影响。",
+        "reason": "Swin 是 Transformer 路线在分类/检测/分割上的宏观设计来源，也是 ConvNeXt 的对照对象，放在 DeiT 之后读可衔接演进脉络。",
+        "basis": "paper"
+      },
+      {
+        "paperId": "p_arxiv_2201.03545",
+        "order": 5,
+        "focus": "重点看从 ResNet-50 出发逐步引入 Swin 宏观设计、ResNeXt 化、倒置瓶颈、大卷积核的改造路径，以及 ImageNet-1K 从头训练 300 epochs 与 ImageNet-22K 预训练后微调两种设置的差异。",
+        "reason": "ConvNeXt 把 CNN 与 Transformer 的设计要素拉到同一比较框架，放在最后读有助于收束「方法演进 + 可比性」两条线。",
+        "basis": "paper"
+      }
+    ],
+    "questions": [],
+    "conditionSensitivity": "若用户把目标从「调研可比性」改为「亲手复现某个 ImageNet 结果」，则只有 DeiT 的 finetune 阶段算力条目（4 GPU 少于 3 天 / 单节点 53 小时）在量级上接近 4 张 RTX 3090，其余方法会因缺少同阶段算力证据而更偏向 unknown；若用户获得大规模预训练资源，ViT 的 pretrain 阶段才会从不可复现变为可讨论。",
+    "model": "deepseek-chat",
+    "cached": true,
+    "generatedAt": 1789725181059
+  },
+  "demoProfile": {
+    "background": "刚进入视觉方向的研究生/高年级本科生，学过深度学习基础课程，读过 CNN 与注意力机制的基本材料，但还没有系统做过视觉实验",
+    "interest": "想搞清楚 ImageNet 分类上这些方法到底能不能直接比准确率，以及自己应该先读哪几篇",
+    "time": "一学期，每周约 10 小时",
+    "compute": "实验室有 4 张 RTX 3090，可做小规模微调；没有大规模预训练资源",
+    "goal": "为课程/开题做一份「图像分类方法演进」的调研，需要判断哪些结果可比、哪些不能直接比"
+  },
+  "verification": {
+    "fieldsWithValue": 35,
+    "fieldsEvidenceVerified": 34,
+    "fieldsEvidenceFailed": 0,
+    "fieldsNoEvidence": 1,
+    "fieldsMissing": 0,
+    "totalFields": 35
+  },
+  "tableBindingCheckedAt": "2026-09-18T09:53:08.048Z",
+  "revalidatedOnly": true,
+  "revalidationNote": "本文件的「判定类结论」（字段校验问题、条件范围与状态、关系可信度三档、分歧种类与可比性、已检查论文对）已由程序按规则 r3.0.0 在模型输出上重算；模型给出的字段值、引文、理由文字来自提示词 v3.0.0 的那次真实调用（未在重算中重新调用模型）。"
+}

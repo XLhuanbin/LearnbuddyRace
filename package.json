@@ -1,0 +1,32 @@
+{
+  "name": "researchpilot",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "ResearchPilot - 论文方法梳理智能体 (粤港澳大湾区 AI Coding 创新大赛参赛作品, 方向二)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && node scripts/stamp-build.mjs",
+    "preview": "vite preview",
+    "analyze": "node scripts/analyze.mjs",
+    "analyze:report": "node scripts/analyze.mjs --report-only",
+    "variation": "node scripts/analyze.mjs --decision-variation",
+    "test": "node scripts/test.mjs",
+    "e2e": "node scripts/e2e-check.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "samples": "node samples/download-samples.mjs"
+  },
+  "dependencies": {
+    "pdfjs-dist": "^4.10.38",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.3",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11"
+  }
+}

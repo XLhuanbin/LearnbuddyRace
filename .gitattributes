@@ -1,0 +1,10 @@
+# 跨平台换行统一：仓库内统一 LF，检出时按平台转换
+* text=auto eol=lf
+
+# 二进制文件不做换行转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
+*.ico binary
+*.woff2 binary

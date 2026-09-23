@@ -1,0 +1,182 @@
+/* =========================================================================
+   研究地图：探索画布（不是分类看板）
+   一条工具栏 + 一整块画布 + 点击后的浮层详情。
+   ========================================================================= */
+
+.mapwork {
+  position: relative;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  height: calc(100vh - 190px);
+  min-height: 440px;
+  max-height: 760px;
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
+}
+.mapstage {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mapstage svg { display: block; }
+
+/* 画布内的轻提示（只在未选中时出现） */
+.maphint {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 13px;
+  font-size: 12px;
+  color: var(--fg-3);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  padding: 4px 10px;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+/* 图例：画布左下角一行 */
+.maplegend {
+  position: absolute;
+  left: 14px;
+  bottom: 12px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--fg-3);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  padding: 4px 10px;
+  border-radius: 999px;
+  pointer-events: none;
+}
+.maplegend .k { display: inline-flex; align-items: center; gap: 5px; }
+
+/* 缩放控件：右下角 */
+.mapzoom {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 6px;
+  box-shadow: var(--shadow-1);
+}
+.mapzoom .z {
+  min-width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: none;
+  background: none;
+  color: var(--fg-2);
+  font-size: 13px;
+  cursor: pointer;
+}
+.mapzoom .z:hover { background: var(--bg-3); color: var(--fg); }
+.mapzoom .pct { font-size: 11px; color: var(--fg-3); min-width: 34px; text-align: center; }
+
+/* 节点 */
+.mnode { cursor: pointer; }
+.mnode rect { transition: stroke .12s ease, stroke-width .12s ease; }
+.mnode:hover rect { stroke: var(--accent); }
+.mnode:focus-visible rect { stroke: var(--accent); stroke-width: 2; }
+.mnode.sel rect { stroke: var(--accent); stroke-width: 2.2; }
+.mnode.near rect { stroke: var(--accent-line); }
+
+/* 连线 */
+.medge { cursor: pointer; }
+.medge path.line { transition: stroke-width .12s ease, opacity .12s ease; }
+.medge:hover path.line { stroke-width: 3; }
+
+/* 详情浮层：桌面右侧 / 窄屏底部 */
+.mapdetail {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: 330px;
+  background: var(--bg);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgba(22, 32, 46, .16);
+  padding: 16px 16px 14px;
+  overflow-y: auto;
+  animation: mapIn .16s ease;
+}
+@keyframes mapIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.mapdetail h3 { margin: 0; font-size: 16px; }
+.mapdetail .dh { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 10px; }
+.mapdetail .dh .x {
+  margin-left: auto;
+  border: none;
+  background: none;
+  color: var(--fg-3);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.mapdetail .dh .x:hover { background: var(--bg-3); color: var(--fg); }
+.mapdetail .sect { font-size: 12px; color: var(--fg-3); margin: 12px 0 3px; }
+.mapdetail p { margin: 0; font-size: 13px; line-height: 1.8; color: var(--fg); }
+.mapdetail ul { margin: 4px 0 0; padding-left: 18px; }
+.mapdetail li { font-size: 13px; line-height: 1.8; }
+.mapdetail .acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+
+/* 工具栏（MapView 顶部）：紧凑一行 */
+.maptoolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.maptoolbar .t { display: flex; align-items: baseline; gap: 8px; }
+.maptoolbar .t b { font-size: 15px; }
+.maptoolbar .t .cnt { font-size: 12.5px; color: var(--fg-3); }
+.maptoolbar .views { display: flex; gap: 6px; }
+.maptoolbar .spacer { flex: 1; }
+
+/* 选项弹层 */
+.mapopts {
+  position: relative;
+}
+.mapopts .pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 12;
+  width: 300px;
+  background: var(--bg);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 36px rgba(22, 32, 46, .16);
+  padding: 12px 14px;
+}
+.mapopts .pop .row { gap: 10px; }
+.mapopts .pop hr { border: none; border-top: 1px solid var(--line); margin: 10px 0; }
+
+@media (max-width: 900px) {
+  .mapwork { height: auto; min-height: 420px; }
+  .mapdetail {
+    top: auto;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    width: auto;
+    max-height: 52%;
+    padding: 14px;
+  }
+  .maplegend { display: none; }
+  .maptoolbar { gap: 8px; }
+}
