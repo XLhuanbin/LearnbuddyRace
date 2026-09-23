@@ -44,10 +44,19 @@ export function MoreView({ scope, corpus, onGo, onSwitchCorpus, modelReady, coun
 
   return (
     <div>
-      <h2 className="page">更多</h2>
-      <p className="lead">
-        这里是细节与开发信息：面向评审与开发者。普通演示只需要「比较结果」和「方法演进」两页。
-      </p>
+      <div className="morehead">
+        <div className="morehead-text">
+          <h2 className="page">更多</h2>
+          <p className="lead">
+            这里是细节与开发信息：面向评审与开发者。普通演示只需要「比较结果」和「方法演进」两页。
+          </p>
+        </div>
+        {/* 淡色装饰字（自首页迁移）：纯装饰，桌面完整显示，窄屏只显示 Research */}
+        <div className="deco-wm" aria-hidden="true">
+          <span>Research</span>
+          <span className="deco-tail">Pilot</span>
+        </div>
+      </div>
 
       <div className="card tight" style={{ marginBottom: 16 }}>
         <div className="row" style={{ gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>

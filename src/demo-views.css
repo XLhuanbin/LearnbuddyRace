@@ -8,51 +8,43 @@
   position: relative;
   max-width: 1120px;
   margin: 0 auto;
-  padding: 72px 0 68px;
-  overflow: hidden;          /* 裁掉超大水印溢出的部分，避免横向滚动条 */
+  padding: 64px 0 68px;
 }
-
-/* 若隐若现的超大品牌字：纯装饰层，不参与布局也不遮挡交互 */
-.landing .wm {
-  position: absolute;
-  top: -0.1em;
-  left: 50%;
-  transform: translateX(-50%);
-  font-family: var(--font-brand);
-  font-weight: 600;
-  font-size: clamp(96px, 17.5vw, 252px);
-  line-height: 1;
-  letter-spacing: -.015em;
-  white-space: nowrap;
-  color: rgba(23, 38, 60, .05);
-  pointer-events: none;
-  user-select: none;
-  z-index: 0;
-}
-.landing > section { position: relative; z-index: 1; }
 
 .landing .lead-block { text-align: center; }
 .landing .eyebrow {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  margin: 0 0 20px;
+  margin: 0 0 22px;
   font-size: 12.5px;
   letter-spacing: .16em;
   color: var(--copper-2);
 }
 .landing .eyebrow .rule { display: inline-block; width: 34px; height: 1px; background: var(--copper); }
 
-.landing h1 {
+.landing h1.brand-title {
+  font-family: var(--font-brand);
+  font-weight: 600;
+  font-size: clamp(34px, 9.6vw, 92px);
+  line-height: 1.06;
+  letter-spacing: -.012em;
+  color: var(--fg);
+  margin: 0 auto 14px;
+  white-space: nowrap;         /* 完整成行，任何宽度都不裁切、不折行 */
+  max-width: 100%;
+  overflow: visible;
+}
+/* 中文主张：紧跟品牌标题之下，较小但仍醒目（衬线） */
+.landing .cn-sub {
   font-family: var(--font-serif);
   font-weight: 600;
-  font-size: clamp(28px, 3.3vw, 50px);
-  line-height: 1.32;
-  letter-spacing: .012em;
+  font-size: clamp(20px, 2.25vw, 32px);
+  line-height: 1.42;
+  letter-spacing: .01em;
   color: var(--fg);
-  max-width: none;             /* 1440 下排成一行；更窄时自然折行 */
-  text-wrap: balance;          /* 折行时两行长度尽量均衡 */
-  margin: 0 auto 22px;
+  margin: 0 auto 16px;
+  text-wrap: balance;
 }
 .landing .sub {
   font-size: clamp(15px, 1.15vw, 16.5px);
@@ -189,6 +181,31 @@
 .readitem .bd .focus { color: var(--fg-3); }
 
 /* ---------- 更多（开发者入口） ---------- */
+/* 页头：左侧标题 + 右侧淡色装饰字（装饰字禁止盖住内容，全部在文档流内） */
+.morehead {
+  display: flex;
+  align-items: flex-start;
+  gap: 28px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.morehead-text { min-width: 0; flex: 1 1 320px; }
+.morehead-text .lead { margin-bottom: 0; }
+.deco-wm {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-family: var(--font-brand);
+  font-weight: 600;
+  font-size: clamp(30px, 3.4vw, 54px);
+  line-height: 1;
+  letter-spacing: -.01em;
+  color: rgba(23, 38, 60, .12);
+  white-space: nowrap;
+  user-select: none;
+  padding-top: 6px;
+}
+
+
 .moregrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .morecard { text-align: left; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
 .morecard:hover { border-color: var(--accent-line); }
@@ -197,9 +214,9 @@
 
 @media (max-width: 900px) {
   .landing { padding: 34px 0 44px; }
-  .landing .wm { font-size: 86px; top: -0.02em; color: rgba(23, 38, 60, .048); }
   .landing .eyebrow { font-size: 11.5px; letter-spacing: .12em; margin-bottom: 14px; }
-  .landing h1 { font-size: 29px; max-width: none; margin-bottom: 16px; }
+  .landing h1.brand-title { font-size: clamp(34px, 11vw, 46px); margin-bottom: 12px; }
+  .landing .cn-sub { font-size: 21px; margin-bottom: 14px; }
   .landing .sub { font-size: 15px; margin-bottom: 22px; }
   .landing .cta-row { flex-direction: column; align-items: stretch; gap: 10px; }
   .landing .cta-row .btn { width: 100%; padding: 14px 18px; }
@@ -216,6 +233,10 @@
   .verdict-big h2 { font-size: 21px; }
   .verdict-big p { font-size: 15px; }
   .condgrid { grid-template-columns: 1fr; }
+  .morehead { flex-direction: column; gap: 8px; }
+  .morehead-text { flex: 0 0 auto; }   /* 纵向排列时不能沿用横向的 320px flex-basis，否则标题下会出现大块空白 */
+  .deco-wm { margin-left: 0; padding-top: 0; font-size: 30px; }
+  .deco-wm .deco-tail { display: none; }   /* 窄屏有意只完整呈现「Research」，不做两头裁切 */
   .casepage { padding: 20px 0; }
   .casepage h1 { font-size: 24px; }
   .rnode { flex: 0 0 148px; }

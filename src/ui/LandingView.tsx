@@ -8,29 +8,32 @@ interface Props {
 /**
  * 宣传型首页：学术出版物气质。
  *
- * 结构（自上而下）：
- * 1. 若隐若现的超大品牌字（纯装饰，不承载信息，aria-hidden，pointer-events:none）
- * 2. 眉标 + 主标题（衬线）+ 副标题 + 两个入口（首屏内、看得见、点得到）
- * 3. 三项能力（编号排版，不是卡片堆叠）
- * 4. 克制的流程示意（一组论文 → 方法分组与关联 → 阅读路线），并标明是示意
+ * 视觉顺序（自上而下）：
+ * 1. 眉标（铜色细线 + 小字）
+ * 2. **ResearchPilot** —— 首页最大标题，完整、深色、衬线（不再是背景水印）
+ * 3. 中文副标题：把一组论文，变成你看得懂的研究地图。（衬线，较小但仍醒目，紧随品牌标题之下）
+ * 4. 一句说明 + 两个入口（首屏内、看得见、点得到）
+ * 5. 三项能力（编号排版）与克制的流程示意（标明是示意）
  *
  * 刻意不显示：论文数量、实验记录数、版本号、API 配置、缓存说明、开发状态与技术规则。
  */
 export function LandingView({ onExperienceCase, onUploadOwn }: Props) {
   return (
     <div className="landing">
-      {/* 装饰性超大品牌字：只在背景层，不参与布局与语义 */}
-      <div className="wm" aria-hidden="true">
-        ResearchPilot
-      </div>
-
       <section className="lead-block">
         <p className="eyebrow">
           <span className="rule" aria-hidden="true" />
           论文方法梳理智能体
         </p>
-        <h1>把一组论文，变成你看得懂的研究地图。</h1>
+
+        {/* 产品名作为首页主标题：完整展示，不做裁切 */}
+        <h1 className="brand-title">ResearchPilot</h1>
+
+        {/* 中文主张：紧跟在主标题下方，作为副标题 */}
+        <h2 className="cn-sub">把一组论文，变成你看得懂的研究地图。</h2>
+
         <p className="sub">看懂各类方法解决了什么、彼此如何发展，以及你应该先读哪篇。关键结论都能回到原文。</p>
+
         <div className="cta-row">
           <button className="btn primary lg" onClick={onExperienceCase}>
             体验视觉论文案例
