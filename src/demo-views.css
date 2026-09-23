@@ -58,6 +58,16 @@
 .landing .cta-row { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; }
 .landing .cta-row .btn { padding: 13px 28px; font-size: 15.5px; border-radius: 10px; }
 
+/* 首屏到第一段的过渡：一行小字 + 细分隔线，把「接下来看什么」说清楚 */
+.landing .hero-next {
+  margin: 26px auto 0;
+  max-width: 46ch;
+  font-size: 12.5px;
+  line-height: 1.9;
+  color: var(--fg-3);
+}
+.landing .hero-next span { color: var(--copper-2); }
+
 /* ---------- 三个作用段落（滚动依次看到，每段一种排版 + 一个简洁图形） ---------- */
 .cap {
   display: grid;
@@ -77,11 +87,17 @@
   color: var(--fg);
   margin: 10px 0 12px;
 }
-.cap-lead { margin: 0 0 16px; font-size: 15px; line-height: 1.9; color: var(--fg-2); }
-.cap-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.cap-lead {
+  margin: 0 0 18px;
+  font-family: var(--font-serif);
+  font-size: clamp(17px, 1.5vw, 21px);
+  line-height: 1.7;
+  color: var(--fg);
+}
+.cap-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
 .cap-list li {
   font-size: 13.5px;
-  line-height: 1.85;
+  line-height: 1.75;
   color: var(--fg-2);
   padding-left: 14px;
   position: relative;
@@ -98,6 +114,7 @@
   color: var(--fg-3);
   letter-spacing: .06em;
 }
+.cap-fig figcaption .src { font-family: var(--font-sans); font-size: 11.5px; letter-spacing: 0; display: block; margin-top: 3px; }
 
 /* 图形①：分组示意 */
 .g-group { display: grid; gap: 12px; }
@@ -111,20 +128,37 @@
   border-radius: var(--radius-sm);
 }
 .g-row.muted { opacity: .62; }
-.g-name { font-size: 12.5px; color: var(--fg-2); min-width: 118px; }
+.g-name { font-size: 13px; color: var(--fg); min-width: 132px; }
+.g-chips { display: inline-flex; gap: 6px; flex: 1; }
 .g-chip { width: 20px; height: 20px; border-radius: 6px; background: var(--accent-soft); border: 1px solid var(--accent-line); }
 .g-row.muted .g-chip { background: var(--bg-3); border-color: var(--line-2); }
+.g-count { font-family: var(--mono); font-size: 11.5px; color: var(--fg-3); }
 
 /* 图形②：关系示意（连线进入视口时描绘出来） */
 .g-rel { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px 10px; }
 .g-rel svg { display: block; width: 100%; height: auto; }
 .g-node { fill: var(--bg); stroke: var(--line-2); stroke-width: 1.2; }
+.g-dot { fill: var(--bg); stroke: var(--line-2); stroke-width: 1.4; }
+.g-rel-head { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 2px; }
+.g-rel-head .n {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  color: var(--fg);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 12px;
+}
 .drawline { fill: none; stroke-width: 2; stroke-dasharray: 1; stroke-dashoffset: 1; }
 .drawline.solid { stroke: var(--ok); }
 .drawline.dash { stroke: var(--pending); stroke-dasharray: .06 .05; stroke-dashoffset: 0; opacity: 0; }
 .cap.in .drawline.solid { stroke-dashoffset: 0; transition: stroke-dashoffset .9s ease .15s; }
 .cap.in .drawline.dash { opacity: 1; transition: opacity .7s ease .5s; }
-.g-legend { display: flex; gap: 16px; margin-top: 8px; font-size: 12px; color: var(--fg-3); }
+.g-legend { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 8px; font-size: 12px; color: var(--fg-3); }
+.g-legend .tag { border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; }
+.g-legend .tag.ok { color: var(--ok); border-color: var(--ok-line); background: var(--ok-soft); }
+.g-legend .tag.pending { color: var(--pending); border-color: var(--pending-line); background: var(--pending-soft); }
+.g-legend .tag.neutral { color: var(--neutral); background: var(--neutral-soft); }
 .g-legend .k { display: inline-flex; align-items: center; gap: 6px; }
 .g-legend .sw { display: inline-block; width: 22px; height: 2px; border-radius: 2px; }
 .g-legend .sw.solid { background: var(--ok); }
@@ -135,6 +169,7 @@
 .g-order li {
   display: grid;
   grid-template-columns: 26px 1fr auto;
+  background: var(--bg);
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
@@ -157,7 +192,22 @@
   .cap.in .drawline.dash { transition: none; }
 }
 
-.landing .disclaimer { margin: 26px 0 0; text-align: center; font-size: 12px; color: var(--fg-3); }
+.landing .disclaimer {
+  margin: 30px 0 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+  font-size: 12.5px;
+  line-height: 1.9;
+  color: var(--fg-3);
+}
+.landing .cap-cta {
+  margin: 26px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
 
 /* ---------- 案例选择页 ---------- */
 .casepage { max-width: 760px; margin: 0 auto; padding: 40px 0; }
@@ -300,9 +350,13 @@
   .cap { grid-template-columns: 1fr; gap: 22px; padding: 32px 0; }
   .cap.alt .cap-fig { order: 0; }
   .cap-text h3 { font-size: 22px; }
-  .cap-lead { font-size: 14px; }
+  .cap-lead { font-size: 16.5px; }
   .cap-list li { font-size: 13px; }
-  .g-name { min-width: 0; }
+  .g-name { min-width: 0; font-size: 12.5px; }
+  .g-rel-head .n { font-size: 12.5px; padding: 2px 9px; }
+  .landing .hero-next { margin-top: 20px; }
+  .landing .cap-cta .btn { width: 100%; }
+  .landing .cap-cta .small { text-align: center; }
   .g-order li { grid-template-columns: 24px 1fr; row-gap: 2px; }
   .g-order em { grid-column: 2; }
   .resultpair { grid-template-columns: 1fr; }

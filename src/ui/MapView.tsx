@@ -212,6 +212,10 @@ export function MapView({
               methods={view.methods}
               relations={view.relations}
               onOpenEvidence={onOpenEvidence}
+              onOpenPair={(a, b) => {
+                setPair([a, b]);
+                setSub('relations');
+              }}
               onCompareExperiments={(a, b) => {
                 setPair([a, b].filter(Boolean).slice(0, 2));
                 setSub('relations');

@@ -699,7 +699,17 @@ export default function App() {
   /** 面向用户只有三个入口：首页 / 研究地图 / 更多 */
   const navItems: { key: Tab; name: string; hint: string; state: 'ok' | 'info' | 'warn' | '' }[] = [
     { key: 'landing', name: '首页', hint: '', state: '' },
-    { key: 'map', name: '研究地图', hint: scope.paperCount ? `${scope.paperCount} 篇` : '', state: scope.paperCount ? 'ok' : 'info' },
+    {
+      key: 'map',
+      name: '研究地图',
+      // 侧栏只报**当前案例**的篇数；自己上传的论文单独显示，不混进案例统计
+      hint: scope.presetPaperCount
+        ? `${scope.presetPaperCount} 篇案例${scope.ownPapers.length ? ` · +${scope.ownPapers.length} 我传的` : ''}`
+        : scope.ownPapers.length
+          ? `我传的 ${scope.ownPapers.length} 篇`
+          : '',
+      state: scope.presetPaperCount ? 'ok' : 'info',
+    },
     { key: 'more', name: '更多', hint: '', state: '' },
   ];
 
@@ -734,7 +744,7 @@ export default function App() {
           <span className="mark">RP</span>
           ResearchPilot
         </button>
-        <span className="tagline">看懂方法差异，判断结果能否公平比较</span>
+        <span className="tagline">论文方法梳理 · 关键结论回到原文</span>
       </header>
 
       <div className="app-body">
@@ -744,7 +754,9 @@ export default function App() {
           <div className="side-foot">
             {corpus === 'vision' ? '正式案例：图像分类' : '开发回归样例：NLP'}
             <br />
-            {modelReady ? `模型：${config.model}` : '未配置模型（可用预置结果演示）'}
+            案例 {scope.presetPaperCount} 篇（本语料预置）· 我上传 {scope.ownPapers.length} 篇
+            <br />
+            {modelReady ? `模型：${config.model}` : '未配置模型（只能看示例结果）'}
             <br />
             数据仅存于本机浏览器
           </div>
@@ -1002,6 +1014,7 @@ export default function App() {
               methods={methods}
               plan={plan}
               busy={false}
+              modelReady={modelReady}
               onGenerate={genDecision}
               onUseSample={() => {
                 if (plan) return;

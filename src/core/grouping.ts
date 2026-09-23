@@ -459,6 +459,36 @@ export const RELATION_VERB: Record<RelationType, string> = {
 };
 
 /** 从「观察者方法」视角描述一条关系，保证方向不会讲反 */
+/** 取一段文字里的第一个完整句子（用于「一句话回答」），只做截取，不改写 */
+export function firstSentence(text: string, max = 90): string {
+  const t = (text ?? '').replace(/\s+/g, ' ').trim();
+  if (!t) return '';
+  const m = t.match(/^[^。；;]{6,}/);
+  const one = (m ? m[0] : t).trim();
+  return one.length > max ? one.slice(0, max) : one;
+}
+
+/**
+ * 默认地图上给出的探索问题：从**已有关系数据**里挑一条最值得先看的，
+ * 而不是写死某个方法对。排序优先级：类型（继承 > 改进 > 组合 > 相近）× 证据状态（原文明示 > 系统推断 > 待核查）。
+ * 「关系不明确」的对不参与提问（它本来就没有关系证据）。
+ */
+export function pickExploreRelation<T extends { type: string; evidenceState: string }>(relations: T[]): T | null {
+  const usable = relations.filter((r) => r.type !== 'unclear');
+  if (!usable.length) return null;
+  const typeRank = (t: string) => (t === 'extends' ? 0 : t === 'improves' ? 1 : t === 'combines' ? 2 : 3);
+  const stateRank = (e: string) => (e === 'explicit' ? 0 : e === 'inferred' ? 1 : 2);
+  return [...usable].sort((a, b) => stateRank(a.evidenceState) - stateRank(b.evidenceState) || typeRank(a.type) - typeRank(b.type))[0];
+}
+
+/** 探索问题的问法（按关系类型换说法，方向不变） */
+export function exploreQuestion(type: string, fromName: string, toName: string): string {
+  if (type === 'extends') return `${toName} 相比 ${fromName} 改变了什么？`;
+  if (type === 'improves') return `${toName} 相比 ${fromName} 改进在哪？`;
+  if (type === 'combines') return `${toName} 是怎么把别的思路组合起来的？`;
+  return `${fromName} 与 ${toName} 有什么相近之处？`;
+}
+
 export function relationSentence(
   rel: Relation,
   viewerId: string,

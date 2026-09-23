@@ -206,7 +206,12 @@ const back = await cdp.ev(`
   return (document.querySelector('.maptoolbar') || document.body).innerText.replace(/\\n/g, ' | ');
 })()`);
 check('可以回到视觉论文案例', /研究地图 · 视觉论文案例/.test(String(back)), String(back).slice(0, 120));
-check('回到案例后论文数仍为 5 篇', /5 篇/.test(String(back)), String(back).slice(0, 120));
+
+// 侧栏 / 页脚必须把两种计数分别说清楚（用户问过「10 篇 vs 5 篇分别统计什么」）
+const badge = String((await cdp.ev(`(document.querySelector('.side .badge') || {}).textContent || ''`)) || '');
+const sideFoot = String((await cdp.ev(`(document.querySelector('.side-foot') || {}).innerText || ''`)) || '').replace(/\n/g, ' | ');
+check('侧栏徽标只报当前案例篇数，并单列我上传的论文', /5 篇案例/.test(badge) && /\+\d+ 我传的/.test(badge), badge);
+check('侧栏页脚写明案例与我上传各自的篇数', /案例 5 篇/.test(sideFoot) && /我上传 \d+ 篇/.test(sideFoot), sideFoot);
 
 const idb = await cdp.ev(`
 new Promise((resolve) => {

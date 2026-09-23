@@ -253,7 +253,8 @@ async function main() {
   check('次按钮「上传我的论文」', /上传我的论文/.test(homeText));
   check('示意图是「论文 → 分组与关联 → 阅读路线」',
     /一组论文/.test(homeText) && /方法分组与关联/.test(homeText) && /阅读路线/.test(homeText));
-  check('示意图标注为示意而非真实分析结果', /上图为功能示意，非真实分析结果/.test(homeText));
+  check('首页标明了内容来源与状态（预置案例、按证据标注、不是实时分析）',
+    /预置视觉案例/.test(homeText) && /证据状态|按证据标注/.test(homeText) && /不是本次操作触发的实时分析/.test(homeText));
   check('首页不以分数对比为主视觉', !/Top-1|能直接比较吗|不能直接比较/.test(homeText));
   check('首页没有数量 / 版本 / 配置 / 缓存 / 开发状态',
     !/篇论文/.test(homeText) && !/promptVersion/.test(homeText) && !/RULES_VERSION/.test(homeText) && !/配置模型接口/.test(homeText) && !/开发状态/.test(homeText));
@@ -291,15 +292,15 @@ async function main() {
   check('地图泳道使用忠实的家族命名（卷积网络（CNN）/ Transformer 架构）',
     /卷积网络（CNN）/.test(laneHeaders) && /Transformer 架构/.test(laneHeaders) && !/视觉 Transformer/.test(laneHeaders),
     `泳道=${laneHeaders}｜svg文本数=${(svgTexts || []).length}`);
-  const nodeCount = await cdp.evaluate(`[...document.querySelectorAll('svg rect')].filter((r) => r.getAttribute('width') === '208').length`);
+  const nodeCount = await cdp.evaluate(`document.querySelectorAll('.mapstage .mnode').length`);
   check(`默认地图画出全部方法节点（节点 ${nodeCount} 个）`, nodeCount === 5);
   check('连线默认不铺标签（结构优先）', !(await cdp.evaluate(`[...document.querySelectorAll('svg g.medge text')].length > 0`)));
   const nodeClicked = await cdp.evaluate(`
 (() => {
-  const rects = [...document.querySelectorAll('svg rect')].filter((r) => r.getAttribute('width') === '208');
-  const target = rects.find((r) => [...r.closest('g').querySelectorAll('text')].some((x) => x.textContent.trim().startsWith('DeiT')));
+  const nodes = [...document.querySelectorAll('.mapstage .mnode')];
+  const target = nodes.find((g) => [...g.querySelectorAll('text')].some((x) => x.textContent.trim().startsWith('DeiT')));
   if (!target) return false;
-  target.closest('g').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  target.dispatchEvent(new MouseEvent('click', { bubbles: true }));
   return true;
 })()`);
   await sleep(800);
@@ -406,7 +407,10 @@ async function main() {
   const decText = await cdp.evaluate(`(document.querySelector('.main-inner') || document.body).innerText`);
   check('阅读建议页有条件输入（基础 / 兴趣 / 时间 / 算力）',
     /基础/.test(decText) && /兴趣|目标/.test(decText) && /时间/.test(decText) && /算力|计算资源/.test(decText));
-  check('有生成入口', /生成阅读路线|生成/.test(decText));
+  check(
+    '有生成入口（未配置模型时明确叫「查看示例路线」）',
+    /查看示例路线|生成个性化路线|重新生成个性化路线/.test(decText),
+  );
   check('示例决策可查看（缓存案例标注）', /缓存/.test(decText) || /示例/.test(decText));
 
   console.log('');

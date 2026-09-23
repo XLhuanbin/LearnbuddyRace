@@ -148,7 +148,7 @@ const TEXT = (t) => `document.body.innerText.includes(${JSON.stringify(t)})`;
 const clickNode = (shortName) =>
   cdp.ev(`
 (() => {
-  const rects = [...document.querySelectorAll('svg rect')].filter((r) => Number(r.getAttribute('width')) === 208);
+  const rects = [...document.querySelectorAll('.mapstage .mnode')];
   const target = rects.find((r) => [...r.closest('g').querySelectorAll('text')].some((t) => t.textContent.trim().startsWith(${JSON.stringify(shortName)})));
   if (!target) return false;
   target.closest('g').dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -169,7 +169,8 @@ check('三个关键词是方法/关系/阅读', /看懂方法差异/.test(land) 
 check('主按钮「体验视觉论文案例」', /体验视觉论文案例/.test(land));
 check('次按钮「上传我的论文」', /上传我的论文/.test(land));
 check('示意图是「论文 → 分组与关联 → 阅读路线」', /一组论文/.test(land) && /方法分组与关联/.test(land) && /阅读路线/.test(land));
-check('示意图标明是示意而非真实结果', /上图为功能示意，非真实分析结果/.test(land));
+check('首页标明内容来源与状态（预置案例 / 按证据状态标注 / 非实时）',
+  /预置视觉案例/.test(land) && /证据状态标注/.test(land) && /不是本次操作触发的实时分析/.test(land));
 check('首页不再以准确率对比或「不能比较」为主视觉', !/Top-1|准确率|不能直接比较|能直接比较吗/.test(land));
 await cdp.shot(join(OUT, 'A1-首页.png'));
 await cdp.shot(join(OUT, 'A1-首页-窄屏.png'), 390, 844);
@@ -183,12 +184,15 @@ const mapText = await mainText();
 check('直接进入研究地图（无单选项案例页）', /研究地图/.test(mapText) && !/选择一个视觉论文案例/.test(mapText));
 check('工作区显示论文集合与三个视图', /研究地图 · 视觉论文案例/.test(mapText) && /方法地图/.test(mapText) && /联系与区别/.test(mapText) && /从哪里开始/.test(mapText));
 check('首屏主体是图形（不是概览段落或论文卡片列表）', !/领域概览\n/.test(mapText) && !/逐篇方法卡片/.test(mapText));
-check('默认给出一句轻提示（画布内，不在图上下放两套说明）', /点击一个方法看它做了什么；点击连线看两个方法的联系/.test(mapText));
+check(
+  '默认给出一个具体的探索问题 + 入口（问题来自现有关系）',
+  /先看这个/.test(mapText) && /相比/.test(mapText) && /看这个对比/.test(mapText),
+);
 
 const svgInfo = await cdp.ev(`
 (() => {
   const texts = [...document.querySelectorAll('svg text')].map((t) => t.textContent);
-  const nodeRects = [...document.querySelectorAll('svg rect')].filter((r) => Number(r.getAttribute('width')) === 208);
+  const nodeRects = [...document.querySelectorAll('.mapstage .mnode')];
   const edges = [...document.querySelectorAll('svg path')].filter((p) => p.getAttribute('marker-end'));
   return { texts, nodeCount: nodeRects.length, edgeCount: edges.length };
 })()`);
@@ -248,7 +252,10 @@ await cdp.ev(`
 })()`);
 await sleep(800);
 const edgeDetail = await cdp.ev(`(document.querySelector('.mapdetail') || document.body).innerText`);
-check('点击连线给出「关系 + 方向 + 证据状态 + 具体联系」', /前置方法|在此基础上继续发展/.test(edgeDetail) && /系统推断|原文已说明|待核查/.test(edgeDetail) && /具体联系/.test(edgeDetail));
+check(
+  '点击连线先给「一句话回答」，再给方向、证据状态与具体变化与下一步',
+  /一句话回答/.test(edgeDetail) && /具体变化/.test(edgeDetail) && /系统推断|原文已说明|待核查/.test(edgeDetail) && /下一步/.test(edgeDetail),
+);
 await cdp.ev(`(() => { const d = document.querySelector('.mapdetail details.fold'); if (d) d.open = true; })()`);
   await sleep(500);
   const edgeEv = await cdp.ev(`(document.querySelector('.mapdetail') || document.body).innerText`);
@@ -292,13 +299,22 @@ check('时间线明确标注不代表技术继承', /发表顺序（时间线）
 await cdp.shot(join(OUT, 'A7-联系与区别.png'));
 
 await cdp.ev(`
-(() => {
-  const bs=[...document.querySelectorAll('button.chip')].filter((b)=>/ResNet|ViT|DeiT|Swin|ConvNeXt/.test(b.textContent));
-  bs.slice(0,2).forEach((b)=>b.click());
+(async () => {
+  // 页面会默认预置一对，先全部取消，再精确选两个
+  [...document.querySelectorAll('.chip')].filter((c) => c.classList.contains('on')).forEach((c) => c.click());
+  await new Promise((r) => setTimeout(r, 250));
+  for (const n of ['ResNet', 'ViT']) {
+    const c = [...document.querySelectorAll('.chip')].find((x) => x.textContent.trim() === n);
+    if (c) c.click();
+  }
+  await new Promise((r) => setTimeout(r, 350));
+  return true;
 })()`);
 await sleep(900);
 const pair = await mainText();
-check('选两篇后先给「问题 / 做法 / 局限 / 家族 / 策略」对照', /解决什么问题/.test(pair) && /主要局限/.test(pair) && /方法家族/.test(pair) && /技术策略/.test(pair));
+const pairChips = await cdp.ev(`[...document.querySelectorAll('.chip.on')].map((c) => c.textContent.trim())`);
+check('两方法对照排在关系明细之前，并可自选两个方法', /两方法对照/.test(pair) && pair.indexOf('两方法对照') < pair.indexOf('关系明细'), JSON.stringify(pairChips));
+check('选两个方法后先给「问题 / 做法 / 局限 / 家族 / 策略」对照', /解决什么问题/.test(pair) && /主要局限/.test(pair) && /方法家族/.test(pair) && /技术策略/.test(pair));
 check('实验表现是可展开的次级入口', /比较实验表现（次级）/.test(pair));
 await clickBtn('比较实验表现（次级）');
 await sleep(900);
@@ -310,7 +326,7 @@ await cdp.shot(join(OUT, 'A8-两方法对照.png'));
 check('切换到「从哪里开始」', await clickBtn('从哪里开始'));
 await sleep(1000);
 check('阅读目标不追问算力', !/可用的计算资源/.test(await mainText()));
-check('可以生成阅读路线', await clickBtn('给我阅读路线'));
+check('未配置模型时入口明确叫「查看示例路线」', await clickBtn('查看示例路线'));
 await sleep(1800);
 const plan = await mainText();
 check('给出阅读顺序与每篇重点', /建议按这个顺序读/.test(plan) && /重点看/.test(plan));

@@ -45,6 +45,15 @@ export function MapStartView({ papers, methods, plan, modelReady, busy, onGenera
   const steps = plan?.steps ?? [];
   const showPlan = submitted && steps.length > 0;
 
+  /**
+   * 两种状态必须说清楚（本轮要求）：
+   * - 未配置模型：入口与结果都叫「示例路线」，并明确「你选择的条件未生效」；
+   * - 只有真实按条件生成成功（plan 非缓存）才叫「个性化路线」。
+   */
+  const isPersonal = Boolean(modelReady && plan && !plan.cached);
+  const planLabel = isPersonal ? '个性化路线' : '示例路线';
+  const ctaLabel = modelReady ? (isPersonal ? '重新生成个性化路线' : '生成个性化路线') : '查看示例路线';
+
   return (
     <div>
       <h2 className="page">从哪里开始</h2>
@@ -88,30 +97,36 @@ export function MapStartView({ papers, methods, plan, modelReady, busy, onGenera
             className="btn primary"
             onClick={() => {
               setSubmitted(true);
-              if (!plan || plan.profile?.background !== background || plan.profile?.goal !== goal) {
-                onGenerate({ background, interest: goal, time: needResource ? time : undefined, compute: needResource ? compute : undefined, goal });
-              }
+              if (!modelReady) return; // 没配模型就不发无效请求：只展示示例路线
+              onGenerate({ background, interest: goal, time: needResource ? time : undefined, compute: needResource ? compute : undefined, goal });
             }}
             disabled={busy}
           >
-            {busy ? '正在生成…' : '给我阅读路线'}
+            {busy ? '正在生成…' : ctaLabel}
           </button>
-          {!modelReady && <span className="small dim">未配置模型时，会先显示案例自带的示例路线（条件可能与你选的不同）。</span>}
+          {!modelReady && (
+            <span className="small dim">
+              未配置模型：这里只能看案例自带的<strong>示例路线</strong>，你上面选的条件不会生效（配置模型后才会按条件生成）。
+            </span>
+          )}
         </div>
       </div>
 
       {showPlan ? (
         <>
+          <div className="row" style={{ gap: 8, marginBottom: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            <h3 style={{ margin: 0 }}>{planLabel}</h3>
+            {isPersonal ? <Status kind="live">已按你的条件生成</Status> : <Status kind="cached">示例路线（未按你的条件生成）</Status>}
+          </div>
+          <p className="small" style={{ margin: '0 0 10px', color: isPersonal ? 'var(--fg-2)' : 'var(--warn)' }}>
+            {isPersonal
+              ? '下面的顺序是按你上面选择的「基础 + 目标 + 时间/算力」生成的。'
+              : '下面的顺序来自案例自带的示例条件，你上面选择的「基础 / 目标 / 时间 / 算力」没有生效；配置模型后可以按你的条件重新生成。'}
+          </p>
           <div className="row" style={{ gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-            {plan?.cached ? <Status kind="cached">缓存案例（按示例条件生成）</Status> : <Status kind="live">实时分析</Status>}
-            {plan?.cached && (plan.profile?.background !== background || plan.profile?.goal !== goal) && (
-              <span className="small" style={{ color: 'var(--warn)' }}>
-                下面的路线来自示例条件，与你刚选的条件不同；配置模型后会按你的条件重新生成。
-              </span>
-            )}
             {plan?.profile && (
               <span className="small dim">
-                条件：{plan.profile.background} · {plan.profile.interest}
+                {isPersonal ? '本次条件' : '示例条件'}：{plan.profile.background} · {plan.profile.interest}
                 {plan.profile.time ? ` · ${plan.profile.time}` : ''}
                 {plan.profile.compute ? ` · ${plan.profile.compute}` : ''}
               </span>
@@ -169,8 +184,12 @@ export function MapStartView({ papers, methods, plan, modelReady, busy, onGenera
         <div className="card">
           <p className="small" style={{ margin: 0, color: 'var(--fg-2)' }}>
             {submitted
-              ? '当前没有可用的阅读路线：这篇/这组论文可能还没有生成建议。可以先在上方选择条件重新生成。'
-              : '选好基础与目标后点「给我阅读路线」，这里会给出先读哪篇、顺序、重点与理由。'}
+              ? modelReady
+                ? '没有生成成功：可能是接口不可用或当前论文不足。可以稍后重试；上面的示例路线仍可参考（已标注为示例）。'
+                : '未配置模型：暂时看不到示例路线（这份案例可能没有预置）。可以先看研究地图与联系与区别。'
+              : modelReady
+                ? '选好基础与目标后点「生成个性化路线」，这里会给出先读哪篇、顺序、重点与理由。'
+                : '未配置模型时点「查看示例路线」，会显示案例自带的示例顺序（并标明不是按你的条件生成的）。'}
           </p>
         </div>
       )}

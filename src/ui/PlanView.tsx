@@ -20,6 +20,7 @@ export function DecisionView({
   methods,
   plan,
   busy,
+  modelReady,
   onGenerate,
   onUseSample,
   sampleProfile,
@@ -29,6 +30,8 @@ export function DecisionView({
   methods: Method[];
   plan?: ReadingPlan;
   busy: boolean;
+  /** 未配置模型时只能看示例路线：入口与结果都必须这么叫 */
+  modelReady: boolean;
   onGenerate: (p: UserProfile) => void;
   onUseSample: () => void;
   sampleProfile?: UserProfile;
@@ -89,11 +92,13 @@ export function DecisionView({
               onGenerate(profile);
             }}
           >
-            {busy ? '生成中…' : '生成阅读路线'}
+            {busy ? '生成中…' : modelReady ? (plan && !plan.cached ? '重新生成个性化路线' : '生成个性化路线') : '查看示例路线'}
           </button>
-          <button className="btn" disabled={busy || methods.length === 0} onClick={onUseSample}>
-            查看预置示例决策
-          </button>
+          {plan?.cached && (
+            <button className="btn" disabled={busy || methods.length === 0} onClick={onUseSample}>
+              重新载入示例路线
+            </button>
+          )}
           <span className="small dim">基于 {methods.length} 篇已完成抽取的论文</span>
         </div>
         {lastProfile && plan && !plan.cached && (
@@ -106,12 +111,14 @@ export function DecisionView({
 
       {methods.length === 0 && <Banner kind="info">还没有可用的论文分析结果。</Banner>}
 
-      {plan?.cached && (
+      {plan?.cached ? (
         <Banner kind="warn">
-          这是预置的<strong>示例决策</strong>，由真实模型离线生成{sampleProfile ? `（对应用户条件：${sampleProfile.compute || '未填写'} / ${sampleProfile.time || '未填写'}）` : ''}，
-          不是本次输入触发的实时结果。修改条件后点「生成阅读路线」即可得到实时结果。
+          当前显示的是<strong>示例路线</strong>（预置、由真实模型离线生成{sampleProfile ? `，对应示例条件：${sampleProfile.compute || '未填写'} / ${sampleProfile.time || '未填写'}` : ''}）。
+          你上面填写的条件<strong>没有生效</strong>；{modelReady ? '点「生成个性化路线」才会按你的条件生成' : '配置模型后才能按你的条件生成'}。
         </Banner>
-      )}
+      ) : plan ? (
+        <Banner kind="info">这是<strong>个性化路线</strong>：已按你填写的条件生成。</Banner>
+      ) : null}
 
       {plan && (
         <>

@@ -1,27 +1,90 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import type { Method, Paper, Relation } from '../core/types';
+import { buildMethodProfile, exploreQuestion, firstSentence, pickExploreRelation } from '../core/grouping';
 
 interface Props {
   onExperienceCase: () => void;
   onUploadOwn: () => void;
 }
 
+interface Facts {
+  families: { name: string; count: number; pending: boolean }[];
+  question: { text: string; from: string; to: string; state: string; hasEvidence: boolean; type: string } | null;
+  route: { name: string; focus: string }[];
+  relationCount: number;
+  paperCount: number;
+}
+
+const STATE_LABEL: Record<string, string> = { explicit: '原文已说明', inferred: '系统推断', candidate: '待核查' };
+
+/**
+ * 从预置视觉案例里读出首页要用的**真实**内容（家族分组、一条真实关系、示例路线前三步）。
+ * 全部来自已经过全文定位校验的缓存结果；读不到就返回 null，页面退回不声称具体内容的占位。
+ */
+function buildFacts(idx: { papers: Paper[]; methods: Method[]; relations: Relation[]; decisionSample?: { steps?: { paperId: string; focus?: string }[] } }): Facts {
+  const papers = idx.papers ?? [];
+  const methods = idx.methods ?? [];
+  const profiles = methods.map((m) => buildMethodProfile(m, papers.find((p) => p.id === m.paperId), papers));
+
+  const byFamily = new Map<string, { name: string; count: number; pending: boolean }>();
+  for (const p of profiles) {
+    const key = p.family.id;
+    if (!byFamily.has(key)) byFamily.set(key, { name: p.family.name, count: 0, pending: p.family.confidence === 'pending' });
+    byFamily.get(key)!.count += 1;
+  }
+  const families = [...byFamily.values()].sort((a, b) => (a.pending ? 1 : 0) - (b.pending ? 1 : 0) || b.count - a.count);
+
+  const nameOf = (id: string) => profiles.find((p) => p.methodId === id)?.shortName ?? id;
+  const best = pickExploreRelation(idx.relations ?? []);
+  const question = best
+    ? {
+        text: exploreQuestion(best.type, nameOf(best.fromMethodId), nameOf(best.toMethodId)),
+        from: nameOf(best.fromMethodId),
+        to: nameOf(best.toMethodId),
+        state: STATE_LABEL[best.evidenceState] ?? best.evidenceState,
+        hasEvidence: Boolean(best.evidence),
+        type: best.type,
+      }
+    : null;
+
+  const steps = idx.decisionSample?.steps ?? [];
+  const route = steps.slice(0, 3).map((st) => {
+    const m = methods.find((x) => x.paperId === st.paperId);
+    const prof = m ? profiles.find((p) => p.methodId === m.id) : undefined;
+    return { name: prof?.shortName ?? '', focus: firstSentence(st.focus ?? '', 26) };
+  }).filter((x) => x.name);
+
+  return { families, question, route, relationCount: (idx.relations ?? []).length, paperCount: papers.length };
+}
+
 /**
  * 宣传型首页：学术出版物气质。
  *
- * 首屏文字顺序（自上而下，作为一个整体）：
- *   1. ResearchPilot —— 最大标题
- *   2. 论文方法梳理智能体 —— 产品定位
- *   3. 把一组论文，变成你看得懂的研究地图。 —— 中文主张
- *   4. 一句说明 + 两个入口
- *
- * 向下滚动依次是三个作用段落（每段一种排版 + 一个简洁图形）：
- *   01 看懂方法差异 → 02 理清技术关系 → 03 决定先读什么
- * 图形一律标注为示意，不使用真实分析结果。
- *
- * 动效：只在内容进入视口时做一次克制的渐入/连线描绘；尊重 prefers-reduced-motion。
- * 刻意不显示：论文数量、实验记录数、版本号、API 配置、缓存说明、开发状态与技术规则。
+ * 首屏顺序：ResearchPilot → 论文方法梳理智能体 → 中文主张 → 一句说明 → 两个入口
+ * 向下依次是三个作用段落（每段一句重点 + 三条要点 + 一个取自预置案例的真实片段）：
+ *   01 看懂方法差异（真实家族分组）→ 02 理清技术关系（真实关系与证据状态）→ 03 决定先读什么（示例路线前三步）
+ * 段落末尾给出进入案例的入口；图形内容全部来自预置视觉案例，且标注证据状态，不冒充实时分析。
  */
 export function LandingView({ onExperienceCase, onUploadOwn }: Props) {
+  const [facts, setFacts] = useState<Facts | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch(`${import.meta.env.BASE_URL}samples-vision/index.json`, { cache: 'no-cache' });
+        if (!res.ok) return;
+        const idx = await res.json();
+        if (alive) setFacts(buildFacts(idx));
+      } catch {
+        /* 取不到真实内容时，用不声称具体数字的占位 */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   useEffect(() => {
     const els = Array.from(document.querySelectorAll<HTMLElement>('.landing .reveal'));
     if (!els.length) return;
@@ -44,6 +107,14 @@ export function LandingView({ onExperienceCase, onUploadOwn }: Props) {
     els.forEach((el) => io.observe(el));
     return () => io.disconnect();
   }, []);
+
+  const familyRows = useMemo(() => {
+    if (facts?.families.length) return facts.families;
+    return [
+      { name: '卷积网络（CNN）', count: 0, pending: false },
+      { name: 'Transformer 架构', count: 0, pending: false },
+    ];
+  }, [facts]);
 
   return (
     <div className="landing">
@@ -69,6 +140,9 @@ export function LandingView({ onExperienceCase, onUploadOwn }: Props) {
             上传我的论文
           </button>
         </div>
+        <p className="hero-next reveal" style={{ transitionDelay: '260ms' }}>
+          下面三段，分别说明你会<span>看到</span>什么、<span>能做</span>什么、<span>得到</span>什么帮助。
+        </p>
       </section>
 
       {/* ---------------- 01 看懂方法差异 ---------------- */}
@@ -76,38 +150,37 @@ export function LandingView({ onExperienceCase, onUploadOwn }: Props) {
         <div className="cap-text">
           <span className="cap-no">01</span>
           <h3 id="cap-1">看懂方法差异</h3>
-          <p className="cap-lead">同一方向的论文，先按技术思路分成几组，再看每一篇具体做了什么。</p>
+          <p className="cap-lead">同一方向的论文，按技术思路分成几组，每篇一句话说清它做了什么。</p>
           <ul className="cap-list">
             <li>
-              <b>你会看到</b>：这组论文分成哪几组技术路线，每篇方法一句话说清它做了什么、核心做法是什么。
+              <b>看到</b>分组与技术路线，以及每篇的核心做法
             </li>
             <li>
-              <b>你可以</b>：点开任一方法，查看它的研究任务、核心做法与作者自述的局限，并直接跳到论文原文的位置。
+              <b>能做</b>点开任一方法，跳到原文对应位置核对
             </li>
             <li>
-              <b>你会得到</b>：对「这组论文大概在研究什么」的整体印象，不必先读完全文。
+              <b>得到</b>这组论文的整体印象，不必先读完全文
             </li>
           </ul>
         </div>
         <figure className="cap-fig">
           <div className="g-group" aria-hidden="true">
-            <div className="g-row">
-              <span className="g-name">卷积网络（CNN）</span>
-              <span className="g-chip" />
-              <span className="g-chip" />
-            </div>
-            <div className="g-row">
-              <span className="g-name">Transformer 架构</span>
-              <span className="g-chip" />
-              <span className="g-chip" />
-              <span className="g-chip" />
-            </div>
-            <div className="g-row muted">
-              <span className="g-name">待确认</span>
-              <span className="g-chip" />
-            </div>
+            {familyRows.map((f) => (
+              <div className={`g-row${f.pending ? ' muted' : ''}`} key={f.name}>
+                <span className="g-name">{f.name}</span>
+                <span className="g-chips">
+                  {Array.from({ length: Math.max(f.count, 1) }).map((_, i) => (
+                    <span className="g-chip" key={i} />
+                  ))}
+                </span>
+                <span className="g-count">{f.count ? `${f.count} 篇` : '—'}</span>
+              </div>
+            ))}
           </div>
-          <figcaption>一组论文</figcaption>
+          <figcaption>
+            一组论文
+            <span className="src">（预置视觉案例的真实分组）</span>
+          </figcaption>
         </figure>
       </section>
 
@@ -119,24 +192,28 @@ export function LandingView({ onExperienceCase, onUploadOwn }: Props) {
           <p className="cap-lead">方法之间的关系只按原文里的真实依据连线，并标明这份依据有多硬。</p>
           <ul className="cap-list">
             <li>
-              <b>你会看到</b>：继承 / 改进 / 组合 / 相近四类关系，每条都标着证据状态——原文明示、系统推断，还是待核查。
+              <b>看到</b>继承 / 改进 / 组合 / 相近，以及原文明示、系统推断、待核查
             </li>
             <li>
-              <b>你可以</b>：点开一条连线，看到「谁基于谁、具体改了什么」以及可核对的原文片段；没有依据的关系不会连线。
+              <b>能做</b>点开一条连线，看「谁基于谁、改了什么」和原文片段
             </li>
             <li>
-              <b>你会得到</b>：清楚哪些结论有原文支撑、哪些还需要你自己回到论文确认，不会把推断说成事实。
+              <b>得到</b>哪些结论有原文支撑、哪些还需自己回论文确认
             </li>
           </ul>
         </div>
         <figure className="cap-fig">
-          <div className="g-rel" aria-hidden="true">
-            <svg viewBox="0 0 320 96" role="presentation">
-              <path className="drawline solid" pathLength={1} d="M 58 48 L 158 48" />
-              <path className="drawline dash" pathLength={1} d="M 162 74 C 210 74 214 30 262 30" />
-              <rect className="g-node" x="10" y="34" width="48" height="28" rx="7" />
-              <rect className="g-node" x="262" y="16" width="48" height="28" rx="7" />
-              <rect className="g-node" x="262" y="60" width="48" height="28" rx="7" />
+          <div className="g-rel">
+            <div className="g-rel-head" aria-hidden="true">
+              <span className="n from">{facts?.question?.from ?? '前置方法'}</span>
+              <span className="n to">{facts?.question?.to ?? '后续方法'}</span>
+            </div>
+            <svg viewBox="0 0 320 56" role="presentation" aria-hidden="true">
+              <path className="drawline solid" pathLength={1} d="M 24 28 L 140 28" />
+              <path className="drawline dash" pathLength={1} d="M 144 44 C 190 44 196 12 246 12" />
+              <circle className="g-dot" cx="24" cy="28" r="4" />
+              <circle className="g-dot" cx="246" cy="12" r="4" />
+              <circle className="g-dot" cx="250" cy="44" r="4" />
             </svg>
             <div className="g-legend">
               <span className="k">
@@ -145,9 +222,18 @@ export function LandingView({ onExperienceCase, onUploadOwn }: Props) {
               <span className="k">
                 <i className="sw dash" /> 系统推断
               </span>
+              {facts?.question && (
+                <span className={`k tag ${facts.question.state === '原文已说明' ? 'ok' : facts.question.state === '系统推断' ? 'pending' : 'neutral'}`}>
+                  {facts.question.text.replace('？', '')} · {facts.question.state}
+                  {!facts.question.hasEvidence ? '（无直接引文）' : ''}
+                </span>
+              )}
             </div>
           </div>
-          <figcaption>方法分组与关联</figcaption>
+          <figcaption>
+            方法分组与关联
+            <span className="src">（预置视觉案例中的一条真实关系）</span>
+          </figcaption>
         </figure>
       </section>
 
@@ -156,42 +242,48 @@ export function LandingView({ onExperienceCase, onUploadOwn }: Props) {
         <div className="cap-text">
           <span className="cap-no">03</span>
           <h3 id="cap-3">决定先读什么</h3>
-          <p className="cap-lead">结合你的基础与目标给一份阅读顺序，每篇都说明该重点看什么、为什么值得先读。</p>
+          <p className="cap-lead">结合你的基础与目标给出阅读顺序，每篇说明重点看什么、为什么先读它。</p>
           <ul className="cap-list">
             <li>
-              <b>你会看到</b>：一份有先后顺序的阅读清单，每篇标注重点，并写清推荐理由的依据。
+              <b>看到</b>有先后顺序的清单，每篇标注重点与理由
             </li>
             <li>
-              <b>你可以</b>：告诉它你的方向、时间与算力条件，随时重新生成；条件变了顺序也会跟着变。
+              <b>能做</b>换条件重新生成；条件变了顺序也会变
             </li>
             <li>
-              <b>你会得到</b>：能照着读的路线，而不是一堆需要自己排序的论文，也不会因为暂时没有算力就被劝退。
+              <b>得到</b>能照着读的路线，且不会因暂时没算力被劝退
             </li>
           </ul>
         </div>
         <figure className="cap-fig">
           <ol className="g-order" aria-hidden="true">
-            <li>
-              <b>1</b>
-              <span className="t">基础方法</span>
-              <em>重点看：核心思路</em>
-            </li>
-            <li>
-              <b>2</b>
-              <span className="t">改进版本</span>
-              <em>重点看：与前一版的差异</em>
-            </li>
-            <li>
-              <b>3</b>
-              <span className="t">最新工作</span>
-              <em>重点看：实验条件是否可比</em>
-            </li>
+            {(facts?.route.length ? facts.route : [{ name: '基础方法', focus: '' }, { name: '改进版本', focus: '' }, { name: '最新工作', focus: '' }]).map(
+              (st, i) => (
+                <li key={`${st.name}-${i}`}>
+                  <b>{i + 1}</b>
+                  <span className="t">{st.name}</span>
+                  {st.focus ? <em>重点看：{st.focus}</em> : <em />}
+                </li>
+              ),
+            )}
           </ol>
-          <figcaption>阅读路线</figcaption>
+          <figcaption>
+            阅读路线
+            <span className="src">（预置案例自带的示例路线）</span>
+          </figcaption>
         </figure>
       </section>
 
-      <p className="disclaimer reveal">上图为功能示意，非真实分析结果。</p>
+      <p className="disclaimer reveal">
+        以上分组、关系与路线均来自<strong>预置视觉案例</strong>（离线生成、已通过原文定位校验的结果），关系按证据状态标注；不是本次操作触发的实时分析。
+      </p>
+
+      <div className="cap-cta reveal">
+        <button className="btn primary lg" onClick={onExperienceCase}>
+          进入视觉论文案例
+        </button>
+        <span className="small dim">不用上传任何东西，直接看这 5 篇的方法地图。</span>
+      </div>
     </div>
   );
 }
