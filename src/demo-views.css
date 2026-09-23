@@ -12,16 +12,17 @@
 }
 
 .landing .lead-block { text-align: center; }
-.landing .eyebrow {
+/* 产品定位行：夹在英文标题与中文主张之间，用两侧细线把它和上下两层串成一个整体 */
+.landing .positioning {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  margin: 0 0 22px;
-  font-size: 12.5px;
-  letter-spacing: .16em;
+  gap: 12px;
+  margin: 0 0 18px;
+  font-size: 15.5px;
+  letter-spacing: .22em;
   color: var(--copper-2);
 }
-.landing .eyebrow .rule { display: inline-block; width: 34px; height: 1px; background: var(--copper); }
+.landing .positioning .rule { display: inline-block; width: 40px; height: 1px; background: var(--copper-line); }
 
 .landing h1.brand-title {
   font-family: var(--font-brand);
@@ -30,7 +31,7 @@
   line-height: 1.06;
   letter-spacing: -.012em;
   color: var(--fg);
-  margin: 0 auto 14px;
+  margin: 0 auto 18px;
   white-space: nowrap;         /* 完整成行，任何宽度都不裁切、不折行 */
   max-width: 100%;
   overflow: visible;
@@ -44,6 +45,7 @@
   letter-spacing: .01em;
   color: var(--fg);
   margin: 0 auto 16px;
+  max-width: none;             /* 1440 下整行；窄屏自然折行 */
   text-wrap: balance;
 }
 .landing .sub {
@@ -56,32 +58,106 @@
 .landing .cta-row { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; }
 .landing .cta-row .btn { padding: 13px 28px; font-size: 15.5px; border-radius: 10px; }
 
-/* 三项能力：编号 + 细分隔线，不用卡片盒子 */
-.faculties {
+/* ---------- 三个作用段落（滚动依次看到，每段一种排版 + 一个简洁图形） ---------- */
+.cap {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  margin: 64px 0 0;
-  padding: 30px 0 0;
+  grid-template-columns: minmax(0, 1.02fr) minmax(0, .98fr);
+  gap: 56px;
+  align-items: center;
+  padding: 48px 0;
   border-top: 1px solid var(--line);
 }
-.fac { padding: 0 30px; border-left: 1px solid var(--line); }
-.fac:first-child { padding-left: 0; border-left: none; }
-.fac .no { font-family: var(--mono); font-size: 11.5px; letter-spacing: .1em; color: var(--copper); }
-.fac b { display: block; margin: 8px 0 6px; font-size: 16px; color: var(--fg); }
-.fac p { margin: 0; font-size: 13px; line-height: 1.85; color: var(--fg-3); }
+.cap.alt .cap-fig { order: -1; }
+.cap-no { font-family: var(--mono); font-size: 12px; letter-spacing: .12em; color: var(--copper); }
+.cap-text h3 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: clamp(22px, 2.1vw, 30px);
+  line-height: 1.35;
+  color: var(--fg);
+  margin: 10px 0 12px;
+}
+.cap-lead { margin: 0 0 16px; font-size: 15px; line-height: 1.9; color: var(--fg-2); }
+.cap-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.cap-list li {
+  font-size: 13.5px;
+  line-height: 1.85;
+  color: var(--fg-2);
+  padding-left: 14px;
+  position: relative;
+}
+.cap-list li::before { content: ''; position: absolute; left: 0; top: 10px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent-line); }
+.cap-list b { color: var(--fg); font-weight: 600; }
 
-/* 流程示意：一条轴线 + 三个节点 + 三段说明（克制，不做图形化数据） */
-.dlg { margin: 70px 0 0; }
-.dlg .axis { display: grid; grid-template-columns: auto 1fr auto 1fr auto; align-items: center; }
-.dlg .node { width: 9px; height: 9px; border-radius: 50%; background: var(--bg); border: 1.5px solid var(--copper); }
-.dlg .track { height: 1px; background: var(--line-2); }
-.dlg .caption { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; margin-top: 16px; }
-.dlg .cap:first-child { text-align: left; }
-.dlg .cap:nth-child(2) { text-align: center; }
-.dlg .cap:last-child { text-align: right; }
-.dlg .cap b { display: block; font-family: var(--font-serif); font-size: 16.5px; color: var(--fg); margin-bottom: 5px; }
-.dlg .cap span { font-size: 12.5px; line-height: 1.75; color: var(--fg-3); }
-.dlg .disclaimer { margin: 20px 0 0; text-align: center; font-size: 12px; color: var(--fg-3); }
+.cap-fig { margin: 0; }
+.cap-fig figcaption {
+  margin-top: 14px;
+  text-align: center;
+  font-family: var(--font-serif);
+  font-size: 14px;
+  color: var(--fg-3);
+  letter-spacing: .06em;
+}
+
+/* 图形①：分组示意 */
+.g-group { display: grid; gap: 12px; }
+.g-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.g-row.muted { opacity: .62; }
+.g-name { font-size: 12.5px; color: var(--fg-2); min-width: 118px; }
+.g-chip { width: 20px; height: 20px; border-radius: 6px; background: var(--accent-soft); border: 1px solid var(--accent-line); }
+.g-row.muted .g-chip { background: var(--bg-3); border-color: var(--line-2); }
+
+/* 图形②：关系示意（连线进入视口时描绘出来） */
+.g-rel { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px 10px; }
+.g-rel svg { display: block; width: 100%; height: auto; }
+.g-node { fill: var(--bg); stroke: var(--line-2); stroke-width: 1.2; }
+.drawline { fill: none; stroke-width: 2; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.drawline.solid { stroke: var(--ok); }
+.drawline.dash { stroke: var(--pending); stroke-dasharray: .06 .05; stroke-dashoffset: 0; opacity: 0; }
+.cap.in .drawline.solid { stroke-dashoffset: 0; transition: stroke-dashoffset .9s ease .15s; }
+.cap.in .drawline.dash { opacity: 1; transition: opacity .7s ease .5s; }
+.g-legend { display: flex; gap: 16px; margin-top: 8px; font-size: 12px; color: var(--fg-3); }
+.g-legend .k { display: inline-flex; align-items: center; gap: 6px; }
+.g-legend .sw { display: inline-block; width: 22px; height: 2px; border-radius: 2px; }
+.g-legend .sw.solid { background: var(--ok); }
+.g-legend .sw.dash { background: repeating-linear-gradient(90deg, var(--pending) 0 5px, transparent 5px 9px); }
+
+/* 图形③：阅读顺序示意 */
+.g-order { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; counter-reset: step; }
+.g-order li {
+  display: grid;
+  grid-template-columns: 26px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--copper-line);
+  border-radius: var(--radius-sm);
+}
+.g-order b { font-family: var(--mono); font-size: 12px; color: var(--copper); }
+.g-order .t { font-size: 13.5px; color: var(--fg); }
+.g-order em { font-size: 12px; font-style: normal; color: var(--fg-3); }
+
+/* ---------- 入场动效（只做一次，服务阅读） ---------- */
+.landing .reveal { opacity: 0; transform: translateY(14px); }
+.landing .reveal.in { opacity: 1; transform: none; transition: opacity .55s ease, transform .55s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .landing .reveal { opacity: 1; transform: none; }
+  .landing .reveal.in { transition: none; }
+  .cap.in .drawline.solid { transition: none; }
+  .cap.in .drawline.dash { transition: none; }
+}
+
+.landing .disclaimer { margin: 26px 0 0; text-align: center; font-size: 12px; color: var(--fg-3); }
 
 /* ---------- 案例选择页 ---------- */
 .casepage { max-width: 760px; margin: 0 auto; padding: 40px 0; }
@@ -214,19 +290,21 @@
 
 @media (max-width: 900px) {
   .landing { padding: 34px 0 44px; }
-  .landing .eyebrow { font-size: 11.5px; letter-spacing: .12em; margin-bottom: 14px; }
-  .landing h1.brand-title { font-size: clamp(34px, 11vw, 46px); margin-bottom: 12px; }
+  .landing .positioning { font-size: 12.5px; letter-spacing: .16em; margin-bottom: 14px; gap: 8px; }
+  .landing .positioning .rule { width: 24px; }
+  .landing h1.brand-title { font-size: clamp(34px, 11vw, 46px); margin-bottom: 14px; }
   .landing .cn-sub { font-size: 21px; margin-bottom: 14px; }
   .landing .sub { font-size: 15px; margin-bottom: 22px; }
   .landing .cta-row { flex-direction: column; align-items: stretch; gap: 10px; }
   .landing .cta-row .btn { width: 100%; padding: 14px 18px; }
-  .faculties { grid-template-columns: 1fr; margin-top: 38px; padding-top: 22px; }
-  .fac { padding: 14px 0; border-left: none; border-top: 1px solid var(--line); }
-  .fac:first-child { padding-top: 0; border-top: none; }
-  .dlg { margin-top: 34px; }
-  .dlg .axis { display: none; }
-  .dlg .caption { grid-template-columns: 1fr; gap: 12px; margin-top: 0; }
-  .dlg .cap, .dlg .cap:nth-child(2), .dlg .cap:last-child { text-align: left; }
+  .cap { grid-template-columns: 1fr; gap: 22px; padding: 32px 0; }
+  .cap.alt .cap-fig { order: 0; }
+  .cap-text h3 { font-size: 22px; }
+  .cap-lead { font-size: 14px; }
+  .cap-list li { font-size: 13px; }
+  .g-name { min-width: 0; }
+  .g-order li { grid-template-columns: 24px 1fr; row-gap: 2px; }
+  .g-order em { grid-column: 2; }
   .resultpair { grid-template-columns: 1fr; }
   .resultpair .vs { padding: 4px 0; }
   .verdict-big { padding: 16px; }
