@@ -48,7 +48,8 @@ import { DivergenceView } from './ui/Divergence';
 import { ExperimentsView } from './ui/ExperimentsView';
 import { HomeView } from './ui/HomeView';
 import { LandingView } from './ui/LandingView';
-import { MapView } from './ui/MapView';
+import { MapView, type ScopeMode } from './ui/MapView';
+import { AppBrandBar, AppSideNav } from './ui/mapChrome';
 import { UploadFlowView } from './ui/UploadFlowView';
 import { MoreView } from './ui/MoreView';
 import { SettingsView, StatusView, capabilitiesList, MODEL_ERROR_HINT } from './ui/SettingsView';
@@ -133,6 +134,36 @@ export default function App() {
   const [testResult, setTestResult] = useState<{ ok: boolean; text: string } | undefined>();
   const [testing, setTesting] = useState(false);
   const [, setTick] = useState(0);
+  /** 研究地图当前显示的集合（案例 / 我上传的论文）；由左侧研究工作区导航控制 */
+  const [mapMode, setMapMode] = useState<ScopeMode>('case');
+  /** 品牌栏使用衬线字体：字体就绪前不显示，避免加载时字体跳变 */
+  const [fontsReady, setFontsReady] = useState(false);
+
+  useEffect(() => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      setFontsReady(true);
+    };
+    const timer = window.setTimeout(finish, 700);
+    const fonts = (document as Document & { fonts?: FontFaceSet }).fonts;
+    if (fonts?.ready) fonts.ready.then(finish).catch(finish);
+    else finish();
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  /** 「使用说明」：把地图上方的三步引导滚到视野内并短暂强调（不改变任何数据） */
+  const showMapHelp = useCallback(() => {
+    const el = document.querySelector<HTMLElement>('.mapguide');
+    if (!el) return;
+    const reduce =
+      typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.classList.add('in');
+    el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+    el.classList.add('attn');
+    window.setTimeout(() => el.classList.remove('attn'), 1600);
+  }, []);
 
   const log = useCallback((line: string) => {
     setLogLines((prev) => [...prev.slice(-300), `[${new Date().toLocaleTimeString('zh-CN')}] ${line}`]);
@@ -242,6 +273,19 @@ export default function App() {
     setMethods((ms) => ms.filter((m) => m.paperId !== id));
     setSelected((s) => s.filter((x) => x !== id));
     log(`移除论文 ${id}`);
+  };
+
+  /** 撤销移除：把论文与已有分析结果写回本机（用户数据一律不丢） */
+  const restorePaper = async (paper: Paper, method?: Method) => {
+    await repo.savePaper(paper);
+    setPapers((p) => (p.some((x) => x.id === paper.id) ? p : [...p, paper]));
+    if (method) {
+      await repo.saveMethod(method);
+      setMethods((ms) =>
+        ms.some((m) => m.id === method.id) ? ms : [...ms.filter((m) => m.paperId !== paper.id), method],
+      );
+    }
+    log(`已撤销移除：${paper.title.slice(0, 30)}（论文与已有分析结果都已写回本机，不会重新调用模型）`);
   };
 
   /* ---------- 加载预置样例语料（明确标注为缓存） ---------- */
@@ -679,111 +723,40 @@ export default function App() {
     [],
   );
 
-  const tabName = (t: Tab): string =>
-    ({
-      landing: '首页',
-      map: '研究地图',
-      upload: '上传论文',
-      more: '更多',
-      home: '开始',
-      library: '论文库',
-      experiments: '全部结果与条件',
-      graph: '方法关系图',
-      decision: '阅读建议',
-      divergence: '待调查问题',
-      compare: '跨论文比较',
-      settings: '设置',
-      status: '开发状态与记录',
-    } as Record<string, string>)[t] ?? '';
-
-  /** 面向用户只有三个入口：首页 / 研究地图 / 更多 */
-  const navItems: { key: Tab; name: string; hint: string; state: 'ok' | 'info' | 'warn' | '' }[] = [
-    { key: 'landing', name: '首页', hint: '', state: '' },
-    {
-      key: 'map',
-      name: '研究地图',
-      // 侧栏只报**当前案例**的篇数；自己上传的论文单独显示，不混进案例统计
-      hint: scope.presetPaperCount
-        ? `${scope.presetPaperCount} 篇案例${scope.ownPapers.length ? ` · +${scope.ownPapers.length} 我传的` : ''}`
-        : scope.ownPapers.length
-          ? `我传的 ${scope.ownPapers.length} 篇`
-          : '',
-      state: scope.presetPaperCount ? 'ok' : 'info',
-    },
-    { key: 'more', name: '更多', hint: '', state: '' },
-  ];
-
-  /** 只有专业视图显示面包屑与进度（普通用户流程保持干净） */
-  const professionalTabs: Tab[] = ['library', 'experiments', 'graph', 'decision', 'divergence', 'compare', 'settings', 'status'];
-  const progress = [
-    { label: '案例已就绪', done: scope.paperCount > 0 },
-    { label: '结果已选择', done: expPicked > 0 },
-    { label: '方法关系已分析', done: scopedRelations.length > 0 },
-  ];
-
-  const pickLink = (key: Tab) => {
-    const n = navItems.find((x) => x.key === key);
-    return (
-      <button
-        key={key}
-        className={`nav ${tab === key ? 'active' : ''}`}
-        onClick={() => setTab(key)}
-        aria-current={tab === key ? 'page' : undefined}
-      >
-        <span className="nav-name">{tabName(key)}</span>
-        {n?.state ? <span className={`dotstate ${n.state}`} aria-hidden="true" /> : null}
-        {n?.hint ? <span className="badge">{n.hint}</span> : null}
-      </button>
-    );
-  };
-
   return (
     <div className="app">
-      <header className="topbar">
-        <button className="logo" onClick={() => setTab('landing')} title="回到宣传首页">
-          <span className="mark">RP</span>
-          ResearchPilot
-        </button>
-        <span className="tagline">论文方法梳理 · 关键结论回到原文</span>
-      </header>
+      <AppBrandBar
+        corpusLabel={scope.meta.label}
+        paperCount={tab === 'map' && mapMode === 'own' ? scope.ownPapers.length : scope.presetPaperCount}
+        cached={tab !== 'landing' && scope.presetPapers.some((p) => p.cached)}
+        modelReady={modelReady}
+        fontsReady={fontsReady}
+        minimal={tab === 'landing'}
+        onHome={() => setTab('landing')}
+        onMore={() => setTab('more')}
+        onSettings={() => setTab('settings')}
+        onHelp={tab === 'map' ? showMapHelp : () => undefined}
+      />
 
-      <div className="app-body">
+      <div className={`app-body${tab === 'map' ? ' mapbody' : ''}`}>
         {tab === 'landing' ? null : (
-        <aside className="side">
-          {navItems.map((n) => pickLink(n.key))}
-          <div className="side-foot">
-            {corpus === 'vision' ? '正式案例：图像分类' : '开发回归样例：NLP'}
-            <br />
-            案例 {scope.presetPaperCount} 篇（本语料预置）· 我上传 {scope.ownPapers.length} 篇
-            <br />
-            {modelReady ? `模型：${config.model}` : '未配置模型（只能看示例结果）'}
-            <br />
-            数据仅存于本机浏览器
-          </div>
-        </aside>
+          <AppSideNav
+            active={tab}
+            corpusLabel={scope.meta.label}
+            presetCount={scope.presetPaperCount}
+            ownCount={scope.ownPapers.length}
+            collection={mapMode}
+            modelReady={modelReady}
+            onGo={(t) => setTab(t as Tab)}
+            onPickCollection={(c) => {
+              setMapMode(c);
+              setTab('map');
+            }}
+          />
         )}
 
-        <main className={`main${tab === 'landing' ? ' plain' : ''}`}>
+        <main className={`main${tab === 'landing' ? ' plain' : ''}${tab === 'map' ? ' mapmain' : ''}`}>
           <div className="main-inner">
-            {professionalTabs.includes(tab) && (
-              <div className="workhead">
-                <div className="crumb">
-                  <b>{corpus === 'vision' ? '视觉论文案例' : '开发回归样例'}</b>
-                  <span className="sep">/</span>
-                  {tabName(tab)}
-                </div>
-                <div className="progress" aria-label="演示进度">
-                  {progress.map((p, i) => (
-                    <React.Fragment key={p.label}>
-                      {i > 0 && <span className="arrow">→</span>}
-                      <span className={`p ${p.done ? 'done' : ''}${tab === 'experiments' && i === 1 ? ' cur' : ''}`}>
-                        {p.done ? '✓' : '○'} {p.label}
-                      </span>
-                    </React.Fragment>
-                  ))}
-                </div>
-              </div>
-            )}
           {pendingDependents.length > 0 && (
             <Banner kind="warn">
               <strong>有论文的结果已更新，以下内容需要重新生成或复核：</strong>
@@ -809,6 +782,7 @@ export default function App() {
                 setTab('map');
               }}
               onUploadOwn={() => setTab('upload')}
+              onGo={(t) => setTab(t)}
             />
           )}
 
@@ -841,9 +815,12 @@ export default function App() {
               })}
               modelReady={modelReady}
               busy={false}
+              mode={mapMode}
+              onModeChange={setMapMode}
               onGenerate={genDecision}
               onOpenEvidence={(ev) => openEvidence(ev, '原文依据', papers.find((x) => x.id === ev.paperId))}
               onAddPapers={() => setTab('upload')}
+              onGoLibrary={() => setTab('library')}
               onSwitchCase={async () => {
                 await switchCorpus(corpus === 'vision' ? 'nlp-dev' : 'vision');
               }}
@@ -935,6 +912,8 @@ export default function App() {
               loadResult={loadResult}
               onClearForeign={clearForeignCorpus}
               onOpenSettings={() => setTab('settings')}
+              onGoMap={() => setTab('map')}
+              onGoHome={() => setTab('landing')}
               onGoExperiments={() => {
                 setExpFocus(null);
                 setTab('experiments');
@@ -946,6 +925,7 @@ export default function App() {
               onGoGraph={() => setTab('graph')}
               papers={papers}
               methods={methods}
+              relations={scopedRelations}
               jobs={jobs}
               modelReady={modelReady}
               onImport={importFiles}
@@ -953,6 +933,7 @@ export default function App() {
               onExtract={extract}
               onCancel={cancelExtract}
               onRemove={removePaper}
+              onRestore={restorePaper}
               onOverride={overrideField}
               onOpenEvidence={openEvidence}
               onLoadSample={loadSample}
@@ -1022,6 +1003,11 @@ export default function App() {
               }}
               sampleProfile={sampleProfile}
               onOpenEvidence={openEvidence}
+              onGo={(t) => setTab(t as Tab)}
+              onOpenPaper={(paperId) => {
+                setExpFocus(paperId);
+                setTab('library');
+              }}
             />
           )}
 

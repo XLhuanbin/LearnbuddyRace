@@ -32,10 +32,10 @@ interface Props {
  */
 export function MoreView({ scope, corpus, onGo, onSwitchCorpus, modelReady, counts }: Props) {
   const items: { tab: Tab; title: string; desc: string }[] = [
-    { tab: 'library', title: '论文库（原始字段）', desc: '每篇论文解析出来的字段、实验条件与程序校验记录' },
+    { tab: 'library', title: '论文集合（原始字段）', desc: '每篇论文解析出来的字段、实验条件与程序校验记录' },
     { tab: 'experiments', title: '全部结果与条件（专业视图）', desc: '按论文筛选全部结果，逐个对照训练条件与原始表格' },
     { tab: 'graph', title: '方法关系图（完整）', desc: '所有方法与关系，含证据状态与人工修正入口' },
-    { tab: 'decision', title: '阅读建议（完整版）', desc: '按你的基础、时间与算力条件生成阅读路线' },
+    { tab: 'decision', title: '阅读路线（完整版）', desc: '按你的基础、时间与算力条件生成阅读路径' },
     { tab: 'divergence', title: '待调查问题', desc: '跨论文的分歧与仍未解决的问题' },
     { tab: 'compare', title: '跨论文比较（论文级）', desc: '以整篇论文为单位比较评估口径是否一致' },
     { tab: 'status', title: '开发状态与记录', desc: '规则版本、缓存版本、验证范围、模型调用记录与运行日志' },
@@ -48,7 +48,8 @@ export function MoreView({ scope, corpus, onGo, onSwitchCorpus, modelReady, coun
         <div className="morehead-text">
           <h2 className="page">更多</h2>
           <p className="lead">
-            这里是细节与开发信息：面向评审与开发者。普通演示只需要「比较结果」和「方法演进」两页。
+            这里是细节与开发信息：面向评审与开发者。普通演示只需要「研究地图」（看懂方法 + 真实关系）和「阅读路线」两页；
+            论文集合、实验可比性、方法关系图、待调查问题、跨论文比较、开发状态与设置都放在这里。
           </p>
         </div>
         {/* 淡色装饰字（自首页迁移）：纯装饰，桌面完整显示，窄屏只显示 Research */}

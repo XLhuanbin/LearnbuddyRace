@@ -245,10 +245,11 @@ async function main() {
   console.log('=== E0 宣传首页：定位是「梳理论文方法与阅读路线」 ===');
   const homeText = await cdp.evaluate(`(document.querySelector('.main-inner') || document.body).innerText`);
   check('首屏主文案', /把一组论文，变成你看得懂的研究地图/.test(homeText));
-  check('首屏副文案（看懂方法 / 发展关系 / 先读哪篇 / 原文依据）',
-    /看懂各类方法解决了什么、彼此如何发展，以及你应该先读哪篇。关键结论都能回到原文/.test(homeText));
-  check('三个关键词：方法差异 / 技术关系 / 先读什么',
-    /看懂方法差异/.test(homeText) && /理清技术关系/.test(homeText) && /决定先读什么/.test(homeText));
+  check('首屏副文案是一句短说明（不超过 24 字）', /读懂方法演进，知道先读哪一篇。/.test(homeText));
+  const subLen = await cdp.evaluate(`(() => { const e = document.querySelector('.landing .sub'); return e ? e.textContent.trim().length : 99; })()`);
+  check('首屏说明长度 ≤24 字', subLen <= 24, String(subLen));
+  check('三个段落：论文集合 / 研究地图 / 阅读路线',
+    /论文集合/.test(homeText) && /研究地图/.test(homeText) && /阅读路线/.test(homeText));
   check('主按钮「体验视觉论文案例」', /体验视觉论文案例/.test(homeText));
   check('次按钮「上传我的论文」', /上传我的论文/.test(homeText));
   check('示意图是「论文 → 分组与关联 → 阅读路线」',
@@ -278,7 +279,7 @@ async function main() {
   check('直接进入研究地图（无单选项案例页）', /研究地图/.test(mapText) && !/选择一个视觉论文案例/.test(mapText));
   check(
     '工作区显示论文集合与三个视图',
-    /研究地图 · 视觉论文案例/.test(mapText) && /方法地图/.test(mapText) && /联系与区别/.test(mapText) && /从哪里开始/.test(mapText),
+    /研究地图 · 视觉方法演进案例/.test(mapText) && /方法地图/.test(mapText) && /联系与区别/.test(mapText) && /从哪里开始/.test(mapText),
   );
   const optsOpened = await cdp.evaluate(`(() => { const b=[...document.querySelectorAll('button')].find((x)=>x.textContent.includes('选项')); if (b) b.click(); return true; })()`);
   await sleep(600);
@@ -329,7 +330,7 @@ async function main() {
 
   console.log('');
   console.log('=== E1b 切换到开发回归样例（NLP，旧断言基于这 5 篇） ===');
-  await goMore(cdp, '论文库');
+  await goMore(cdp, '论文集合');
   await sleep(700);
   const switched = await cdp.evaluate(`
 (() => {
@@ -361,21 +362,48 @@ async function main() {
   check('语料加载完成（论文卡片渲染 5 篇）', nlpLoaded);
 
   console.log('');
-  console.log('=== E2 论文库（原始字段与校验的完整入口） ===');
-  await goMore(cdp, '论文库');
+  console.log('=== E2 论文集合（案例概览 + 论文列表） ===');
+  await goMore(cdp, '论文集合');
   await sleep(1200);
   const libText = await cdp.evaluate(`(document.querySelector('.main-inner') || document.body).innerText`);
   check('论文列表含 BERT', await cdp.evaluate(TEXT('BERT')));
   check('标注为缓存案例而非实时', await cdp.evaluate(TEXT('缓存案例')));
   check('展开区展示实验条件表', await cdp.evaluate(TEXT('实验条件')));
-  check('有重新分析入口（含确认与取消）', /重新分析/.test(libText));
   check('加载按钮完成态可用（不重复点击也不禁用）', /重新加载演示案例|加载演示案例/.test(libText));
+  check(
+    '卡片顺序：标题 → 方法标签 → 链条作用 → 分析状态 → 一个主要操作',
+    /一句话作用/.test(libText) && /在研究链条里/.test(libText) && /分析完成|尚未提取方法字段|已解析文本/.test(libText) && /查看论文/.test(libText),
+  );
 
   await cdp.click('查看论文');
   await sleep(1200);
   const fieldPanel = await cdp.evaluate(`(document.querySelector('.main-inner') || document.body).innerText`);
-  check('展开出现 7 个字段与四态标签', /研究任务/.test(fieldPanel) && /核心思路/.test(fieldPanel) && /局限/.test(fieldPanel) && /已核验|待核查|未提取到|待人工核对/.test(fieldPanel));
+  check(
+    '展开出现 7 个字段与四态标签（可核验 / 待人工核对 / 未找到证据 / 缺失）',
+    /研究任务/.test(fieldPanel) && /核心思路/.test(fieldPanel) && /局限/.test(fieldPanel) && /可核验|待人工核对|未找到证据|缺失/.test(fieldPanel),
+    fieldPanel.slice(0, 60),
+  );
   check('展开后展示程序校验问题表', /程序校验问题/.test(fieldPanel));
+  const condOpened = await cdp.evaluate(`(() => {
+  const d = [...document.querySelectorAll('.main-inner details.fold')].find((x) => /实验条件/.test(x.textContent));
+  if (!d) return false;
+  d.open = true;
+  return true;
+})()`);
+  await sleep(500);
+  check('展开区展示实验条件表（论文报告的原始条件）', condOpened && (await cdp.evaluate(TEXT('论文报告的原始条件'))));
+  const moreText = await cdp.evaluate(`
+(() => {
+  const d = [...document.querySelectorAll('.main-inner details.moreprop')].find((x) => /更多操作/.test(x.textContent));
+  if (!d) return 'NO_MORE';
+  d.open = true;
+  return d.innerText;
+})()`);
+  check(
+    '昂贵 / 破坏性操作收进「更多操作」（重新分析 + 移除论文）',
+    /重新分析/.test(String(moreText)) && /移除论文/.test(String(moreText)),
+    String(moreText).slice(0, 120),
+  );
   const evBtn = await cdp.evaluate(`
 (() => {
   const b = [...document.querySelectorAll('button')].find((x) => /原文依据|实际匹配位置/.test(x.textContent));
@@ -402,7 +430,7 @@ async function main() {
 
   console.log('');
   console.log('=== E5 阅读建议（完整版） ===');
-  await goMore(cdp, '阅读建议');
+  await goMore(cdp, '阅读路线');
   await sleep(1400);
   const decText = await cdp.evaluate(`(document.querySelector('.main-inner') || document.body).innerText`);
   check('阅读建议页有条件输入（基础 / 兴趣 / 时间 / 算力）',
@@ -440,7 +468,7 @@ fetch([...document.scripts].find((s) => /app.*\\.js/.test(s.src)).src).then((r) 
 
   console.log('');
   console.log('=== E12a 切回正式案例（图像分类）并加载 ===');
-  await goMore(cdp, '论文库');
+  await goMore(cdp, '论文集合');
   await sleep(1200);
   const back = await cdp.evaluate(`
 (() => {
@@ -481,7 +509,7 @@ fetch([...document.scripts].find((s) => /app.*\\.js/.test(s.src)).src).then((r) 
 
   console.log('');
   console.log('=== E13 目标匹配与执行可行性（本轮） ===');
-  await goMore(cdp, '阅读建议');
+  await goMore(cdp, '阅读路线');
   await sleep(1500);
   const decText2 = await cdp.evaluate(`(document.querySelector('.main-inner') || document.body).innerText`);
   check('执行可行性按阶段判断（阅读/推理/微调/预训练）', /阅读|推理|微调|预训练/.test(decText2));
@@ -489,10 +517,16 @@ fetch([...document.scripts].find((s) => /app.*\\.js/.test(s.src)).src).then((r) 
 
   console.log('');
   console.log('=== E14 重新分析入口（不触发真实调用） ===');
-  await goMore(cdp, '论文库');
+  await goMore(cdp, '论文集合');
   await sleep(1200);
   await cdp.click('查看论文');
   await sleep(1000);
+  // 重新分析现在收在「更多操作」里，先展开再点
+  await cdp.evaluate(`(() => {
+  const d = [...document.querySelectorAll('.main-inner details.moreprop')].find((x) => /更多操作/.test(x.textContent));
+  if (d) d.open = true;
+})()`);
+  await sleep(300);
   const reBtn = await cdp.evaluate(`
 (() => {
   const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === '重新分析');
@@ -528,9 +562,10 @@ fetch([...document.scripts].find((s) => /app.*\\.js/.test(s.src)).src).then((r) 
   const navVisible = await cdp.evaluate(`
 (() => {
   const t = (document.body.innerText || '');
-  return ['首页', '研究地图', '更多'].every((x) => t.includes(x));
+  const homeLink = !!document.querySelector('.mapbrand .logo');
+  return homeLink && ['研究地图', '更多', '论文集合'].every((x) => t.includes(x));
 })()`);
-  check('窄屏下功能入口仍然可见', navVisible);
+  check('窄屏下功能入口仍然可见（品牌回首页 + 论文集合 + 研究地图 + 更多）', navVisible);
   await cdp.send('Emulation.clearDeviceMetricsOverride');
   await sleep(400);
 

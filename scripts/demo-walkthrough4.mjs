@@ -182,7 +182,7 @@ check('点击「体验视觉论文案例」', await clickBtn('体验视觉论文
 await sleep(5000);
 const mapText = await mainText();
 check('直接进入研究地图（无单选项案例页）', /研究地图/.test(mapText) && !/选择一个视觉论文案例/.test(mapText));
-check('工作区显示论文集合与三个视图', /研究地图 · 视觉论文案例/.test(mapText) && /方法地图/.test(mapText) && /联系与区别/.test(mapText) && /从哪里开始/.test(mapText));
+check('工作区显示论文集合与三个视图', /研究地图 · 视觉方法演进案例/.test(mapText) && /方法地图/.test(mapText) && /联系与区别/.test(mapText) && /从哪里开始/.test(mapText));
 check('首屏主体是图形（不是概览段落或论文卡片列表）', !/领域概览\n/.test(mapText) && !/逐篇方法卡片/.test(mapText));
 check(
   '默认给出一个具体的探索问题 + 入口（问题来自现有关系）',

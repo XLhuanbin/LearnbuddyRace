@@ -318,3 +318,103 @@ export function StatusLegend() {
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ *
+ * 整站统一：简短面包屑 + 完整流程条 + 页头
+ * 约定：完整流程条只在「上传 / 提取」这类流程页出现；
+ *       地图详情、实验比较、阅读路线只用一行简短面包屑。
+ * ------------------------------------------------------------------ */
+
+/** 简短面包屑：最后一项是当前位置，前面的可点 */
+export function Crumb({ trail }: { trail: { label: string; on?: () => void }[] }) {
+  return (
+    <nav className="crumbbar" aria-label="当前位置">
+      {trail.map((t, i) => (
+        <React.Fragment key={`${t.label}-${i}`}>
+          {i > 0 && (
+            <span className="sep" aria-hidden="true">
+              ›
+            </span>
+          )}
+          {i < trail.length - 1 && t.on ? (
+            <button className="lk" onClick={t.on}>
+              {t.label}
+            </button>
+          ) : i < trail.length - 1 ? (
+            <span className="lk">{t.label}</span>
+          ) : (
+            <b>{t.label}</b>
+          )}
+        </React.Fragment>
+      ))}
+    </nav>
+  );
+}
+
+export type FlowStepState = 'done' | 'running' | 'waiting' | 'failed';
+const FLOW_ICON: Record<FlowStepState, string> = { done: '✓', running: '…', waiting: '○', failed: '!' };
+
+/**
+ * 完整流程条：一条整体进度，用在流程页的顶部。
+ * 每一步给「状态 + 名称 + 已经得到的结果」，不画成大盒子。
+ */
+export function FlowBar({ steps }: { steps: { no: string; name: string; state: FlowStepState; result: string }[] }) {
+  return (
+    <div className="flowbar" aria-label="处理流程">
+      {steps.map((s, i) => (
+        <React.Fragment key={s.no}>
+          {i > 0 && (
+            <span className="arw" aria-hidden="true">
+              →
+            </span>
+          )}
+          <span className={`fstep ${s.state}`} title={s.result}>
+            <span className="no" aria-hidden="true">
+              {FLOW_ICON[s.state]}
+            </span>
+            <span className="nm">
+              {s.name}
+              <span className="res"> · {s.result}</span>
+            </span>
+          </span>
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+/** 页面头：标题（衬线）+ 一句说明 + 关键数据/状态 + 一个主操作 */
+export function PageHead({
+  title,
+  sub,
+  badges,
+  actions,
+}: {
+  title: string;
+  sub?: React.ReactNode;
+  badges?: React.ReactNode;
+  actions?: React.ReactNode;
+}) {
+  return (
+    <header className="pagehead">
+      <div className="pagehead-main">
+        <h2 className="pgtitle">{title}</h2>
+        {sub && <p className="pgsub">{sub}</p>}
+        {badges && <div className="pgmeta">{badges}</div>}
+      </div>
+      {actions && <div className="pgactions">{actions}</div>}
+    </header>
+  );
+}
+
+/** 区块标题：h3 + 一句补充说明 */
+export function SectionHead({ title, sub, right }: { title: string; sub?: React.ReactNode; right?: React.ReactNode }) {
+  return (
+    <div className="secthead">
+      <h3>{title}</h3>
+      {sub && <span className="sub">{sub}</span>}
+      {right && <span className="spacer" />}
+      {right}
+    </div>
+  );
+}

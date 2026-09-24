@@ -6,49 +6,49 @@
    - 大留白、清晰卡片层级、统一圆角，不做装饰性渐变与炫技动画
    ========================================================================= */
 :root {
-  /* ---------- 底色：暖纸（不再用冷灰 + 靛青）---------- */
-  --bg: #fcf8f1;      /* 卡片 / 主面板 */
-  --bg-2: #f5efe3;    /* 页面底 */
-  --bg-3: #efe7d9;    /* 次级块 */
-  --bg-4: #e5dbc9;
-  --line: #e3d9c7;
-  --line-2: #cfc0a8;
+  /* ---------- 底色：冷纸白 / 灰白（2026-09-24 视觉重构：不再使用米色）---------- */
+  --bg: #F5F7F8;      /* 页面背景 */
+  --bg-2: #FCFDFD;    /* 表面：卡片 / 面板 / 顶栏 */
+  --bg-3: #EEF2F4;    /* --surface-muted：次级块 */
+  --bg-4: #E3E9ED;
+  --line: rgba(22, 38, 61, .14);
+  --line-2: rgba(22, 38, 61, .26);
 
-  /* ---------- 文字：深墨蓝 ---------- */
-  --fg: #17263c;
-  --fg-2: #45556c;
-  --fg-3: #7b8698;
+  /* ---------- 文字：深墨蓝三级 ---------- */
+  --fg: #16263D;      /* --ink */
+  --fg-2: #536274;    /* --ink-secondary */
+  --fg-3: #7D8996;    /* --ink-muted */
 
-  /* ---------- 主色：墨蓝（结构、按钮、链接）---------- */
-  --accent: #1e3a5f;
-  --accent-2: #142f4f;
-  --accent-soft: #e8eef6;
-  --accent-line: #b7c7da;
+  /* ---------- 主色：墨蓝（全站唯一的品牌强调色）---------- */
+  --accent: #1F4772;
+  --accent-2: #17395C;
+  --accent-soft: #E5EEF6;
+  --accent-line: #B7CBE0;
 
-  /* ---------- 辅助：铜色（只用于细线、标记与少量强调）---------- */
-  --copper: #9e5326;
-  --copper-2: #83431c;
-  --copper-soft: #f7eadc;
-  --copper-line: #d9b492;
+  /* ---------- 铜色已退役：统一映射到品牌色（避免逐个类名改动）---------- */
+  --copper: #1F4772;
+  --copper-2: #17395C;
+  --copper-soft: #E5EEF6;
+  --copper-line: #B7CBE0;
 
-  /* ---------- 语义色：与品牌色区分，且一律配合图标与文字，不靠颜色单独表达 ---------- */
-  --ok: #2f6b4a;          /* 已核验 */
-  --ok-soft: #e8f0ea;
-  --ok-line: #a9c7b6;
-  --warn: #8a5a12;        /* 警告 */
-  --warn-soft: #f8eeda;
-  --warn-line: #dcc08a;
-  --pending: #be6a1e;     /* 待核查 / 待人工核对 */
-  --pending-soft: #fbebda;
-  --pending-line: #e8c49b;
-  --bad: #8e322c;         /* 不可比 / 失败 */
-  --bad-soft: #f7e6e3;
-  --bad-line: #dcb0a8;
-  --purple: #5b4a8a;
-  --purple-soft: #edeaf5;
-  --purple-line: #c6bedc;
-  --neutral: #4e5a6b;
-  --neutral-soft: #efeadd;
+  /* ---------- 语义色：绿 / 橙 / 红只用于真实状态，不做装饰 ---------- */
+  --ok: #477A65;          /* 已核验 */
+  --ok-soft: #E7F0EB;
+  --ok-line: #B4CFC0;
+  --warn: #96601F;        /* 警告 */
+  --warn-soft: #F6EEE3;
+  --warn-line: #DDC2A2;
+  --pending: #A66A35;     /* 待核查 / 待人工核对 */
+  --pending-soft: #F7EDE2;
+  --pending-line: #E0C3A3;
+  --bad: #A84F4F;         /* 不可比 / 失败 */
+  --bad-soft: #F7E9E9;
+  --bad-line: #DEB6B6;
+  --purple: #4E5C86;      /* 人工修正 */
+  --purple-soft: #EBEDF5;
+  --purple-line: #C2C8DE;
+  --neutral: #5B6B7C;     /* 信息不足 */
+  --neutral-soft: #EDF1F4;
 
   /* ---------- 字体 ---------- */
   /* 界面正文：系统无衬线（保证小字号清晰） */
@@ -61,12 +61,38 @@
   --font-brand: 'RP Serif SC', Georgia, 'Times New Roman', 'Songti SC', serif;
   --mono: 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
 
+  /* ---------- 字号层级（全站统一）---------- */
+  --fs-hero: clamp(40px, 5.3vw, 76px);      /* 首页品牌标题 64–76px */
+  --fs-page: clamp(22px, 2.1vw, 30px);      /* 页面标题 28–32px */
+  --fs-section: clamp(18px, 1.5vw, 21px);   /* 区块标题 20–24px */
+  --fs-paper: 17px;                         /* 论文标题 16–18px */
+  --fs-body: 15.5px;                        /* 正文 15–16px */
+  --fs-aux: 13.5px;                         /* 辅助说明 13–14px */
+  --fs-meta: 12px;                          /* 元数据 12px，不承载关键解释 */
+  --measure: 44em;                          /* 正文行宽上限（≈60–70 中文字符） */
+
+  /* ---------- 形状：只有三种（容器 12 / 控件 8 / 状态胶囊）---------- */
   --radius: 12px;
   --radius-sm: 8px;
-  --radius-lg: 16px;
-  /* 阴影：暖纸上的墨色阴影，透明度压得很低 */
-  --shadow-1: 0 1px 2px rgba(23, 38, 60, .05);
-  --shadow-2: 0 6px 18px rgba(23, 38, 60, .07);
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+
+  /* 阴影：卡片默认不加大阴影 */
+  --shadow-1: 0 1px 2px rgba(22, 38, 61, .05);
+  --shadow-2: 0 2px 10px rgba(22, 38, 61, .07);
+
+  /* ---------- 外壳尺寸（顶栏 / 侧栏 / 内容宽度 / 详情面板）---------- */
+  --topbar-h: 64px;
+  --side-w: 216px;
+  --content-max: 1160px;
+  --panel-w: 340px;
+
+  /* ---------- 动效时长 ---------- */
+  --du-page: 200ms;
+  --du-expand: 260ms;
+  --du-reveal: 500ms;
+  --du-draw: 620ms;
+  --ease: cubic-bezier(.2, .7, .2, 1);
 }
 
 * { box-sizing: border-box; }
@@ -74,13 +100,17 @@
 html, body, #root { height: 100%; margin: 0; }
 
 body {
-  background: var(--bg-2);
+  background: var(--bg);
   color: var(--fg);
   font-family: var(--font-sans);
-  font-size: 14px;
-  line-height: 1.7;
+  font-size: var(--fs-body);
+  line-height: 1.72;
   -webkit-font-smoothing: antialiased;
 }
+
+/* 标题换行更均衡；长说明避免出现孤字 */
+h1, h2, h3, .pgtitle, .brand-title, .cn-sub { text-wrap: balance; }
+p, li, .pgsub, .sub, .lead { text-wrap: pretty; }
 
 button { font-family: inherit; font-size: inherit; cursor: pointer; }
 input, textarea, select { font-family: inherit; font-size: inherit; }
@@ -92,7 +122,7 @@ a { color: var(--accent); }
   align-items: center;
   gap: 16px;
   padding: 12px 26px;
-  background: var(--bg);
+  background: var(--bg-2);
   border-bottom: 1px solid var(--line);
   position: sticky;
   top: 0;
@@ -125,21 +155,21 @@ a { color: var(--accent); }
 .topbar .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 
 /* ---------- 布局：左导航 + 内容 ---------- */
-.app-body { display: flex; min-height: calc(100% - 51px); }
+.app-body { display: flex; min-height: calc(100% - var(--topbar-h)); }
 
 .side {
-  width: 216px;
-  flex: 0 0 216px;
-  background: var(--bg);
+  width: var(--side-w);
+  flex: 0 0 var(--side-w);
+  background: var(--bg-2);
   border-right: 1px solid var(--line);
   padding: 18px 12px;
   display: flex;
   flex-direction: column;
   gap: 3px;
   position: sticky;
-  top: 51px;
+  top: var(--topbar-h);
   align-self: flex-start;
-  max-height: calc(100vh - 51px);
+  max-height: calc(100vh - var(--topbar-h));
   overflow-y: auto;
 }
 .side .group-label {
@@ -191,8 +221,8 @@ a { color: var(--accent); }
   line-height: 1.65;
 }
 
-.main { flex: 1; min-width: 0; padding: 22px 30px 72px; background: var(--bg-2); }
-.main-inner { max-width: 1220px; margin: 0 auto; }
+.main { flex: 1; min-width: 0; padding: 26px 32px 72px; background: var(--bg); }
+.main-inner { max-width: var(--content-max); margin: 0 auto; }
 
 /* 面包屑 + 进度 */
 .workhead { margin-bottom: 18px; }
@@ -206,7 +236,7 @@ a { color: var(--accent); }
   gap: 6px;
   font-size: 12px;
   color: var(--fg-3);
-  background: var(--bg);
+  background: var(--bg-2);
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 3px 11px;
@@ -215,20 +245,26 @@ a { color: var(--accent); }
 .progress .p.cur { color: var(--accent-2); border-color: var(--accent-line); background: var(--accent-soft); font-weight: 600; }
 .progress .arrow { color: var(--line-2); font-size: 11px; }
 
-h2.page { font-size: 22px; line-height: 1.4; margin: 0 0 8px; letter-spacing: -.01em; }
-h3 { font-size: 15px; }
-.sub, .lead { color: var(--fg-2); font-size: 13.5px; margin: 0 0 18px; max-width: 76ch; line-height: 1.8; }
+h2.page {
+  font-family: var(--font-serif);
+  font-size: 28px;
+  font-weight: 650;
+  line-height: 1.4;
+  margin: 0 0 8px;
+  letter-spacing: -.01em;
+}
+h3 { font-size: var(--fs-section); }
+.sub, .lead { color: var(--fg-2); font-size: var(--fs-body); margin: 0 0 18px; max-width: var(--measure); line-height: 1.8; }
 
 /* ---------- 通用块 ---------- */
 .card {
-  background: var(--bg);
+  background: var(--bg-2);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 18px 20px;
   margin-bottom: 16px;
-  box-shadow: var(--shadow-1);
 }
-.card h3 { margin: 0 0 10px; font-size: 15px; }
+.card h3 { margin: 0 0 10px; font-size: var(--fs-section); }
 .card.tight { padding: 14px 16px; }
 
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -236,22 +272,22 @@ h3 { font-size: 15px; }
 .spacer { flex: 1; }
 .muted { color: var(--fg-2); }
 .dim { color: var(--fg-3); }
-.small { font-size: 12.5px; }
+.small { font-size: var(--fs-aux); }
 .mono { font-family: var(--mono); font-size: .95em; }
 
-/* ---------- 按钮：每页一个主操作 ---------- */
+/* ---------- 按钮：每页一个主操作；次要操作用轻边框 / 文字按钮 ---------- */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  background: var(--bg);
+  background: var(--bg-2);
   color: var(--fg);
   border: 1px solid var(--line-2);
   border-radius: var(--radius-sm);
   padding: 8px 15px;
   font-weight: 500;
-  transition: background .15s ease, border-color .15s ease, color .15s ease;
+  transition: background .16s ease, border-color .16s ease, color .16s ease;
 }
 .btn:hover:not(:disabled) { background: var(--bg-3); border-color: var(--fg-3); }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
@@ -260,13 +296,12 @@ h3 { font-size: 15px; }
   border-color: var(--accent);
   color: #fff;
   font-weight: 600;
-  box-shadow: var(--shadow-1);
 }
 .btn.primary:hover:not(:disabled) { background: var(--accent-2); border-color: var(--accent-2); }
-.btn.lg { padding: 11px 20px; font-size: 15px; border-radius: 10px; }
-.btn.ghost { background: none; border-color: transparent; color: var(--fg-2); padding: 6px 10px; }
-.btn.ghost:hover:not(:disabled) { background: var(--bg-3); color: var(--fg); border-color: transparent; }
-.btn.sm { padding: 4px 10px; font-size: 12.5px; }
+.btn.lg { padding: 12px 24px; font-size: 16px; border-radius: var(--radius-sm); }
+.btn.ghost { background: none; border-color: transparent; color: var(--accent); padding: 6px 8px; }
+.btn.ghost:hover:not(:disabled) { background: var(--bg-3); color: var(--accent-2); border-color: transparent; }
+.btn.sm { padding: 5px 11px; font-size: var(--fs-aux); }
 
 /* ---------- 状态标签（图标 + 文字 + 颜色，三重表达） ---------- */
 .tag {
@@ -300,7 +335,7 @@ h3 { font-size: 15px; }
   padding: 12px 15px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--line-2);
-  background: var(--bg);
+  background: var(--bg-2);
   font-size: 13px;
   line-height: 1.75;
   margin-bottom: 14px;
@@ -313,35 +348,34 @@ h3 { font-size: 15px; }
 .banner.ok { border-color: var(--ok-line); background: var(--ok-soft); }
 .banner.info { border-color: var(--accent-line); background: var(--accent-soft); }
 
-/* ---------- 论文卡片 ---------- */
+/* ---------- 论文卡片（论文集合）---------- */
 .paper {
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--bg);
+  background: var(--bg-2);
   margin-bottom: 12px;
   overflow: hidden;
-  box-shadow: var(--shadow-1);
-  transition: box-shadow .15s ease, border-color .15s ease;
+  transition: border-color .16s ease;
 }
-.paper:hover { box-shadow: var(--shadow-2); }
+.paper:hover { border-color: var(--line-2); }
 .paper-head { padding: 16px 18px; display: flex; gap: 14px; align-items: flex-start; }
 .paper-head .meta { flex: 1; min-width: 0; }
-.paper-title { font-size: 15px; font-weight: 600; margin: 0 0 6px; line-height: 1.5; }
-.paper-sub { font-size: 12.5px; color: var(--fg-3); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-.paper-body { border-top: 1px solid var(--line); padding: 16px 18px 8px; background: var(--bg-2); }
+.paper-title { font-size: var(--fs-paper); font-weight: 650; margin: 0 0 6px; line-height: 1.45; }
+.paper-sub { font-size: var(--fs-meta); color: var(--fg-3); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.paper-body { border-top: 1px solid var(--line); padding: 16px 18px 8px; background: var(--bg); }
 
-/* 方法标签（CNN / Vision Transformer / 蒸馏 / 层次化 …） */
+/* 方法标签：信息标签，用轻方角而不是胶囊，减少胶囊噪音 */
 .mtags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
 .mtag {
-  font-size: 11.5px;
-  padding: 2px 9px;
-  border-radius: 999px;
+  font-size: var(--fs-meta);
+  padding: 1px 7px;
+  border-radius: 4px;
   background: var(--accent-soft);
   color: var(--accent-2);
   border: 1px solid var(--accent-line);
 }
-.mtag.alt { background: var(--purple-soft); color: var(--purple); border-color: var(--purple-line); }
-.mtag.neutral { background: var(--bg-3); color: var(--fg-2); border-color: var(--line-2); }
+.mtag.alt { background: var(--accent-soft); color: var(--accent-2); border-color: var(--accent-line); }
+.mtag.neutral { background: var(--bg-3); color: var(--fg-2); border-color: var(--line); }
 
 /* ---------- 字段卡片 ---------- */
 .fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
@@ -349,7 +383,7 @@ h3 { font-size: 15px; }
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 12px 14px;
-  background: var(--bg);
+  background: var(--bg-2);
 }
 .field-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
 .field-name { font-size: 12.5px; font-weight: 600; letter-spacing: .02em; color: var(--fg-2); }
@@ -358,7 +392,7 @@ h3 { font-size: 15px; }
 .field-note { font-size: 12px; color: var(--fg-3); margin-top: 8px; line-height: 1.7; }
 .ev-btn {
   margin-top: 10px;
-  background: var(--bg);
+  background: var(--bg-2);
   border: 1px solid var(--accent-line);
   color: var(--accent-2);
   border-radius: var(--radius-sm);
@@ -380,7 +414,7 @@ h3 { font-size: 15px; }
   z-index: 50;
 }
 .ev-box {
-  background: var(--bg);
+  background: var(--bg-2);
   border: 1px solid var(--line-2);
   border-radius: var(--radius-lg);
   max-width: 820px;
@@ -397,7 +431,7 @@ h3 { font-size: 15px; }
   display: flex;
   gap: 10px;
   align-items: center;
-  background: var(--bg-2);
+  background: var(--bg);
 }
 .ev-box header strong { font-size: 14.5px; }
 .ev-box .body { padding: 18px 20px; overflow-y: auto; }
@@ -414,12 +448,12 @@ h3 { font-size: 15px; }
 .ev-meta { font-size: 12px; color: var(--fg-3); margin-bottom: 12px; display: flex; gap: 14px; flex-wrap: wrap; }
 
 /* ---------- 表格 ---------- */
-.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); }
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-2); }
 table.cmp { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 13px; }
 table.cmp th, table.cmp td { border-bottom: 1px solid var(--line); padding: 10px 12px; vertical-align: top; text-align: left; }
-table.cmp th { background: var(--bg-2); font-weight: 600; color: var(--fg-2); position: sticky; top: 0; font-size: 12.5px; }
+table.cmp th { background: var(--bg); font-weight: 600; color: var(--fg-2); position: sticky; top: 0; font-size: 12.5px; }
 table.cmp tbody tr:last-child td { border-bottom: none; }
-table.cmp th.rowhead, table.cmp td.rowhead { background: var(--bg-2); width: 130px; font-weight: 600; color: var(--fg-2); }
+table.cmp th.rowhead, table.cmp td.rowhead { background: var(--bg); width: 130px; font-weight: 600; color: var(--fg-2); }
 table.cmp td.missing { color: var(--fg-3); font-style: italic; }
 table.cmp td.partial { background: var(--pending-soft); }
 table.cmp tr.warnrow td.rowhead { color: var(--pending); }
@@ -429,7 +463,7 @@ table.cmp tr.warnrow td.rowhead { color: var(--pending); }
 .graph-wrap {
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--bg);
+  background: var(--bg-2);
   padding: 10px;
   overflow-x: auto;
   box-shadow: var(--shadow-1);
@@ -440,7 +474,7 @@ table.cmp tr.warnrow td.rowhead { color: var(--pending); }
 label.f { display: block; font-size: 12.5px; color: var(--fg-2); margin-bottom: 5px; }
 input.f, textarea.f, select.f {
   width: 100%;
-  background: var(--bg);
+  background: var(--bg-2);
   border: 1px solid var(--line-2);
   color: var(--fg);
   border-radius: var(--radius-sm);
@@ -452,7 +486,7 @@ input.f:focus, textarea.f:focus { border-color: var(--accent); box-shadow: 0 0 0
 
 /* ---------- 日志（技术信息，仅在状态页出现） ---------- */
 .log {
-  background: var(--bg-2);
+  background: var(--bg);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 12px 14px;
@@ -482,7 +516,7 @@ input.f:focus, textarea.f:focus { border-color: var(--accent); box-shadow: 0 0 0
   font-size: 13px;
   font-weight: 600;
 }
-.step-row .c { flex: 1; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 15px; background: var(--bg); }
+.step-row .c { flex: 1; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 15px; background: var(--bg-2); }
 
 .qa { border-left: 3px solid var(--purple); padding: 2px 0 2px 14px; margin-bottom: 14px; }
 .qa h4 { margin: 0 0 6px; font-size: 14px; }

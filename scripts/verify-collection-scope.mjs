@@ -158,10 +158,10 @@ await sleep(5200);
 const state = await cdp.ev(`
 (() => {
   const texts = [...document.querySelectorAll('svg text')].map((t) => t.textContent);
-  const head = (document.querySelector('.maptoolbar') || {}).innerText || '';
+  const head = (document.querySelector('.maphead') || {}).innerText || '';
   return { texts, head: head.replace(/\\n/g, ' | ') };
 })()`);
-check('地图工具栏标明当前集合是视觉论文案例', /研究地图 · 视觉论文案例/.test(state.head), state.head);
+check('地图工具栏标明当前集合是视觉方法演进案例', /研究地图 · 视觉方法演进案例/.test(state.head), state.head);
 check('案例论文数仍为 5 篇（不因历史/自传数据增加）', /5 篇/.test(state.head), state.head);
 check('地图里没有出现 BERT（历史 NLP 记录已归位到回归样例）', !state.texts.some((t) => /BERT/i.test(t)), JSON.stringify(state.texts.slice(0, 6)));
 check('地图里没有出现用户上传的论文', !state.texts.some((t) => /My NLP|My Pasted/i.test(t)));
@@ -189,7 +189,7 @@ const ownState = await cdp.ev(`
   if (b) b.click();
   await new Promise((r) => setTimeout(r, 1000));
   const texts = [...document.querySelectorAll('svg text')].map((t) => t.textContent);
-  const head = (document.querySelector('.maptoolbar') || {}).innerText || '';
+  const head = (document.querySelector('.maphead') || {}).innerText || '';
   return { texts, head: head.replace(/\\n/g, ' | ') };
 })()`);
 check('可以单独查看「我上传的论文」', /研究地图 · 我上传的论文/.test(ownState.head), ownState.head);
@@ -199,18 +199,18 @@ check(`没有为单篇用户论文编造跨论文关系（连线 ${ownEdgeCount}
 
 const back = await cdp.ev(`
 (async () => {
-  const b = [...document.querySelectorAll('button')].find((x) => /回到/.test(x.textContent) && /视觉论文案例/.test(x.textContent));
+  const b = [...document.querySelectorAll('button')].find((x) => /回到/.test(x.textContent) && /视觉方法演进案例/.test(x.textContent));
   if (!b) return 'NO_BACK_BUTTON';
   b.click();
   await new Promise((r) => setTimeout(r, 900));
-  return (document.querySelector('.maptoolbar') || document.body).innerText.replace(/\\n/g, ' | ');
+  return (document.querySelector('.maphead') || document.body).innerText.replace(/\\n/g, ' | ');
 })()`);
-check('可以回到视觉论文案例', /研究地图 · 视觉论文案例/.test(String(back)), String(back).slice(0, 120));
+check('可以回到视觉方法演进案例', /研究地图 · 视觉方法演进案例/.test(String(back)), String(back).slice(0, 120));
 
 // 侧栏 / 页脚必须把两种计数分别说清楚（用户问过「10 篇 vs 5 篇分别统计什么」）
-const badge = String((await cdp.ev(`(document.querySelector('.side .badge') || {}).textContent || ''`)) || '');
-const sideFoot = String((await cdp.ev(`(document.querySelector('.side-foot') || {}).innerText || ''`)) || '').replace(/\n/g, ' | ');
-check('侧栏徽标只报当前案例篇数，并单列我上传的论文', /5 篇案例/.test(badge) && /\+\d+ 我传的/.test(badge), badge);
+const badges = await cdp.ev(`[...document.querySelectorAll('.side.research .nav .badge')].map((b) => b.textContent)`);
+const sideFoot = String((await cdp.ev(`(document.querySelector('.side.research .side-foot') || {}).innerText || ''`)) || '').replace(/\n/g, ' | ');
+check('侧栏分别给出「论文集合」与「我上传的论文」的篇数', Array.isArray(badges) && String(badges[0]) === '5' && /^\d+$/.test(String(badges[1])), JSON.stringify(badges));
 check('侧栏页脚写明案例与我上传各自的篇数', /案例 5 篇/.test(sideFoot) && /我上传 \d+ 篇/.test(sideFoot), sideFoot);
 
 const idb = await cdp.ev(`

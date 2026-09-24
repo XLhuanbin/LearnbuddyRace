@@ -28,7 +28,7 @@ export const CORPUS_META: Record<
   vision: {
     id: 'vision-classification',
     key: 'vision',
-    label: '视觉论文案例',
+    label: '视觉方法演进案例',
     domain: 'ImageNet 图像分类',
     base: './samples-vision/',
     arxivIds: ['1512.03385', '2010.11929', '2012.12877', '2103.14030', '2201.03545'],

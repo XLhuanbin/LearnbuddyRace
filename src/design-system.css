@@ -28,7 +28,7 @@ button:focus:not(:focus-visible) { outline: none; }
 
 /* ============ 首屏 ============ */
 .welcome {
-  background: var(--bg);
+  background: var(--bg-2);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   padding: var(--space-10) var(--space-8);
@@ -63,7 +63,7 @@ button:focus:not(:focus-visible) { outline: none; }
 /* 三步流程 */
 .flowcards { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); }
 .flowcard {
-  background: var(--bg);
+  background: var(--bg-2);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: var(--space-5);
@@ -133,7 +133,7 @@ button:focus:not(:focus-visible) { outline: none; }
 details.fold {
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--bg);
+  background: var(--bg-2);
   padding: var(--space-3) var(--space-4);
   margin: var(--space-4) 0;
 }
@@ -158,7 +158,7 @@ details.fold .fold-body p:last-child { margin-bottom: 0; }
 .corpus-card {
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--bg);
+  background: var(--bg-2);
   padding: var(--space-5) var(--space-6);
   margin-bottom: var(--space-5);
   box-shadow: var(--shadow-1);
@@ -183,7 +183,7 @@ details.fold .fold-body p:last-child { margin-bottom: 0; }
 .filters { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin: var(--space-3) 0; }
 .chip {
   border: 1px solid var(--line-2);
-  background: var(--bg);
+  background: var(--bg-2);
   color: var(--fg-2);
   border-radius: 999px;
   padding: 3px 11px;
@@ -199,7 +199,7 @@ details.fold .fold-body p:last-child { margin-bottom: 0; }
   align-items: flex-start;
   width: 100%;
   text-align: left;
-  background: var(--bg);
+  background: var(--bg-2);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: var(--space-3) var(--space-4);
@@ -233,7 +233,7 @@ details.fold .fold-body p:last-child { margin-bottom: 0; }
 .verdict {
   border-radius: var(--radius);
   border: 1px solid var(--line-2);
-  background: var(--bg);
+  background: var(--bg-2);
   padding: var(--space-5) var(--space-6);
   box-shadow: var(--shadow-1);
 }
@@ -253,7 +253,7 @@ details.fold .fold-body p:last-child { margin-bottom: 0; }
   position: sticky;
   top: 0;
   z-index: 3;
-  background: var(--bg);
+  background: var(--bg-2);
   border: 1px solid var(--line-2);
   border-radius: var(--radius);
   padding: var(--space-3) var(--space-4);
@@ -267,7 +267,7 @@ details.fold .fold-body p:last-child { margin-bottom: 0; }
   display: flex;
   gap: var(--space-4);
   align-items: flex-start;
-  background: var(--bg);
+  background: var(--bg-2);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: var(--space-3) var(--space-4);

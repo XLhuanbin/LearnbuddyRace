@@ -163,7 +163,7 @@ await cdp.shot(join(OUT, 'A2-加载完成.png'));
 await clickNav('论文库');
 await sleep(1200);
 const lib = await cdp.ev(`(document.querySelector('.main-inner')||document.body).innerText`);
-check('论文库显示案例名称（视觉论文案例）', /视觉论文案例/.test(lib));
+check('论文库显示案例名称（视觉方法演进案例）', /视觉方法演进案例/.test(lib));
 check('论文库显示论文数量与领域', /5 篇/.test(lib) && /ImageNet 图像分类/.test(lib));
 check('每篇论文有方法标签（CNN / Transformer 等）', /CNN/.test(lib) && /Vision Transformer/.test(lib));
 check('论文卡片显示字段证据与实验条数', /字段证据/.test(lib) && /实验 \d+ 条/.test(lib));
