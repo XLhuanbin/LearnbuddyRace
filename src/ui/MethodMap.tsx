@@ -51,9 +51,9 @@ const STATE_KIND: Record<RelationEvidenceState, string> = {
 };
 
 const LANE_ORDER: MethodProfile['family']['id'][] = ['cnn', 'transformer', 'hybrid', 'pending'];
-const NODE_W = 168;
-const NODE_H = 52;
-const LANE_GAP = 300;
+const NODE_W = 250;
+const NODE_H = 96;
+const LANE_GAP = 152;
 const PAD = 26;
 const HEADER = 48;
 
@@ -146,7 +146,7 @@ export function MethodMap({
             method: m,
             paper: paperById.get(m.paperId),
             x: x + NODE_W / 2,
-            y: HEADER + 22 + i * (NODE_H + 18) + NODE_H / 2,
+            y: HEADER + 26 + i * (NODE_H + 22) + NODE_H / 2,
             lane: laneMeta.length - 1,
           });
         });
@@ -156,8 +156,8 @@ export function MethodMap({
     return {
       placed: placedNodes,
       lanes: laneMeta,
-      width: Math.max(520, x - LANE_GAP + PAD + 36),
-      height: HEADER + 22 + maxRows * (NODE_H + 18) + 16,
+      width: Math.max(560, x - LANE_GAP + PAD + 150),
+      height: HEADER + 26 + maxRows * (NODE_H + 22) + 20,
     };
   }, [methods, profileById, paperById]);
 
@@ -307,6 +307,7 @@ export function MethodMap({
             {/* 泳道：名称与篇数都来自本次真实归组结果 */}
             {lanes.map((l) => (
               <g key={l.id}>
+                <rect x={l.x - 8} y={10} width={NODE_W + 16} height={height - 26} rx={14} fill="var(--bg)" stroke="var(--line)" />
                 <text x={l.x + 4} y={32} fontSize={12.5} fontWeight={650} fill="var(--fg-2)">
                   {l.name} · {l.count}
                 </text>
@@ -409,20 +410,32 @@ export function MethodMap({
                   }}
                 >
                   <title>{`${p.profile.shortName}：${short}`}</title>
-                  {/* 透明点击区：保留可点，但视觉上不是卡片 */}
-                  <rect x={p.x - NODE_W / 2} y={p.y - NODE_H / 2} width={NODE_W} height={NODE_H} fill="transparent" />
-                  {/* 小圆点 + 方法名 + 年份 + 一句短说明 */}
-                  <circle className="mnode-dot" cx={p.x - NODE_W / 2 + 8} cy={p.y - NODE_H / 2 + 19} r={5} />
-                  <text x={p.x - NODE_W / 2 + 22} y={p.y - NODE_H / 2 + 24} fontSize={17} fontWeight={660} fill="var(--fg)">
+                  <rect
+                    x={p.x - NODE_W / 2}
+                    y={p.y - NODE_H / 2}
+                    width={NODE_W}
+                    height={NODE_H}
+                    rx={13}
+                    fill="var(--bg-2)"
+                    stroke="var(--line-2)"
+                    strokeWidth={1.4}
+                  />
+                  <text x={p.x - NODE_W / 2 + 15} y={p.y - NODE_H / 2 + 28} fontSize={17} fontWeight={660} fill="var(--fg)">
                     {p.profile.shortName}
                   </text>
                   {p.paper?.year && (
-                    <text x={p.x + NODE_W / 2 - 4} y={p.y - NODE_H / 2 + 24} fontSize={11.5} textAnchor="end" fill="var(--fg-3)">
+                    <text
+                      x={p.x + NODE_W / 2 - 15}
+                      y={p.y - NODE_H / 2 + 28}
+                      fontSize={11.5}
+                      textAnchor="end"
+                      fill="var(--fg-3)"
+                    >
                       {p.paper.year}
                     </text>
                   )}
-                  {lines.slice(0, 1).map((line, li) => (
-                    <text key={li} x={p.x - NODE_W / 2 + 22} y={p.y - NODE_H / 2 + 44} fontSize={12.5} fill="var(--fg-2)">
+                  {lines.map((line, li) => (
+                    <text key={li} x={p.x - NODE_W / 2 + 15} y={p.y - NODE_H / 2 + 52 + li * 17} fontSize={12.5} fill="var(--fg-2)">
                       {line}
                     </text>
                   ))}

@@ -165,7 +165,7 @@
   align-items: stretch;
   justify-content: flex-start;
 }
-.mapstage svg { display: block; width: 100%; height: auto; max-height: 100%; }
+.mapstage svg { display: block; }
 
 /* 图例：画布下方一行（不压在画布上、不做胶囊） */
 .maplegend {
@@ -211,6 +211,14 @@
 
 /* ---------- 节点：浅纸底 + 细边框 + 轻阴影；选中 = 深墨蓝边框 + 浅蓝底 ---------- */
 .mnode { cursor: pointer; }
+.mnode rect {
+  transition: stroke .3s ease, stroke-width .3s ease, fill .3s ease;
+  filter: drop-shadow(0 1px 1.5px rgba(23, 38, 60, .07));
+}
+.mnode:hover rect { stroke: var(--accent-line); }
+.mnode:focus-visible rect { stroke: var(--accent); stroke-width: 2; }
+.mnode.sel rect { stroke: var(--accent); stroke-width: 2.4; fill: var(--accent-soft); }
+.mnode.near rect { stroke: var(--accent-line); stroke-width: 1.6; }
 
 /* ---------- 连线：原文明示=绿色实线 / 系统推断=铜色虚线 / 待核查=低对比度虚线 ---------- */
 .medge { cursor: pointer; }
@@ -561,21 +569,3 @@
 .maphowto > summary::before { content: '▸ '; }
 .maphowto[open] > summary::before { content: '▾ '; }
 .maphowto .mapguide { border: none; margin: 0; padding: 4px 0 14px; }
-
-/* 轻量节点：去掉卡片感（透明底 + 细描边 + 大圆角），选中才用浅蓝底 */
-.mnode rect { fill: transparent; stroke: none; }
-
-/* 地图首屏：收起的折叠区必须真的不占位（避免 .fold-body 的 display 覆盖 details 默认行为） */
-.maphead-actions details.fold:not([open]) > .fold-body,
-.maphowto:not([open]) > *:not(summary) { display: none; }
-
-/* 节点：一套规则（透明点击区 + 小圆点 + 方法名/年份/一句短说明） */
-.mnode { cursor: pointer; }
-.mnode .hit { fill: transparent; stroke: none; }
-.mnode-dot { fill: var(--accent-line); transition: r 160ms var(--ease), fill 160ms var(--ease); }
-.mnode:hover .mnode-dot,
-.mnode:focus-visible .mnode-dot,
-.mnode.near .mnode-dot { fill: var(--accent); }
-.mnode.sel .mnode-dot { fill: var(--accent); r: 6.5; }
-.mnode.sel > text:first-of-type { text-decoration: underline; text-underline-offset: 3px; }
-.mnode:focus-visible { outline: none; }
