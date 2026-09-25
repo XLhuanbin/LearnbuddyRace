@@ -272,7 +272,7 @@ details.moreprop .morebody { font-size: var(--fs-aux); color: var(--fg-2); line-
 .lrows { border-top: 1px solid var(--line); }
 /* 论文目录：两层结构（第一层 = 标题/标签/作用 + 操作；第二层 = 状态/字段/实验/元数据） */
 .lrow {
-  padding: 10px 14px;
+  padding: 22px 14px;
   margin: 0 -14px;
   border-bottom: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -361,6 +361,24 @@ details.moreprop .morebody { font-size: var(--fs-aux); color: var(--fg-2); line-
 .stepmini .d.failed { border-color: var(--bad-line); background: var(--bad-soft); color: var(--bad); }
 .stepmini .t { font-size: var(--fs-meta); color: var(--fg-3); }
 
+
+
+/* 三行结构：第一行/第二行都必须单行，避免换行把行高翻倍 */
+.lrow-r1 { flex-wrap: nowrap; }
+.lrow-r1 .paper-title.lrow-short {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lrow-fam { flex: 0 0 auto; white-space: nowrap; }
+.lrow-r2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+}
+.lrow-stats { flex-wrap: nowrap; white-space: nowrap; }
 
 /* ------------------------------------------------------------------ *
    方法提取：左论文列表 + 右当前论文详情
@@ -494,6 +512,7 @@ details.moreprop .morebody { font-size: var(--fs-aux); color: var(--fg-2); line-
 .mrow:last-child { border-bottom: none; }
 .matrix .mc { display: flex; align-items: center; gap: 7px; color: var(--fg-2); }
 .matrix .mc em { font-style: normal; font-size: var(--fs-meta); color: var(--fg-3); }
+.matrix .mj { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-meta); color: var(--fg-3); }
 .mrow.diff .mc em { color: var(--pending); }
 .mrow.diff { background: var(--pending-soft); }
 .matrix .mv { color: var(--fg); word-break: break-word; }
@@ -509,7 +528,8 @@ details.moreprop .morebody { font-size: var(--fs-aux); color: var(--fg-2); line-
 .explist { border-top: none; }
 
 @media (max-width: 900px) {
-  .mhead, .mrow { grid-template-columns: 104px minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-2); padding: 9px var(--space-3); }
+  .mhead, .mrow { grid-template-columns: 96px minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-2); padding: 9px var(--space-3); }
+  .matrix .mj { display: none; }
 }
 
 /* ------------------------------------------------------------------ *
@@ -663,4 +683,43 @@ details.moreprop .morebody { font-size: var(--fs-aux); color: var(--fg-2); line-
   .medge.mm-candidate path.line { animation: none !important; }
   .medge.mm-explicit path.line { stroke-dasharray: none !important; }
   .btn:active:not(:disabled), .chip:active:not(:disabled) { transform: none !important; }
+}
+
+/* 论文目录：三行结构（第一行 短标题/方法族/操作；第二行 一句话作用/状态/实验数；第三行点击后展开） */
+.lrow-r1 { display: flex; align-items: center; gap: var(--space-2); flex-wrap: nowrap; }
+.lrow-r1 .spacer { flex: 1; }
+.paper-title.lrow-short { margin: 0; font-size: 17px; font-weight: 650; }
+.lrow-fam {
+  flex: 0 0 auto;
+  font-size: var(--fs-aux);
+  color: var(--fg-2);
+  background: var(--bg-3);
+  border-radius: 4px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+.lrow-r2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: 10px;
+}
+.lrow-r2 .lrow-role {
+  min-width: 0;
+  margin: 0;
+  font-size: var(--fs-body);
+  line-height: 1.45;
+  color: var(--fg-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.lrow-stats { display: inline-flex; align-items: center; gap: var(--space-3); flex-wrap: nowrap; white-space: nowrap; }
+.lrow-stats .kv { font-size: var(--fs-aux); color: var(--fg-2); }
+@media (max-width: 900px) {
+  .lrow-r1 { flex-wrap: wrap; }
+  .lrow-r2 { grid-template-columns: 1fr; }
+  .lrow-r2 .lrow-role { -webkit-line-clamp: 2; }
 }

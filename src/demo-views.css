@@ -3,22 +3,18 @@
    原则：一个页面只讲一个核心问题；一个屏幕只突出一个结论；长内容默认折叠。
    ========================================================================= */
 
-/* ---------- 宣传首页：品牌首屏 + 三个不同版式的区块（2026-09-24 重构） ---------- */
-.landing {
-  position: relative;
-  max-width: var(--content-max);
-  margin: 0 auto;
-  padding: 0 0 56px;
-}
+/* ---------- 宣传首页：品牌首屏 + 四段抽象概念动画（2026-09-24 第三轮） ----------
+   全部为 SVG + CSS 动画；图形不含任何真实论文名 / 篇数 / 关系数 / 证据状态 / 实验数值。 */
+.landing { position: relative; max-width: var(--content-max); margin: 0 auto; padding: 0 0 64px; }
 
-/* 首屏：左 56% 品牌与入口 / 右 44% 真实地图切片，整屏垂直居中 */
+/* 首屏：左 52% / 右 48%，两列垂直居中，间距 72px；右侧是透明背景的 SVG，不套卡片 */
 .landing .hero {
   display: grid;
-  grid-template-columns: 56fr 44fr;
-  gap: 48px;
+  grid-template-columns: 52fr 48fr;
+  gap: 72px;
   align-items: center;
   min-height: 700px;
-  padding: 24px 0;
+  padding: 8px 0;
 }
 .landing h1.brand-title {
   font-family: var(--font-brand);
@@ -40,28 +36,17 @@
   letter-spacing: .18em;
   color: var(--fg-3);
 }
-.landing .positioning::before {
-  content: '';
-  width: 26px;
-  height: 1px;
-  background: var(--line-2);
-}
+.landing .positioning::before { content: ''; width: 26px; height: 1px; background: var(--line-2); }
 .landing .cn-sub {
   font-family: var(--font-serif);
   font-weight: 600;
-  font-size: clamp(21px, 2.1vw, 32px);
+  font-size: clamp(22px, 2.2vw, 33px);
   line-height: 1.42;
   color: var(--fg);
   margin: 0 0 12px;
   text-wrap: balance;
 }
-.landing .sub {
-  font-size: var(--fs-body);
-  line-height: 1.75;
-  color: var(--fg-2);
-  margin: 0 0 24px;
-  max-width: 26em;
-}
+.landing .sub { font-size: 17px; line-height: 1.75; color: var(--fg-2); margin: 0 0 26px; max-width: 24em; }
 .landing .cta-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
 .landing .cta-row .btn { padding: 12px 24px; font-size: 15.5px; }
 .landing .linkbtn {
@@ -75,200 +60,201 @@
   text-decoration-color: var(--accent-line);
 }
 .landing .linkbtn:hover { text-decoration-color: var(--accent); }
+.landing .hero-right { min-width: 0; }
 
-/* 首屏右侧：真实研究地图切片（不是白色卡片堆叠） */
-.heromap {
-  background: var(--bg-2);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 14px 16px 12px;
+/* ---------- 概念图形：统一品牌但三种结构（分叉 / 汇聚 / 单向） ----------
+   图形作用域四档色：深墨蓝 / 品牌蓝 / 中浅蓝 / 极浅蓝；线宽三档 0.8 / 1.5 / 2.5；节点三档 6 / 10 / 18（另 22 用于分叉点）。 */
+.fig {
+  --fig-ink: #172b45;
+  --fig-brand: #2d5b89;
+  --fig-mid: #8eafce;
+  --fig-pale: #d5e2ee;
+  margin: 0;
 }
-.heromap-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 8px;
+.fig svg.fig-wide { display: block; width: 100%; height: auto; max-height: 380px; overflow: visible; }
+.fig svg.fig-tall { display: none; }
+.fig-tall .w-hair { stroke-width: 1.2; }
+.fig-tall .fslip-line, .fig-tall .fdetail { stroke-width: 1.5; }
+.fig-cap { display: block; margin: 12px 0 0; font-size: 15px; line-height: 1.6; color: var(--fg-2); }
+.fig-note { display: block; margin-top: 4px; font-size: 14px; line-height: 1.6; color: var(--fg-3); }
+
+/* ---------- 论文集合图形：线索页片 / 分类脊柱 / 两条技术脉络 ---------- */
+.fslip { transform-box: fill-box; transform-origin: center; }
+.fslip.o1 { --o: 0.92; }
+.fslip.o2 { --o: 0.68; }
+.fslip.o3 { --o: 0.48; }
+.fslip-edge { stroke: var(--fig-pale); stroke-width: 1.5; }
+.fslip-line { stroke: var(--fig-mid); stroke-width: 1.5; stroke-linecap: round; }
+.fslip-dot { stroke: var(--fig-brand); stroke-width: 2.5; stroke-linecap: round; }
+.fconv { fill: var(--fig-ink); opacity: 0; transform-box: fill-box; transform-origin: center; }
+.ftick { stroke-width: 2.5; stroke-linecap: round; }
+.ftick.t-brand { stroke: var(--fig-brand); }
+.ftick.t-mid { stroke: var(--fig-mid); }
+.fdot { fill: var(--fig-brand); }
+.fdot.t-mid { fill: var(--fig-mid); }
+.fdetail { stroke-width: 1.5; stroke-linecap: round; }
+.fdetail.t-brand { stroke: var(--fig-brand); }
+.fdetail.t-mid { stroke: var(--fig-mid); }
+
+/* 播放：页片先出现，再向分类脊柱移动（位置真的改变，ease-out） */
+.fig.play .fslip { animation: figSlipIn 1050ms var(--ease) both; animation-delay: var(--d, 0ms); }
+@keyframes figSlipIn {
+  0% { opacity: calc(var(--o, 1) * 0.38); transform: translate(var(--fx, 0px), var(--fy, 0px)) rotate(var(--rot, 0deg)); }
+  33% { opacity: var(--o, 1); transform: translate(var(--fx, 0px), var(--fy, 0px)) rotate(var(--rot, 0deg)); }
+  100% { opacity: var(--o, 1); transform: none; }
 }
-.heromap-head .t { font-size: var(--fs-aux); font-weight: 650; color: var(--fg); }
-.heromap-head .s { font-size: var(--fs-meta); color: var(--fg-3); }
-.heromap svg { display: block; width: 100%; height: auto; }
-.heromap svg.heroSvgTall { display: none; }
-.heroLane { fill: var(--bg); stroke: var(--line); stroke-width: 1; }
-.heroLaneName { font-size: 11px; fill: var(--fg-3); font-family: var(--font-sans); }
-.heroNodeBg { fill: var(--bg-2); stroke: var(--line-2); stroke-width: 1; }
-.heroNodeName { font-size: 12.5px; font-weight: 650; fill: var(--fg); font-family: var(--font-sans); }
-.heroNodeYear { font-size: 10.5px; fill: var(--fg-3); font-family: var(--font-sans); }
-.heroEdge { fill: none; stroke: var(--ok); stroke-width: 1.6; }
-.heroEdge.dash { stroke: var(--pending); stroke-dasharray: 7 5; }
-.heroArrowE { fill: var(--ok); }
-.heroArrowC { fill: var(--pending); }
-/* 首页唯一的关系动效：500–700ms 绘制一次 */
-.heroEdge:not(.dash) {
-  stroke-dasharray: 1;
-  animation: heroDraw var(--du-draw) var(--ease) 1 both;
+.fig.play .fconv { animation: figPulse 520ms var(--ease) both; animation-delay: 1180ms; }
+.fig.play .ftick { animation: figFade 300ms var(--ease) both; }
+.fig.play .fdot { animation: figFade 300ms var(--ease) both; }
+.fig.play .fdetail { animation: figFade 380ms var(--ease) both; animation-delay: var(--d, 0ms); }
+.fig.play .fstage.last { animation: figFade 300ms var(--ease) both, figStageEmph 460ms var(--ease) both; animation-delay: var(--d, 0ms), 1900ms; }
+@keyframes figStageEmph {
+  0% { transform: none; }
+  55% { transform: scale(1.12); }
+  100% { transform: none; }
 }
-.heroEdge.dash { animation: heroFlow var(--du-draw) linear 1 both; }
-@keyframes heroDraw {
+.fstage { transform-box: fill-box; transform-origin: center; }
+
+/* 静止状态就是完整构图（动画只是把它再画一遍） */
+.fnode { transform-box: fill-box; transform-origin: center; }
+.t-ink.fnode { fill: var(--fig-ink); }
+.t-brand.fnode { fill: var(--fig-brand); }
+.t-mid.fnode { fill: var(--fig-mid); }
+.t-pale.fnode { fill: var(--fig-pale); }
+.fpath { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: var(--dash, 1); stroke-dashoffset: 0; }
+.fpath.w-hair { stroke-width: 0.8; }
+.fpath.w-thin { stroke-width: 1.5; }
+.fpath.w-main { stroke-width: 2.5; }
+.fpath.t-ink { stroke: var(--fig-ink); }
+.fpath.t-brand { stroke: var(--fig-brand); }
+.fpath.t-mid { stroke: var(--fig-mid); }
+.fpath.t-pale { stroke: var(--fig-pale); }
+.fpath.faint { opacity: 0.22; }
+.fhead.t-ink { fill: var(--fig-ink); }
+.fhead.t-brand { fill: var(--fig-brand); }
+.fcap.t-ink { stroke: var(--fig-ink); stroke-width: 2.5; stroke-linecap: round; }
+.fword { font-size: 13.5px; fill: var(--fg-3); font-family: var(--font-sans); }
+.fnum { font-size: 12.5px; fill: var(--fig-brand); font-family: var(--mono); }
+.fspark { fill: var(--fig-brand); opacity: 0; }
+.fring { fill: none; stroke: var(--fig-brand); stroke-width: 1.5; opacity: 0; transform-box: fill-box; transform-origin: center; }
+
+/* 播放：只动 opacity / transform / stroke-dashoffset，全部只播一次 */
+.fig.play .fnode { animation: figFade 300ms var(--ease) both; animation-delay: var(--d, 0ms); }
+.fig.play .fpath { animation: figDraw var(--dur, 620ms) var(--ease) both; animation-delay: var(--d, 0ms); }
+.fig.play .fpath.faint { animation: figFade 300ms var(--ease) both; }
+.fig.play .fbar { animation: figFade 420ms var(--ease) both; animation-delay: var(--d, 0ms); }
+.fig.play .fnum { animation: figPulse 300ms var(--ease) both; animation-delay: var(--d, 0ms); }
+.fig.play .fword { animation: figFade 400ms var(--ease) both; animation-delay: 1100ms; }
+.fig.play .fscatter { animation: figScatter 560ms var(--ease) both; animation-delay: var(--d, 0ms); }
+.fig.play .fspark { animation: figSpark 620ms var(--ease) both; animation-delay: var(--d, 0ms); }
+.fig.play .fring { animation: figRing 700ms var(--ease) both; animation-delay: var(--d, 0ms); }
+.fig.play .fcap { animation: figDraw 220ms var(--ease) both; animation-delay: var(--d, 0ms); }
+
+@keyframes figFade {
+  from { opacity: 0; transform: scale(.6); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes figPulse {
+  from { opacity: 0; transform: scale(.5); }
+  60% { opacity: 1; transform: scale(1.18); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes figDraw {
   from { stroke-dashoffset: 1; }
   to { stroke-dashoffset: 0; }
 }
-@keyframes heroFlow {
-  from { stroke-dashoffset: -24; }
-  to { stroke-dashoffset: 0; }
+@keyframes figScatter {
+  from { transform: translate(var(--fx, 0px), var(--fy, 0px)); opacity: .35; }
+  to { transform: none; opacity: 1; }
 }
-.heromap-note {
-  margin: 8px 0 0;
-  font-size: var(--fs-meta);
-  line-height: 1.65;
-  color: var(--fg-3);
+@keyframes figSpark {
+  0% { opacity: 0; transform: translate(0, 0); }
+  12% { opacity: 1; }
+  84% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--sx, 0px), var(--sy, 0px)); }
+}
+@keyframes figRing {
+  0% { opacity: 0; transform: scale(.7); }
+  45% { opacity: .45; }
+  100% { opacity: 0; transform: scale(1.6); }
 }
 
-/* 下方三个区块：三种不同版式 */
+/* ---------- 下方三个区块：标题 30–34px / 正文 18px / 图形 ≥300px / 区块间距 112px ---------- */
 .blk {
   display: grid;
-  gap: 48px;
+  grid-template-columns: 1fr 1fr;
+  gap: 72px;
+  align-items: center;
+  padding: 56px 0;
   border-top: 1px solid var(--line);
-  padding: 44px 0;
 }
-.blk-split { grid-template-columns: 1fr 1fr; align-items: center; }
-.blk-split.rev .blk-view { order: -1; }
+.blk.rev .blk-fig { order: -1; }
 .blk-text h3 {
   font-family: var(--font-serif);
   font-weight: 650;
-  font-size: var(--fs-section);
-  line-height: 1.35;
+  font-size: clamp(30px, 2.4vw, 34px);
+  line-height: 1.26;
+  letter-spacing: -.01em;
   color: var(--fg);
-  margin: 0 0 10px;
+  margin: 0 0 14px;
 }
-.blk-lead {
-  margin: 0 0 18px;
-  font-size: var(--fs-body);
-  line-height: 1.8;
-  color: var(--fg-2);
-  max-width: 34em;
-}
-.blk .cap {
-  margin: 12px 0 0;
-  font-size: var(--fs-meta);
-  color: var(--fg-3);
-  letter-spacing: .06em;
-}
+.blk-lead { margin: 0 0 22px; font-size: 18px; line-height: 1.6; color: var(--fg-2); max-width: 30em; }
+.blk-fig { min-height: 300px; max-height: 360px; display: flex; flex-direction: column; justify-content: center; }
 
-/* 区块一：真实论文目录预览 */
-.plist { list-style: none; margin: 0; padding: 0; }
-.plist li {
-  display: grid;
-  grid-template-columns: 92px 1fr;
-  gap: 4px 14px;
-  align-items: baseline;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--line);
-}
-.plist li:last-child { border-bottom: none; }
-.plist .nm { font-size: var(--fs-paper); font-weight: 650; color: var(--fg); }
-.plist .fam { font-size: var(--fs-meta); color: var(--fg-3); }
-.plist .role { grid-column: 2; font-size: var(--fs-aux); line-height: 1.7; color: var(--fg-2); }
-
-/* 区块二：真实关系图 */
-.relcard { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
-.relrow { display: flex; align-items: center; gap: 14px; }
-.relrow .n {
-  font-size: var(--fs-paper);
-  color: var(--fg);
-  background: var(--bg-3);
-  border-radius: var(--radius-sm);
-  padding: 6px 13px;
-}
-.relarrow { flex: 1; height: 2px; background: var(--ok); position: relative; }
-.relarrow::after {
-  content: '';
-  position: absolute;
-  right: -1px;
-  top: 50%;
-  transform: translateY(-50%);
-  border-left: 7px solid var(--ok);
-  border-top: 5px solid transparent;
-  border-bottom: 5px solid transparent;
-}
-.relarrow.dash { background: repeating-linear-gradient(90deg, var(--pending) 0 8px, transparent 8px 14px); }
-.relarrow.dash::after { border-left-color: var(--pending); }
-.relmeta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 14px; font-size: var(--fs-aux); color: var(--fg-2); }
-.relmeta .k { display: inline-flex; align-items: center; gap: 7px; }
-.dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; }
-.dot.ok { background: var(--ok); }
-.dot.warn { background: var(--pending); }
-.dot.mute { background: var(--fg-3); }
-.sparse { margin: 12px 0 0; font-size: var(--fs-meta); line-height: 1.7; color: var(--fg-3); }
-
-/* 区块三：通栏横向阅读路径（第三种版式，编号只出现在这里） */
-.blk-wide { grid-template-columns: 1fr; gap: 22px; }
-.blk-wide-head { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; }
-.blk-wide-head .blk-lead { margin: 0; flex: 1 1 420px; }
-.hline {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0;
-}
-.hline li { position: relative; padding: 18px 22px 18px 0; }
-.hline li + li { padding-left: 22px; border-left: 1px solid var(--line); }
-.hline .no { display: block; font-family: var(--mono); font-size: var(--fs-meta); color: var(--accent); }
-.hline .nm { display: block; font-size: var(--fs-paper); font-weight: 650; color: var(--fg); margin: 4px 0 6px; }
-.hline .fc { display: block; font-size: var(--fs-aux); line-height: 1.7; color: var(--fg-2); }
-
-/* 入场动效（进入播放、离开反向淡出，可反复触发） */
+/* ---------- 入场动效（进入播放、离开反向淡出，可反复触发） ---------- */
 .landing .reveal {
   opacity: 0;
   transform: translateY(16px);
   transition: opacity var(--du-reveal) var(--ease), transform var(--du-reveal) var(--ease);
   transition-delay: 0s;
 }
-.landing .reveal.in {
-  opacity: 1;
-  transform: none;
-  transition-delay: var(--d, 0ms);
-}
-@media (prefers-reduced-motion: reduce) {
-  .landing .reveal,
-  .landing .reveal.in { opacity: 1; transform: none; transition: none; transition-delay: 0s; }
-  .landing .font-gate { opacity: 1; }
-  .landing .font-gate.ready { transition: none; }
-  .heroEdge:not(.dash) { stroke-dasharray: none; animation: none; }
-  .heroEdge.dash { animation: none; }
-}
+.landing .reveal.in { opacity: 1; transform: none; transition-delay: var(--d, 0ms); }
 
 .landing .disclaimer {
-  margin: 8px 0 0;
-  padding-top: 16px;
+  margin: 0;
+  padding-top: 18px;
   border-top: 1px solid var(--line);
   font-size: var(--fs-meta);
   line-height: 1.9;
   color: var(--fg-3);
 }
 
-/* 手机端：标题/说明/按钮 → 地图切片 → 三个区块依次排列 */
+/* 减少动效：关掉全部装饰动画，直接显示完整静态画面 */
+@media (prefers-reduced-motion: reduce) {
+  .landing .reveal,
+  .landing .reveal.in { opacity: 1; transform: none; transition: none; transition-delay: 0s; }
+  .landing .font-gate { opacity: 1; }
+  .landing .font-gate.ready { transition: none; }
+  .fig .fig-node,
+  .fig .fig-path,
+  .fig .fig-slip,
+  .fig .fig-cluster,
+  .fig .fig-spark,
+  .fig .fig-ring { animation: none !important; }
+  .fig-spark,
+  .fig-ring { opacity: 0 !important; }
+}
+
+/* ---------- 窄屏：文字在前、图形在后，图形改成纵向构图（不是等比缩小） ---------- */
 @media (max-width: 900px) {
-  .landing { padding: 0 0 40px; }
+  .landing { padding: 0 0 48px; }
   .landing .hero {
     grid-template-columns: 1fr;
-    gap: 22px;
+    gap: 24px;
     min-height: 0;
-    padding: 20px 0 8px;
+    padding: 16px 0 8px;
   }
   .landing h1.brand-title { white-space: normal; font-size: clamp(38px, 12vw, 52px); }
+  .landing .cn-sub { font-size: clamp(20px, 6.4vw, 26px); }
   .landing .sub { max-width: none; }
-  .landing .cta-row { gap: 12px; }
   .landing .cta-row .btn { flex: 1 1 100%; }
-  .heromap svg.heroSvgWide { display: none; }
-  .heromap svg.heroSvgTall { display: block; }
-  .blk { grid-template-columns: 1fr; gap: 22px; padding: 30px 0; }
-  .blk-split.rev .blk-view { order: 0; }
-  .hline { grid-template-columns: 1fr; }
-  .hline li { padding: 14px 0; }
-  .hline li + li { padding-left: 0; border-left: none; border-top: 1px solid var(--line); }
+  .fig svg.fig-wide { display: none; }
+  .fig svg.fig-tall { display: block; width: 100%; height: auto; max-height: 420px; overflow: visible; }
+  .blk { grid-template-columns: 1fr; gap: 24px; padding: 34px 0; }
+  .blk.rev .blk-fig { order: 0; }
+  .blk-fig { min-height: 0; }
+  .blk-text h3 { font-size: 28px; }
+  .blk-lead { font-size: 17px; }
 }
 
 /* ---------- 案例选择页 ---------- */

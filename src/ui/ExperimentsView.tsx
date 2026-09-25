@@ -323,10 +323,10 @@ export function ExperimentsView({
               </div>
             </div>
 
-            {/* ③ 条件矩阵：条件 | 方法 A | 方法 B（状态用文字 + 小圆点，不做彩色胶囊） */}
+            {/* ③ 关键条件：首屏只列 4 项，其余条件折进下方 */}
             <div style={{ marginTop: 14 }}>
               <div className="small dim" style={{ marginBottom: 6 }}>
-                关键差异（只列这六项；完整条件与原文证据在下面折叠区）
+                决定结论的关键条件（先看这 4 项，其余条件默认收起）
               </div>
               <div className="matrix">
                 <div className="mhead">
@@ -334,7 +334,7 @@ export function ExperimentsView({
                   <span>{labelOf(pickedList[0])}</span>
                   <span>{labelOf(pickedList[1])}</span>
                 </div>
-                {KEY_DIMS.map((d) => {
+                {KEY_DIMS.slice(0, 4).map((d) => {
                   const st = dimState(d.field);
                   const raw = (e: ExperimentRecord) => ((e as unknown as Record<string, string>)[d.key] ?? '') || '未知';
                   return (
@@ -350,6 +350,32 @@ export function ExperimentsView({
                   );
                 })}
               </div>
+              {KEY_DIMS.length > 4 && (
+                <details className="fold" style={{ marginTop: 10 }}>
+                  <summary>
+                    查看其余 {KEY_DIMS.length - 4} 项条件（{KEY_DIMS.slice(4).map((d) => d.label).join(' · ')}）
+                  </summary>
+                  <div className="fold-body">
+                    <div className="matrix">
+                      {KEY_DIMS.slice(4).map((d) => {
+                        const st = dimState(d.field);
+                        const raw = (e: ExperimentRecord) => ((e as unknown as Record<string, string>)[d.key] ?? '') || '未知';
+                        return (
+                          <div className={`mrow ${st}`} key={d.field}>
+                            <span className="mc">
+                              <i className={`dot ${st === 'same' ? 'ok' : st === 'diff' ? 'warn' : 'mute'}`} />
+                              {d.label}
+                              <em>{st === 'same' ? '一致' : st === 'diff' ? '不同' : '未知'}</em>
+                            </span>
+                            <span className="mv">{raw(pickedList[0])}</span>
+                            <span className="mv">{raw(pickedList[1])}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </details>
+              )}
             </div>
 
             {/* ④ 完整条件 / 证据 / 警告（折叠） */}
@@ -494,7 +520,10 @@ export function ExperimentsView({
         </div>
       )}
 
-      {/* ⑥ 筛选：合并成一条工具栏 */}
+      {/* ⑥ 筛选：默认收起，需要时再展开 */}
+      <details className="fold" style={{ marginTop: 0 }}>
+        <summary>筛选与搜索实验记录（按论文 / 搜索 / 只看行列已核验）</summary>
+        <div className="fold-body">
       <div className="toolbar" style={{ marginTop: 0 }}>
         <span className="lab">按论文</span>
         <button className={`chip${paperFilter === null ? ' on' : ''}`} onClick={() => setPaperFilter(null)}>
@@ -528,7 +557,9 @@ export function ExperimentsView({
         <span className="lab">
           显示 {shown.length} 条 · 行列已核验 {shown.filter((e) => e.verification?.rowColConfirmed).length} 条
         </span>
+        </div>
       </div>
+      </details>
 
       {/* ⑦ 实验记录：按方法分组，每组默认 2 条（其余可展开） */}
       <SectionHead

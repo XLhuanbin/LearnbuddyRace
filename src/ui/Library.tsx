@@ -181,6 +181,13 @@ export function LibraryView({
     return buildMethodProfile(m, papers.find((p) => p.id === m.paperId), papers).shortName;
   };
 
+  /** 论文短标题：取方法短名（真实标题仍在展开区与悬停提示里） */
+  const methodShortName = (paperId: string): string => {
+    const m = methods.find((x) => x.paperId === paperId);
+    if (!m) return papers.find((x) => x.id === paperId)?.title?.slice(0, 24) ?? paperId;
+    return buildMethodProfile(m, papers.find((x) => x.id === paperId), papers).shortName;
+  };
+
   /** 方法族（真实归组结果，只用于列表里那一行低权重元数据） */
   const methodFamilyOf = (paperId: string): string => {
     const m = methods.find((x) => x.paperId === paperId);
@@ -374,104 +381,82 @@ export function LibraryView({
 
               return (
                 <div className={`lrow${open ? ' open' : ''}`} key={p.id}>
-                  {/* 第一层：左（标题 / 方法标签 / 一句话作用）· 右（查看论文 / 更多操作） */}
-                  <div className="lrow-1">
-                    <div className="lrow-main">
-                      <h3 className="paper-title">{p.title}</h3>
-                      {m ? (
-                        <div className="mtags">
-                          {methodTags(m).map((tg, ti) => (
-                            <span key={ti} className={`mtag ${tg.style}`}>
-                              {tg.text}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="mtags">
-                          <span className="mtag neutral">尚未提取方法标签</span>
-                        </div>
-                      )}
-                      <p className="lrow-role">{summaryOf(p.id, m)}</p>
-                    </div>
-
-                    <div className="lrow-acts">
-                      {m && (
-                        <button className="btn sm" onClick={() => setExpanded(open ? null : p.id)} aria-expanded={open}>
-                          {open ? '收起论文' : '查看论文'}
-                        </button>
-                      )}
-                      {p.parseStatus === 'ok' && !m && (
-                        <button className="btn primary sm" disabled={!!job && job.status === 'running'} onClick={() => onExtract(p.id, false)}>
-                          {modelReady ? '分析方法字段' : '配置模型后分析'}
-                        </button>
-                      )}
-                      {p.parseStatus === 'failed' && (
-                        <button className="btn primary sm" disabled={!!job && job.status === 'running'} onClick={() => onExtract(p.id, true)}>
-                          重试解析
-                        </button>
-                      )}
-                      {job?.status === 'running' && (
-                        <button className="btn ghost sm" onClick={() => onCancel(p.id)}>
-                          停止等待
-                        </button>
-                      )}
-                      {m && (
-                        <details className="moreprop">
-                          <summary>更多操作</summary>
-                          <div className="morebody">
-                            <p style={{ margin: '0 0 8px' }}>
-                              重新分析会重新调用模型并消耗额度，分析期间保留原结果、人工修正不会被覆盖；
-                              移除只删除本机这份数据，12 秒内可撤销。
-                            </p>
-                            <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-                              {p.parseStatus === 'ok' && job?.status !== 'running' && !confirmReanalyze[p.id] && (
-                                <button className="btn sm" onClick={() => setConfirmReanalyze((c) => ({ ...c, [p.id]: true }))}>
-                                  重新分析
-                                </button>
-                              )}
-                              <button className="btn danger sm" onClick={() => setConfirmRemove(p.id)}>
-                                移除论文
+                  {/* 第一行：论文短标题 · 方法族 · 查看论文 / 更多操作 */}
+                  <div className="lrow-r1">
+                    <h3 className="paper-title lrow-short" title={p.title}>
+                      {methodShortName(p.id)}
+                    </h3>
+                    <span className="lrow-fam">{m ? methodFamilyOf(p.id) : "未提取方法族"}</span>
+                    <span className="spacer" />
+                    {m && (
+                      <button className="btn sm" onClick={() => setExpanded(open ? null : p.id)} aria-expanded={open}>
+                        {open ? '收起论文' : '查看论文'}
+                      </button>
+                    )}
+                    {p.parseStatus === 'ok' && !m && (
+                      <button className="btn primary sm" disabled={!!job && job.status === 'running'} onClick={() => onExtract(p.id, false)}>
+                        {modelReady ? '分析方法字段' : '配置模型后分析'}
+                      </button>
+                    )}
+                    {p.parseStatus === 'failed' && (
+                      <button className="btn primary sm" disabled={!!job && job.status === 'running'} onClick={() => onExtract(p.id, true)}>
+                        重试解析
+                      </button>
+                    )}
+                    {job?.status === 'running' && (
+                      <button className="btn ghost sm" onClick={() => onCancel(p.id)}>
+                        停止等待
+                      </button>
+                    )}
+                    {m && (
+                      <details className="moreprop">
+                        <summary>更多操作</summary>
+                        <div className="morebody">
+                          <p style={{ margin: '0 0 8px' }}>
+                            重新分析会重新调用模型并消耗额度，分析期间保留原结果、人工修正不会被覆盖；
+                            移除只删除本机这份数据，12 秒内可撤销。
+                          </p>
+                          <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                            {p.parseStatus === 'ok' && job?.status !== 'running' && !confirmReanalyze[p.id] && (
+                              <button className="btn sm" onClick={() => setConfirmReanalyze((c) => ({ ...c, [p.id]: true }))}>
+                                重新分析
                               </button>
-                            </div>
+                            )}
+                            <button className="btn danger sm" onClick={() => setConfirmRemove(p.id)}>
+                              移除论文
+                            </button>
                           </div>
-                        </details>
-                      )}
-                    </div>
+                        </div>
+                      </details>
+                    )}
                   </div>
 
-                  {/* 第二层：当前分析状态 · 字段状态 · 实验数量 · 一行低权重元数据 */}
-                  <div className="lrow-2">
-                    <Status kind={st.kind}>{st.text}</Status>
-                    <span className="kv">
-                      <span className="k">字段</span>
-                      {m ? `${verified}/7 有引文，${withValue}/7 有值` : '尚无字段'}
+                  {/* 第二行：一句话作用 · 当前状态 · 实验数量 */}
+                  <div className="lrow-r2">
+                    <span className="lrow-role">{summaryOf(p.id, m)}</span>
+                    <span className="lrow-stats">
+                      <Status kind={st.kind}>{st.text}</Status>
+                      <span className="kv">实验 {m ? exps.length + " 条" : "0 条"}</span>
+                      {(m?.overrides?.length ?? 0) > 0 && <span className="kv">人工修正 {m!.overrides.length} 处</span>}
                     </span>
-                    <span className="kv">
-                      <span className="k">实验</span>
-                      {m ? `${exps.length} 条${expsConfirmed ? `（已核验 ${expsConfirmed}）` : ''}` : '尚无实验记录'}
-                    </span>
-                    {(m?.overrides?.length ?? 0) > 0 && <span className="kv">人工修正 {m!.overrides.length} 处</span>}
-                    <span className="lrow-meta">{m ? `方法族：${methodFamilyOf(p.id)} · 来源：${m.cached ? '缓存结果' : '实时分析'}` : '来源：尚未分析'}</span>
                   </div>
 
                   {job?.status === 'running' && (
-                    <p className="small dim" style={{ gridColumn: '1 / -1', margin: 0 }}>
+                    <p className="small dim" style={{ margin: '6px 0 0' }}>
                       正在等待模型响应（{job.message}）。分析期间原结果仍然保留，可随时停止等待。
                     </p>
                   )}
                   {job?.status === 'canceled' && (
-                    <p className="small" style={{ gridColumn: '1 / -1', margin: 0, color: 'var(--pending)' }}>
+                    <p className="small" style={{ margin: '6px 0 0', color: 'var(--pending)' }}>
                       已停止等待：本次调用未完成，原结果保持不变。停止等待不代表服务端已停止计算或不再计费。
                     </p>
                   )}
                   {job?.status === 'failed' && job.error && !open && (
-                    <p className="small" style={{ gridColumn: '1 / -1', margin: 0, color: 'var(--bad)' }}>
-                      分析失败：{job.error}
-                    </p>
+                    <p className="small" style={{ margin: '6px 0 0', color: 'var(--bad)' }}>分析失败：{job.error}</p>
                   )}
 
                   {confirmReanalyze[p.id] && (
-                    <div className="confirmbar" style={{ gridColumn: '1 / -1' }}>
+                    <div className="confirmbar">
                       <div className="t">
                         重新分析会重新调用模型并<strong>消耗额度</strong>；分析期间<strong>保留原结果</strong>，
                         <strong>人工修正不会被覆盖</strong>。
@@ -492,7 +477,7 @@ export function LibraryView({
                   )}
 
                   {confirmRemove === p.id && (
-                    <div className="confirmbar" style={{ gridColumn: '1 / -1', background: 'var(--bad-soft)', borderColor: 'var(--bad-line)' }}>
+                    <div className="confirmbar" style={{ background: 'var(--bad-soft)', borderColor: 'var(--bad-line)' }}>
                       <div className="t">
                         确认移除《{p.title.slice(0, 40)}》？只会删除本机这份数据；移除后 12 秒内可以一键撤销。
                       </div>

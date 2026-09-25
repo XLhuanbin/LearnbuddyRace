@@ -143,7 +143,7 @@
 .mapwork .mapstagewrap { grid-column: 1 / -1; grid-row: 1; }
 .mapwork .maplegend { grid-column: 1; grid-row: 2; }
 .mapwork .mapzoom { grid-column: 2; grid-row: 2; }
-.mapstagewrap { display: flex; align-items: flex-start; gap: 12px; }
+.mapstagewrap { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
 .mapstage-q {
   display: flex;
   align-items: center;
@@ -165,7 +165,7 @@
   align-items: stretch;
   justify-content: flex-start;
 }
-.mapstage svg { display: block; }
+.mapstage svg { display: block; width: 100%; height: auto; max-height: 100%; }
 
 /* 图例：画布下方一行（不压在画布上、不做胶囊） */
 .maplegend {
@@ -211,14 +211,6 @@
 
 /* ---------- 节点：浅纸底 + 细边框 + 轻阴影；选中 = 深墨蓝边框 + 浅蓝底 ---------- */
 .mnode { cursor: pointer; }
-.mnode rect {
-  transition: stroke .3s ease, stroke-width .3s ease, fill .3s ease;
-  filter: drop-shadow(0 1px 1.5px rgba(23, 38, 60, .07));
-}
-.mnode:hover rect { stroke: var(--accent-line); }
-.mnode:focus-visible rect { stroke: var(--accent); stroke-width: 2; }
-.mnode.sel rect { stroke: var(--accent); stroke-width: 2.4; fill: var(--accent-soft); }
-.mnode.near rect { stroke: var(--accent-line); stroke-width: 1.6; }
 
 /* ---------- 连线：原文明示=绿色实线 / 系统推断=铜色虚线 / 待核查=低对比度虚线 ---------- */
 .medge { cursor: pointer; }
@@ -236,10 +228,13 @@
    ---------------------------------------------------------------- */
 .mapdetail {
   position: static;
-  flex: 0 0 var(--panel-w);
-  width: var(--panel-w);
-  align-self: flex-start;
-  max-height: 620px;
+  /* 详情在地图正下方原位展开，不占右侧、不遮挡画布 */
+  flex: 1 1 100%;
+  width: auto;
+  max-width: none;
+  align-self: stretch;
+  margin-top: 14px;
+  max-height: none;
   overflow: auto;
   background: var(--bg-2);
   border: 1px solid var(--line-2);
@@ -466,3 +461,121 @@
   .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
   .mapguide.attn { box-shadow: none !important; }
 }
+
+
+/* 侧栏折叠分组：默认收起，展开后仍是普通文字导航 */
+.sidegroup { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 6px; }
+.sidegroup > summary {
+  list-style: none;
+  cursor: pointer;
+  font-size: var(--fs-meta);
+  color: var(--fg-3);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sidegroup > summary::-webkit-details-marker { display: none; }
+.sidegroup > summary::before { content: '▸'; font-size: 10px; }
+.sidegroup[open] > summary::before { content: '▾'; }
+.sidegroup > summary:hover { background: var(--bg-3); color: var(--fg-2); }
+.sidegroup .nav { padding-left: 14px; }
+
+/* ---------- 顶部栏：品牌 + 目录｜案例名 + 返回论文集合 ---------- */
+.mapbrand .spacer { flex: 1; }
+.mapbrand .casename { font-size: var(--fs-aux); color: var(--fg-3); }
+.mapbrand .linkbtn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: var(--fs-aux);
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: var(--accent-line);
+}
+.dirwrap { position: relative; }
+.dirbtn { font-size: var(--fs-aux); }
+
+/* 目录浮层：280–320px，不做全屏遮罩 */
+.dirpop {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  max-height: min(70vh, 520px);
+  overflow: auto;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  padding: 8px;
+  z-index: 40;
+  animation: dirIn 180ms var(--ease) 1;
+}
+@keyframes dirIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+.dirpop .dirlab {
+  font-size: var(--fs-meta);
+  color: var(--fg-3);
+  padding: 8px 10px 4px;
+  letter-spacing: .04em;
+}
+.dirpop .dirsep { height: 1px; background: var(--line); margin: 6px 2px; }
+.dirpop .diritem {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 9px 10px;
+  font-size: 15px;
+  color: var(--fg-2);
+}
+.dirpop .diritem:hover { background: var(--bg-3); color: var(--fg); }
+.dirpop .diritem.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) {
+  .dirpop { animation: none; }
+}
+
+/* 「怎么读这张图」：默认收起的 details，不再占据首屏 */
+.maphowto {
+  margin: 0 0 12px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.maphowto > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 9px 2px;
+  font-size: 13.5px;
+  color: var(--fg-3);
+}
+.maphowto > summary::-webkit-details-marker { display: none; }
+.maphowto > summary::before { content: '▸ '; }
+.maphowto[open] > summary::before { content: '▾ '; }
+.maphowto .mapguide { border: none; margin: 0; padding: 4px 0 14px; }
+
+/* 轻量节点：去掉卡片感（透明底 + 细描边 + 大圆角），选中才用浅蓝底 */
+.mnode rect { fill: transparent; stroke: none; }
+
+/* 地图首屏：收起的折叠区必须真的不占位（避免 .fold-body 的 display 覆盖 details 默认行为） */
+.maphead-actions details.fold:not([open]) > .fold-body,
+.maphowto:not([open]) > *:not(summary) { display: none; }
+
+/* 节点：一套规则（透明点击区 + 小圆点 + 方法名/年份/一句短说明） */
+.mnode { cursor: pointer; }
+.mnode .hit { fill: transparent; stroke: none; }
+.mnode-dot { fill: var(--accent-line); transition: r 160ms var(--ease), fill 160ms var(--ease); }
+.mnode:hover .mnode-dot,
+.mnode:focus-visible .mnode-dot,
+.mnode.near .mnode-dot { fill: var(--accent); }
+.mnode.sel .mnode-dot { fill: var(--accent); r: 6.5; }
+.mnode.sel > text:first-of-type { text-decoration: underline; text-underline-offset: 3px; }
+.mnode:focus-visible { outline: none; }

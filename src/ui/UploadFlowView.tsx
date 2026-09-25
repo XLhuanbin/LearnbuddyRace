@@ -362,6 +362,12 @@ export function UploadFlowView({
                     <dd>{cur.result}</dd>
                   </div>
                   <div>
+                    <dt>已完成步骤</dt>
+                    <dd>
+                      {currentSteps.filter((s) => s.state === 'done').length}/5 步（{currentSteps.filter((s) => s.state === 'done').map((s) => s.name).join('、') || '尚未开始'}）
+                    </dd>
+                  </div>
+                  <div>
                     <dt>字段数量</dt>
                     <dd>{currentMethod ? `${withValue}/7 有值` : '尚未提取'}</dd>
                   </div>
@@ -452,10 +458,10 @@ export function UploadFlowView({
                   <>
                     <div className="secthead">
                       <h3>字段与证据</h3>
-                      <span className="sub">没有引文的字段不作为可核验结论</span>
+                      <span className="sub">首屏只显示 3 个关键字段，其余默认收起</span>
                     </div>
                     <div className="quiet-group" style={{ marginTop: 0, borderTop: 'none', paddingTop: 0 }}>
-                      {FIELD_KEYS_ORDER.map((k) => {
+                      {FIELD_KEYS_ORDER.slice(0, 3).map((k) => {
                         const f = currentMethod.fields[k];
                         return (
                           <div className="lnrow" key={k}>
@@ -470,6 +476,32 @@ export function UploadFlowView({
                           </div>
                         );
                       })}
+                      {FIELD_KEYS_ORDER.length > 3 && (
+                        <details className="fold" style={{ marginTop: 10 }}>
+                          <summary>查看全部字段与证据（共 {FIELD_KEYS_ORDER.length} 项）</summary>
+                          <div className="fold-body">
+                            {FIELD_KEYS_ORDER.slice(3).map((k) => {
+                              const f = currentMethod.fields[k];
+                              return (
+                                <div className="lnrow" key={k}>
+                                  <span className="nm">{METHOD_FIELD_LABELS[k]}</span>
+                                  <span className={`stt ${f.evidence?.verified ? 'done' : f.status === 'missing' ? 'failed' : 'waiting'}`}>
+                                    {FIELD_STATUS_TEXT[f.status]}
+                                  </span>
+                                  <span className="res">
+                                    {f.value ? f.value.slice(0, 96) + (f.value.length > 96 ? '…' : '') : '未提取到'}
+                                    {f.evidence
+                                      ? f.evidence.verified
+                                        ? ` · 引文已定位（p.${f.evidence.page ?? '?'}）`
+                                        : ' · 引文未通过校验'
+                                      : ' · 无引文'}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </details>
+                      )}
                     </div>
                   </>
                 )}

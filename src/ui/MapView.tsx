@@ -154,44 +154,38 @@ export function MapView({
             </p>
             <div className="maphead-meta">
               <Status kind={view.count ? 'info' : 'pending'}>{view.count} 篇论文</Status>
-              {view.isCase && (
-                <Status kind={presetCached ? 'cached' : 'live'}>{presetCached ? '缓存案例' : '实时分析'}</Status>
-              )}
               <Status kind={view.methods.length ? 'ok' : 'pending'}>方法 {view.methods.length} 个</Status>
-              <Status kind={relStats.visible ? 'info' : 'pending'}>
-                关系 {relStats.total} 条 · 当前显示 {relStats.visible} 条
-              </Status>
-              {relStats.visible < relStats.total && (
-                <span className="small dim">
-                  （隐藏：关系不明确 {relStats.hiddenUnclear} · 待核查 {relStats.hiddenPending}
-                  {relStats.hiddenNoEvidence ? ` · 无引文 ${relStats.hiddenNoEvidence}` : ''}）
-                </span>
-              )}
-              {onlyEvidence && <Status kind="pending">已开启「只看有证据关系」</Status>}
-              <span className="small dim">
-                {modelReady
-                  ? '模型接口已配置；每个结论仍按各自的证据状态标注。'
-                  : '未配置模型：当前显示缓存案例（离线真实模型生成），界面处处标明来源。'}
-              </span>
+              <details className="fold" style={{ flex: '1 1 100%', marginTop: 8 }}>
+                <summary>数据来源与筛选</summary>
+                <div className="fold-body">
+                  <div className="row" style={{ gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                    {view.isCase && (
+                      <Status kind={presetCached ? 'cached' : 'live'}>{presetCached ? '缓存案例' : '实时分析'}</Status>
+                    )}
+                    <Status kind={relStats.visible ? 'info' : 'pending'}>
+                      关系 {relStats.total} 条 · 当前显示 {relStats.visible} 条
+                    </Status>
+                    {relStats.visible < relStats.total && (
+                      <span className="small dim">
+                        （隐藏：关系不明确 {relStats.hiddenUnclear} · 待核查 {relStats.hiddenPending}
+                        {relStats.hiddenNoEvidence ? ` · 无引文 ${relStats.hiddenNoEvidence}` : ''}）
+                      </span>
+                    )}
+                    {onlyEvidence && <Status kind="pending">已开启「只看有证据关系」</Status>}
+                    <span className="small dim">
+                      {modelReady
+                        ? '模型接口已配置；每个结论仍按各自的证据状态标注。'
+                        : '未配置模型：当前显示缓存案例（离线真实模型生成），界面处处标明来源。'}
+                    </span>
+                  </div>
+                </div>
+              </details>
             </div>
           </div>
 
-          <div className="maphead-actions">
-            <div className="views" role="tablist" aria-label="研究地图视图">
-              {tabs.map((t) => (
-                <button
-                  key={t.id}
-                  role="tab"
-                  aria-selected={sub === t.id}
-                  className={`chip${sub === t.id ? ' on' : ''}`}
-                  onClick={() => setSub(t.id)}
-                >
-                  {t.name}
-                </button>
-              ))}
-            </div>
-            <button className="btn primary sm" onClick={() => setSub('start')}>
-              按阅读路线继续 →
+          <div className="maphead-links">
+            <button className="linkbtn" onClick={() => setSub('start')}>
+              继续阅读路线 →
             </button>
             {mode === 'own' && (
               <button className="btn ghost sm" onClick={() => onModeChange('case')}>
@@ -205,7 +199,7 @@ export function MapView({
             )}
             <div className="mapopts">
               <button className="btn ghost sm" onClick={() => setOptsOpen((v) => !v)} aria-expanded={optsOpen}>
-                选项 ▾
+                筛选选项 ▾
               </button>
               {optsOpen && (
                 <div className="pop card tight" style={{ marginBottom: 0 }}>

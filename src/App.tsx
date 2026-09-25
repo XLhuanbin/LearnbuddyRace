@@ -49,7 +49,7 @@ import { ExperimentsView } from './ui/ExperimentsView';
 import { HomeView } from './ui/HomeView';
 import { LandingView } from './ui/LandingView';
 import { MapView, type ScopeMode } from './ui/MapView';
-import { AppBrandBar, AppSideNav } from './ui/mapChrome';
+import { AppBrandBar } from './ui/mapChrome';
 import { UploadFlowView } from './ui/UploadFlowView';
 import { MoreView } from './ui/MoreView';
 import { SettingsView, StatusView, capabilitiesList, MODEL_ERROR_HINT } from './ui/SettingsView';
@@ -727,33 +727,16 @@ export default function App() {
     <div className="app">
       <AppBrandBar
         corpusLabel={scope.meta.label}
-        paperCount={tab === 'map' && mapMode === 'own' ? scope.ownPapers.length : scope.presetPaperCount}
-        cached={tab !== 'landing' && scope.presetPapers.some((p) => p.cached)}
-        modelReady={modelReady}
         fontsReady={fontsReady}
         minimal={tab === 'landing'}
+        active={tab}
         onHome={() => setTab('landing')}
-        onMore={() => setTab('more')}
-        onSettings={() => setTab('settings')}
-        onHelp={tab === 'map' ? showMapHelp : () => undefined}
+        onGo={(t) => setTab(t as Tab)}
+        onBack={() => setTab('library')}
       />
 
       <div className={`app-body${tab === 'map' ? ' mapbody' : ''}`}>
-        {tab === 'landing' ? null : (
-          <AppSideNav
-            active={tab}
-            corpusLabel={scope.meta.label}
-            presetCount={scope.presetPaperCount}
-            ownCount={scope.ownPapers.length}
-            collection={mapMode}
-            modelReady={modelReady}
-            onGo={(t) => setTab(t as Tab)}
-            onPickCollection={(c) => {
-              setMapMode(c);
-              setTab('map');
-            }}
-          />
-        )}
+        {/* 默认不显示侧栏：页面切换走顶部「目录」浮层 */}
 
         <main className={`main${tab === 'landing' ? ' plain' : ''}${tab === 'map' ? ' mapmain' : ''}`}>
           <div className="main-inner">
@@ -779,7 +762,7 @@ export default function App() {
             <LandingView
               onExperienceCase={async () => {
                 if (scope.experimentCount === 0) await loadSample(corpus);
-                setTab('map');
+                setTab('library');
               }}
               onUploadOwn={() => setTab('upload')}
               onGo={(t) => setTab(t)}

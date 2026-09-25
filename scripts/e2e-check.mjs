@@ -167,9 +167,9 @@ const PANEL_TEXT = `(() => {
   return card ? card.innerText : '';
 })()`;
 
-/** 通过「更多」进入专业 / 开发页面（本轮起这些页面不在主导航里） */
+/** 通过顶部「目录」浮层切换页面（本轮起默认不显示侧栏） */
 async function goMore(cdp, cardText) {
-  await cdp.click('更多');
+  await cdp.evaluate(`(() => { const b = document.querySelector('.mapbrand .dirbtn'); if (!b) return false; b.click(); return true; })()`);
   await new Promise((r) => setTimeout(r, 900));
   const ok = await cdp.evaluate(
     `(() => { const b=[...document.querySelectorAll('button')].find((x)=>x.textContent.includes(${JSON.stringify(cardText)})); if(!b) return false; b.click(); return true; })()`,
@@ -243,6 +243,22 @@ async function main() {
 
   console.log('');
   console.log('=== E0 宣传首页：定位是「梳理论文方法与阅读路线」 ===');
+  // 首页右侧是真实数据预览：等它渲染出来再取文本（线上首次加载可能慢一些）
+  let previewReady = false;
+  for (let i = 0; i < 16; i++) {
+    previewReady = await cdp.evaluate(`document.querySelectorAll('.landing .hero .fig svg.fig-wide').length > 0`);
+    if (previewReady) break;
+    await sleep(500);
+  }
+  const previewHidden = await cdp.evaluate(
+    `(() => { const s = document.querySelector('.landing .hero .fig svg'); return !!s && s.getAttribute('aria-hidden') === 'true'; })()`,
+  );
+  check('首屏右侧是装饰性概念 SVG（aria-hidden，不承载数据）', previewReady === true && previewHidden === true);
+  check(
+    '四组配图各有自己的概念说明（论文集合一张已按本轮要求改为单句说明）',
+    (await cdp.evaluate(`document.querySelectorAll('.landing .fig-cap').length`)) === 4 &&
+      (await cdp.evaluate(`document.querySelectorAll('.landing .fig-note').length`)) === 3,
+  );
   const homeText = await cdp.evaluate(`(document.querySelector('.main-inner') || document.body).innerText`);
   check('首屏主文案', /把一组论文，变成你看得懂的研究地图/.test(homeText));
   check('首屏副文案是一句短说明（不超过 24 字）', /读懂方法演进，知道先读哪一篇。/.test(homeText));
@@ -252,13 +268,23 @@ async function main() {
     /论文集合/.test(homeText) && /研究地图/.test(homeText) && /阅读路线/.test(homeText));
   check('主按钮「体验视觉论文案例」', /体验视觉论文案例/.test(homeText));
   check('次按钮「上传我的论文」', /上传我的论文/.test(homeText));
-  check('示意图是「论文 → 分组与关联 → 阅读路线」',
-    /一组论文/.test(homeText) && /方法分组与关联/.test(homeText) && /阅读路线/.test(homeText));
-  check('首页标明了内容来源与状态（预置案例、按证据标注、不是实时分析）',
-    /预置视觉案例/.test(homeText) && /证据状态|按证据标注/.test(homeText) && /不是本次操作触发的实时分析/.test(homeText));
+  check(
+    '首页配图是概念示意，且不出现真实论文名 / 数量 / 证据状态',
+    /从一组线索出发，形成可探索的研究地图/.test(homeText) &&
+      /散落的论文线索，被整理成可以继续追踪的技术脉络/.test(homeText) &&
+      /从起点开始，沿着一条明确顺序逐步阅读/.test(homeText) &&
+      /概念示意，不代表当前案例的真实关系数量/.test(homeText) &&
+      /论文集合/.test(homeText) &&
+      /研究地图/.test(homeText) &&
+      /阅读路线/.test(homeText) &&
+      !/ResNet|ViT|DeiT|Swin|ConvNeXt|BERT|RoBERTa|GPT-3/.test(homeText) &&
+      !/篇论文|条可见关系|条关系|原文已说明|系统推断|待核查|可核验/.test(homeText),
+  );
+  check('首页标明配图是产品概念示意，且真实结果指向对应工作页',
+    /产品概念示意/.test(homeText) && /不代表当前案例的真实关系数量/.test(homeText) && /研究地图与阅读路线页/.test(homeText));
   check('首页不以分数对比为主视觉', !/Top-1|能直接比较吗|不能直接比较/.test(homeText));
-  check('首页没有数量 / 版本 / 配置 / 缓存 / 开发状态',
-    !/篇论文/.test(homeText) && !/promptVersion/.test(homeText) && !/RULES_VERSION/.test(homeText) && !/配置模型接口/.test(homeText) && !/开发状态/.test(homeText));
+  check('首页没有篇数 / 版本 / 配置 / 缓存 / 开发状态',
+    !/篇论文/.test(homeText) && !/promptVersion/.test(homeText) && !/RULES_VERSION/.test(homeText) && !/配置模型接口/.test(homeText) && !/开发状态/.test(homeText) && !/缓存案例/.test(homeText));
   check('首页不渲染侧栏', !(await cdp.evaluate(`!!document.querySelector('.side')`)));
   const heroVisible = await cdp.evaluate(`
 (() => {
@@ -276,11 +302,13 @@ async function main() {
   await cdp.evaluate(`(() => { const b=[...document.querySelectorAll('button')].find((x)=>x.textContent.includes('体验视觉论文案例')); if (b) b.click(); })()`);
   await sleep(5200);
   const mapText = await cdp.evaluate(`(document.querySelector('.main-inner') || document.body).innerText`);
-  check('直接进入研究地图（无单选项案例页）', /研究地图/.test(mapText) && !/选择一个视觉论文案例/.test(mapText));
-  check(
-    '工作区显示论文集合与三个视图',
-    /研究地图 · 视觉方法演进案例/.test(mapText) && /方法地图/.test(mapText) && /联系与区别/.test(mapText) && /从哪里开始/.test(mapText),
-  );
+  check('进入论文集合（无单选项案例页）', /论文集合/.test(mapText) && !/选择一个视觉论文案例/.test(mapText));
+  // 本轮起进入流程是「首页 → 论文集合」；这里再显式进入研究地图，后续断言才在地图页上
+  await goMore(cdp, '研究地图');
+  await sleep(1600);
+  const mapOnly = await cdp.evaluate(`(document.querySelector('.main-inner') || document.body).innerText`);
+  check('从论文集合可以进入研究地图', /研究地图/.test(mapOnly));
+  check('研究地图首屏只有标题、一句解释、一个继续阅读路线链接', /研究地图 · 视觉方法演进案例/.test(mapOnly) && /继续阅读路线/.test(mapOnly) && !/方法地图/.test(mapOnly) && !/联系与区别/.test(mapOnly));
   const optsOpened = await cdp.evaluate(`(() => { const b=[...document.querySelectorAll('button')].find((x)=>x.textContent.includes('选项')); if (b) b.click(); return true; })()`);
   await sleep(600);
   const optsText = await cdp.evaluate(`(document.querySelector('.mapopts .pop') || document.body).innerText`);
@@ -498,8 +526,8 @@ fetch([...document.scripts].find((s) => /app.*\\.js/.test(s.src)).src).then((r) 
   check('标注两套语料不混合生成关系与推荐', /不会混在一起|各自独立计算/.test(libText2));
 
   console.log('');
-  console.log('=== E12c 实验比较页（专业视图） ===');
-  await goMore(cdp, '全部结果与条件');
+  console.log('=== E12c 实验可比性页 ===');
+  await goMore(cdp, '实验可比性');
   await sleep(1600);
   const expText = await cdp.evaluate(`(document.querySelector('.main-inner') || document.body).innerText`);
   check('展示分类实验与表格核查状态', /分类实验/.test(expText) && /行列已核验|待核查/.test(expText));
@@ -563,7 +591,7 @@ fetch([...document.scripts].find((s) => /app.*\\.js/.test(s.src)).src).then((r) 
 (() => {
   const t = (document.body.innerText || '');
   const homeLink = !!document.querySelector('.mapbrand .logo');
-  return homeLink && ['研究地图', '更多', '论文集合'].every((x) => t.includes(x));
+  return homeLink && ['目录', '返回论文集合'].every((x) => t.includes(x));
 })()`);
   check('窄屏下功能入口仍然可见（品牌回首页 + 论文集合 + 研究地图 + 更多）', navVisible);
   await cdp.send('Emulation.clearDeviceMetricsOverride');

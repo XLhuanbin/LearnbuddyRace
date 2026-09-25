@@ -48,48 +48,36 @@ function NavIcon({ name }: { name: string }) {
   );
 }
 
-/** 顶部品牌栏（所有非宣传页共用；宣传首页用精简版） */
+/** 顶部品牌栏（所有非宣传页共用）：左侧品牌 + 目录，右侧案例名与返回入口；侧栏入口全部收进目录浮层 */
 export function AppBrandBar({
   corpusLabel,
-  paperCount,
-  cached,
-  modelReady,
   fontsReady,
   minimal,
+  active,
   onHome,
-  onMore,
-  onSettings,
-  onHelp,
+  onGo,
+  onBack,
 }: {
   corpusLabel: string;
-  paperCount: number;
-  cached: boolean;
-  modelReady: boolean;
   fontsReady: boolean;
   /** 宣传首页：只留品牌与定位，不堆按钮与状态 */
   minimal?: boolean;
+  /** 当前页面（用于目录里的高亮） */
+  active?: string;
   onHome: () => void;
-  onMore: () => void;
-  onSettings: () => void;
-  onHelp: () => void;
+  onGo: (tab: string) => void;
+  onBack: () => void;
 }) {
-  const [helpOpen, setHelpOpen] = React.useState(false);
-  const [menuOpen, setMenuOpen] = React.useState(false);
+  const [dirOpen, setDirOpen] = React.useState(false);
   const wrapRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
-    if (!helpOpen && !menuOpen) return;
+    if (!dirOpen) return;
     const onDoc = (e: MouseEvent) => {
-      if (!wrapRef.current?.contains(e.target as Node)) {
-        setHelpOpen(false);
-        setMenuOpen(false);
-      }
+      if (!wrapRef.current?.contains(e.target as Node)) setDirOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setHelpOpen(false);
-        setMenuOpen(false);
-      }
+      if (e.key === 'Escape') setDirOpen(false);
     };
     document.addEventListener('mousedown', onDoc);
     document.addEventListener('keydown', onKey);
@@ -97,7 +85,39 @@ export function AppBrandBar({
       document.removeEventListener('mousedown', onDoc);
       document.removeEventListener('keydown', onKey);
     };
-  }, [helpOpen, menuOpen]);
+  }, [dirOpen]);
+
+  const WORK: [string, string, string][] = [
+    ['library', '论文集合', 'folder'],
+    ['upload', '方法提取', 'upload'],
+    ['map', '研究地图', 'map'],
+    ['experiments', '实验可比性', 'compare'],
+    ['decision', '阅读路线', 'route'],
+  ];
+  const PRO: [string, string, string][] = [
+    ['graph', '方法关系图', 'graph'],
+    ['divergence', '待调查问题', 'question'],
+    ['compare', '跨论文比较', 'cross'],
+  ];
+  const DEV: [string, string, string][] = [
+    ['status', '开发状态', 'status'],
+    ['settings', '设置', 'settings'],
+  ];
+
+  const item = ([tab, label, icon]: [string, string, string]) => (
+    <button
+      key={tab}
+      className={`diritem${active === tab ? ' on' : ''}`}
+      role="menuitem"
+      onClick={() => {
+        onGo(tab);
+        setDirOpen(false);
+      }}
+    >
+      <NavIcon name={icon} />
+      {label}
+    </button>
+  );
 
   return (
     <header className="mapbrand">
@@ -107,109 +127,40 @@ export function AppBrandBar({
         </span>
         <span className={`brand-serif font-gate${fontsReady ? ' ready' : ''}`}>ResearchPilot</span>
       </button>
-      {!minimal && <span className="tagline">从论文到可核验的方法地图</span>}
-      <div className="right" ref={wrapRef} style={{ position: 'relative' }}>
-        {!minimal && (
-          <>
-            {/* 桌面：完整入口 */}
-            <div className="right-wide">
-              <Status kind={cached ? 'cached' : modelReady ? 'live' : 'pending'}>
-                {cached ? '缓存案例' : modelReady ? '实时分析' : '未配置模型'}
-              </Status>
-              <span className="small dim" title="当前论文集合的篇数">
-                {corpusLabel} · {paperCount} 篇
-              </span>
-              <button
-                className="btn ghost sm"
-                aria-expanded={helpOpen}
-                onClick={() => {
-                  setHelpOpen((v) => !v);
-                  onHelp();
-                }}
-              >
-                使用说明
-              </button>
-              <button className="btn ghost sm" onClick={onMore}>
-                更多
-              </button>
-              <button className="btn ghost sm" onClick={onSettings}>
-                设置
-              </button>
+
+      {!minimal && (
+        <div className="dirwrap" ref={wrapRef}>
+          <button className="btn ghost sm dirbtn" aria-expanded={dirOpen} aria-haspopup="menu" onClick={() => setDirOpen((v) => !v)}>
+            目录
+          </button>
+          {dirOpen && (
+            <div className="dirpop" role="menu" aria-label="页面目录">
+              <div className="dirlab">研究工作区</div>
+              {WORK.map(item)}
+              <div className="dirsep" />
+              <div className="dirlab">专业视图</div>
+              {PRO.map(item)}
+              <div className="dirsep" />
+              {DEV.map(item)}
             </div>
-            {/* 手机：单行只留一个「更多」，其余收进菜单 */}
-            <button
-              className="btn ghost sm right-narrow"
-              aria-expanded={menuOpen}
-              aria-label="更多入口"
-              onClick={() => setMenuOpen((v) => !v)}
-            >
-              更多 ▾
-            </button>
-          </>
-        )}
-        {menuOpen && (
-          <div className="helpbox" role="menu" aria-label="更多入口">
-            <div className="row" style={{ gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-              <Status kind={cached ? 'cached' : modelReady ? 'live' : 'pending'}>
-                {cached ? '缓存案例' : modelReady ? '实时分析' : '未配置模型'}
-              </Status>
-              <span className="small dim">
-                {corpusLabel} · {paperCount} 篇
-              </span>
-            </div>
-            <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-              <button
-                className="btn sm"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setHelpOpen(true);
-                  onHelp();
-                }}
-              >
-                使用说明
-              </button>
-              <button
-                className="btn sm"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onMore();
-                }}
-              >
-                更多页面
-              </button>
-              <button
-                className="btn sm"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onSettings();
-                }}
-              >
-                设置
-              </button>
-            </div>
-          </div>
-        )}
-        {helpOpen && (
-          <div className="helpbox" role="dialog" aria-label="使用说明">
-            <h4>三步看懂这组论文</h4>
-            <ol>
-              <li>选一个方法或一条连线</li>
-              <li>先看「一句话回答」，再看证据状态</li>
-              <li>展开原文依据，或进入两个方法的完整对照</li>
-            </ol>
-            <p className="note">
-              每个结论都标注是<strong>原文明示</strong>、<strong>系统推断</strong>还是<strong>待核查</strong>；
-              没有绑定引文的写「无直接引文」。数据只保存在本机浏览器；未配置模型时显示的是缓存案例（离线真实模型生成），
-              不会被当作本次实时分析。
-            </p>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
+
+      <span className="spacer" />
+
+      {!minimal && (
+        <>
+          <span className="casename">{corpusLabel}</span>
+          <button className="linkbtn" onClick={onBack}>
+            返回论文集合
+          </button>
+        </>
+      )}
     </header>
   );
 }
 
-/** 左侧导航：所有非宣传页共用 */
 export function AppSideNav({
   active,
   corpusLabel,
@@ -285,11 +236,15 @@ export function AppSideNav({
         <span className="badge">{ownCount}</span>
       </button>
 
-      <div className="group-label">专业视图</div>
-      {pro.map(item)}
+      <details className="sidegroup">
+        <summary>专业视图</summary>
+        {pro.map(item)}
+      </details>
 
-      <div className="group-label">开发</div>
-      {dev.map(item)}
+      <details className="sidegroup">
+        <summary>开发</summary>
+        {dev.map(item)}
+      </details>
 
       <div className="side-foot">
         案例 {presetCount} 篇（本语料预置）· 我上传 {ownCount} 篇

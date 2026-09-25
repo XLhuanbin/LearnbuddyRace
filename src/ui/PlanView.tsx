@@ -205,6 +205,10 @@ export function DecisionView({
         <>
           <SectionHead title="研究路径" sub="按顺序读；每一步都给出理由、重点与下一步" />
           <div className="railpath">
+            <div className="railend start">
+              <span className="dot" />
+              <span className="lab">起点：从这里开始</span>
+            </div>
             {plan.steps.map((s, idx) => {
               const p = paperById.get(s.paperId);
               const m = methods.find((x) => x.paperId === s.paperId);
@@ -300,6 +304,10 @@ export function DecisionView({
                 </div>
               );
             })}
+            <div className="railend end">
+              <span className="dot" />
+              <span className="lab">终点：完成这条路线</span>
+            </div>
           </div>
         </>
       )}
