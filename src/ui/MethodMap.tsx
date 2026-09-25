@@ -1,15 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import type { Evidence, Method, Paper, Relation, RelationEvidenceState } from '../core/types';
-import {
-  buildMethodProfile,
-  exploreQuestion,
-  firstSentence,
-  pickExploreRelation,
-  relationExplanation,
-  relationSentence,
-  shortContribution,
-  type MethodProfile,
-} from '../core/grouping';
+import { buildMethodProfile, relationExplanation, relationSentence, shortContribution, type MethodProfile } from '../core/grouping';
 import { Status } from './common';
 
 interface Props {
@@ -17,14 +8,14 @@ interface Props {
   methods: Method[];
   relations: Relation[];
   onOpenEvidence: (ev: Evidence) => void;
-  /** 查看两个方法的完整对照（切到「联系与区别」并预置这一对） */
-  onOpenPair: (a: string, b: string) => void;
   /** 选中两个方法后，进入次级入口做实验表现比较 */
   onCompareExperiments: (a: string, b: string) => void;
   /** 显示选项（由工作区的「选项」弹层控制，避免工具栏堆开关） */
   showPending: boolean;
   showUnclear: boolean;
-  /** 只看有证据的关系（当前 MapView 会传入；旧版本没有这个开关） */
+  /** 打开两个方法的完整对照（当前 MapView 会传；旧版本没有） */
+  onOpenPair?: (a: string, b: string) => void;
+  /** 只看有证据的关系（同上） */
   onlyEvidence?: boolean;
 }
 
@@ -36,11 +27,11 @@ const EDGE_STYLE: Record<RelationEvidenceState, { color: string; dash?: string; 
 };
 
 const LANE_ORDER: MethodProfile['family']['id'][] = ['cnn', 'transformer', 'hybrid', 'pending'];
-const NODE_W = 232;
-const NODE_H = 88;
-const LANE_GAP = 136;
+const NODE_W = 208;
+const NODE_H = 78;
+const LANE_GAP = 118;
 const PAD = 26;
-const HEADER = 46;
+const HEADER = 40;
 
 interface Placed {
   profile: MethodProfile;
@@ -55,7 +46,7 @@ interface Placed {
  * 探索画布：泳道 = 方法家族（轻量分区），节点 = 短名称 + 一条短贡献，
  * 连线只画真实关系；标签默认不铺开，悬停/聚焦/选中时才出现。
  */
-export function MethodMap({ papers, methods, relations, onOpenEvidence, onOpenPair, onCompareExperiments, showPending, showUnclear, onlyEvidence = false }: Props) {
+export function MethodMap({ papers, methods, relations, onOpenEvidence, onCompareExperiments, showPending, showUnclear, onOpenPair, onlyEvidence = false }: Props) {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const [hoverEdge, setHoverEdge] = useState<string | null>(null);
@@ -138,21 +129,6 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onOpenPa
     }
     return null;
   }, [selectedNode, selectedEdge, visibleRelations]);
-
-  /** 默认状态给出的探索问题：从现有关系里挑（不写死方法对） */
-  const exploreRel = useMemo(() => pickExploreRelation(visibleRelations), [visibleRelations]);
-  const explore = exploreRel
-    ? {
-        rel: exploreRel,
-        text: exploreQuestion(exploreRel.type, nameOf(exploreRel.fromMethodId), nameOf(exploreRel.toMethodId)),
-        state:
-          exploreRel.evidenceState === 'explicit'
-            ? '原文已说明'
-            : exploreRel.evidenceState === 'inferred'
-              ? '系统推断'
-              : '待核查',
-      }
-    : null;
 
   const selectedRelation = selectedEdge ? visibleRelations.find((r) => r.id === selectedEdge) ?? null : null;
   const nodeDetail = selectedNode ? nodeById.get(selectedNode) : null;
@@ -297,31 +273,9 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onOpenPa
         </svg>
       </div>
 
-      {/* 默认状态：给一个具体的探索问题与入口（问题从现有关系里挑，不写死方法对） */}
+      {/* 一句轻提示（选中后消失） */}
       {!selectedNode && !selectedEdge && (
-        <div className="mapquest">
-          {explore ? (
-            <>
-              <span className="q">先看这个</span>
-              <b>{explore.text}</b>
-              <Status kind={explore.rel.evidenceState === 'explicit' ? 'ok' : explore.rel.evidenceState === 'inferred' ? 'info' : 'pending'}>
-                {explore.state}
-              </Status>
-              <button
-                className="btn primary sm"
-                onClick={() => {
-                  setSelectedEdge(explore.rel.id);
-                  setSelectedNode(null);
-                }}
-              >
-                看这个对比
-              </button>
-              <span className="hint">也可以直接点方法或连线</span>
-            </>
-          ) : (
-            <b>点击一个方法，看它做了什么；点击连线，看两个方法的联系。</b>
-          )}
-        </div>
+        <div className="maphint">点击一个方法看它做了什么；点击连线看两个方法的联系。</div>
       )}
 
       {/* 图例（简短一行） */}
@@ -367,12 +321,8 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onOpenPa
               ✕
             </button>
           </div>
-
-          {/* 第一层：一句话回答 */}
-          <div className="sect">一句话回答</div>
-          <p className="answer">
-            {firstSentence(selectedRelation.rationale ?? '', 110) ||
-              relationSentence(selectedRelation, selectedRelation.toMethodId, nameOf).text}
+          <p style={{ fontWeight: 600 }}>
+            {relationSentence(selectedRelation, selectedRelation.toMethodId, nameOf).text}
           </p>
           <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
             <Status kind={selectedRelation.evidenceState === 'explicit' ? 'ok' : selectedRelation.evidenceState === 'inferred' ? 'info' : 'pending'}>
@@ -380,15 +330,8 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onOpenPa
             </Status>
             {selectedRelation.userEdited && <Status kind="manual">人工修正</Status>}
           </div>
-          <p className="small dim" style={{ marginTop: 6 }}>
-            方向：{relationSentence(selectedRelation, selectedRelation.toMethodId, nameOf).text}
-            {selectedRelation.evidenceState !== 'explicit' ? '　·　这句来自系统的推断说明，不是论文原话' : ''}
-          </p>
-
-          {/* 第二层：具体变化与理由 */}
-          <div className="sect">具体变化 / 为什么这样判断</div>
+          <div className="sect">具体联系 / 变化</div>
           <p>{relationExplanation(selectedRelation)}</p>
-
           <details className="fold" style={{ marginTop: 10 }}>
             <summary>原文依据</summary>
             <div className="fold-body">
@@ -400,33 +343,11 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onOpenPa
                 <p className="small dim" style={{ margin: 0 }}>
                   {selectedRelation.evidenceState === 'explicit'
                     ? '该关系标记为原文明示但缺少可打开的引文，请人工核对。'
-                    : '这条关系没有绑定可核验引文，因此只作为推断 / 候选呈现，不能当作论文里明说的结论。'}
+                    : '这条关系没有绑定可核验引文，因此只作为推断 / 候选呈现。'}
                 </p>
               )}
             </div>
           </details>
-
-          <div className="sect">下一步</div>
-          <div className="acts">
-            <button
-              className="btn primary sm"
-              onClick={() => onOpenPair(selectedRelation.fromMethodId, selectedRelation.toMethodId)}
-            >
-              看这两个方法的完整对照 →
-            </button>
-            {visibleRelations.length > 1 && (
-              <button
-                className="btn ghost sm"
-                onClick={() => {
-                  const i = visibleRelations.findIndex((r) => r.id === selectedRelation.id);
-                  const next = visibleRelations[(i + 1) % visibleRelations.length];
-                  setSelectedEdge(next.id);
-                }}
-              >
-                看下一条联系
-              </button>
-            )}
-          </div>
         </aside>
       ) : nodeDetail ? (
         <aside className="mapdetail" aria-label="方法详情">
@@ -513,21 +434,7 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onOpenPa
             </div>
           </details>
 
-          <div className="sect">下一步</div>
           <div className="acts">
-            {relatedRelations[0] && (
-              <button
-                className="btn primary sm"
-                onClick={() =>
-                  onOpenPair(
-                    relatedRelations[0].fromMethodId === nodeDetail.method.id ? relatedRelations[0].toMethodId : relatedRelations[0].fromMethodId,
-                    nodeDetail.method.id,
-                  )
-                }
-              >
-                与 {nameOf(relatedRelations[0].fromMethodId === nodeDetail.method.id ? relatedRelations[0].toMethodId : relatedRelations[0].fromMethodId)} 的完整对照 →
-              </button>
-            )}
             {relatedRelations[0] && (
               <button className="btn ghost sm" onClick={() => setSelectedEdge(relatedRelations[0].id)}>
                 看第一条联系
