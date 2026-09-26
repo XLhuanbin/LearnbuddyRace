@@ -12,7 +12,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { locateQuote, normalize, pageAt } from '../src/core/text';
 import { assemblePages, guessPdfMeta } from '../src/core/parse/assemble';
-import { RULES_VERSION } from '../src/core/rules';
+import { RULES_VERSION, looksLikeTitle, titleNeedsConfirm } from '../src/core/rules';
 import { buildEvidence } from '../src/core/evidence';
 import {
   compareConditions,
@@ -23,11 +23,11 @@ import {
   LEVEL_LABELS,
 } from '../src/core/comparability';
 import { validateMethod, validateRelation } from '../src/core/validate';
-import { buildEvidence } from '../src/core/evidence';
 import { effectiveField } from '../src/core/effective';
 import { corpusBaseOfPaper, revalidateCachedRelations } from '../src/core/cache';
 import { applyDivergenceRules } from '../src/core/divergenceRules';
 import { hasThirdPartySubject } from '../src/core/rules';
+import { applyTitleCorrection } from '../src/core/model/analyze';
 import {
   assembleRelationsFromModel,
   hasConfigEvidence,
@@ -1641,6 +1641,45 @@ console.log('=== 26. 全文路径 / 证据定位 / 关系装配 / 有效值 / �
       changedRules.downgraded === 1,
   );
   check('重校验会给出可展示的说明，不静默处理', changedRules.notes.length === 1 && /规则/.test(changedRules.notes[0]));
+
+  // ---- 9b) 标题校正：摘要句不得被当成已确认标题（实测问题 4） ----
+  const abstractSentence =
+    'a class of latent variable models inspired by considerations from nonequilibrium thermodynamics, and give strong empirical results';
+  const pAbstract = { ...PAPER('p_ddpm', abstractSentence, 2020, 'body'), titleFrom: 'heuristic' as const };
+  const pReal = { ...PAPER('p_real', 'Denoising Diffusion Probabilistic Models', 2020, 'body'), titleFrom: 'heuristic' as const };
+
+  check('摘要句本身不像标题（looksLikeTitle 拦得住）', !looksLikeTitle(abstractSentence));
+  check('真实标题能通过 looksLikeTitle', looksLikeTitle('Denoising Diffusion Probabilistic Models'));
+
+  const fixedFromModel = applyTitleCorrection(pAbstract, {
+    ...mkMethod('p_ddpm', emptyConditions()),
+    paperTitleGuess: 'Denoising Diffusion Probabilistic Models',
+  } as Method);
+  check(
+    '模型在原文核验出真标题 → 采用并标 model-verified',
+    fixedFromModel.title === 'Denoising Diffusion Probabilistic Models' && fixedFromModel.titleFrom === 'model-verified',
+  );
+
+  const noModelGuess = applyTitleCorrection(pAbstract, mkMethod('p_ddpm', emptyConditions()));
+  check(
+    '模型没给出可用标题时，摘要句标题必须标为 unverified（拿不到真标题也不能冒充已确认）',
+    noModelGuess.titleFrom === 'unverified' && noModelGuess.title === abstractSentence,
+  );
+
+  const guessNotTitle = applyTitleCorrection(pAbstract, {
+    ...mkMethod('p_ddpm', emptyConditions()),
+    paperTitleGuess: abstractSentence,
+  } as Method);
+  check('模型回显的也是摘要句时不采用，同样标 unverified', guessNotTitle.titleFrom === 'unverified');
+
+  const keepRealTitle = applyTitleCorrection(pReal, mkMethod('p_real', emptyConditions()));
+  check('启发式标题本身像标题时保持原样（不误标待确认）', keepRealTitle.titleFrom === 'heuristic' && keepRealTitle.title === pReal.title);
+
+  check('作用到界面：摘要句标题 → 需要显示「标题待确认」', titleNeedsConfirm(pAbstract) && !titleNeedsConfirm(pReal));
+  check(
+    '模型核验过或用户填过的标题不显示「标题待确认」',
+    !titleNeedsConfirm({ ...pAbstract, titleFrom: 'model-verified' }) && !titleNeedsConfirm({ ...pAbstract, titleFrom: 'user' }),
+  );
 
   // ---- 9) 跨方法挑「同口径」实验：挑不到就不给对照（不允许摆不可比的数字） ----
   const mkExp = (

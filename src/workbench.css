@@ -870,3 +870,44 @@ details.fold:not([open]) > .fold-body { display: none; }
 .rgexpand .sect { font-size: var(--fs-meta); color: var(--fg-3); margin: 8px 0 2px; }
 .rgexpand p { margin: 0; font-size: var(--fs-body); color: var(--fg-2); line-height: 1.7; }
 @media (prefers-reduced-motion: reduce) { .rgexpand, .rgexpand.open { transition: none; transform: none; } }
+
+/* =========================================================================
+   真实导入流程（2026-09-26 修复实测问题 1/2/4）
+   .justbar   刚导入的论文：明确告诉用户「在哪里、被选中了」
+   .ownentry  自传论文存在但当前显示案例列表时的醒目入口（不能静默藏着）
+   .titleflag 从 PDF 首页猜出来、还没在原文核验的标题标记
+   ========================================================================= */
+.justbar,
+.ownentry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  border: 1px solid var(--ok-line, var(--line-2));
+  background: var(--ok-soft, var(--bg-2));
+  border-radius: var(--radius);
+  padding: 9px 12px;
+  margin-bottom: 10px;
+}
+.ownentry {
+  justify-content: space-between;
+  border-color: var(--accent-line, var(--line-2));
+  background: var(--accent-soft, var(--bg-2));
+}
+.ownentry strong { font-size: var(--fs-base); }
+
+/* 刚导入的那一行：左侧一条竖线标记，不靠颜色单独表达 */
+.pitem.just { box-shadow: inset 3px 0 0 var(--accent); }
+
+.titleflag {
+  margin-left: 6px;
+  font-size: var(--fs-meta);
+  font-weight: 500;
+  color: var(--warn);
+  border: 1px solid var(--warn-line, var(--line-2));
+  background: var(--warn-soft, transparent);
+  border-radius: 999px;
+  padding: 1px 7px;
+  white-space: nowrap;
+  vertical-align: middle;
+}

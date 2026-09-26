@@ -32,7 +32,7 @@ import {
   revalidateCachedRelations,
   FIELD_KEYS_ORDER,
 } from './core/cache';
-import { RULES_VERSION } from './core/rules';
+import { RULES_VERSION, looksLikeTitle } from './core/rules';
 import { validateMethod } from './core/validate';
 import { effectiveField, overriddenFieldLabels } from './core/effective';
 import { PROMPT_VERSION } from './core/model/prompts';
@@ -138,6 +138,25 @@ export default function App() {
    */
   const [mapMode, setMapMode] = useState<ScopeMode>('case');
   const scope = useMemo(() => scopeCorpus(papers, methods, corpus, mapMode), [papers, methods, corpus, mapMode]);
+  /**
+   * 本次会话里「用户选过的 PDF」：内容哈希 → File。
+   *
+   * 浏览器不会长期保存用户选过的文件（刷新即失效），所以：
+   * - 这份缓存还在 → 「重新解析」可以真的重新跑一次 PDF 解析；
+   * - 缓存没了 → 必须请用户**重新选一次文件**，绝不能拿模型抽取冒充 PDF 解析。
+   */
+  const fileCacheRef = useRef<Map<string, File>>(new Map());
+  /** 重新解析：待接收文件的那篇论文（点击按钮后由隐藏 input 的 onChange 接手） */
+  const reparseInputRef = useRef<HTMLInputElement | null>(null);
+  const reparseTargetRef = useRef<string | null>(null);
+  /** 刚刚导入的论文 id：方法提取页据此自动选中并给出「查看刚导入的论文」 */
+  const [lastImportedId, setLastImportedId] = useState<string | null>(null);
+  /**
+   * 各语料集**预置缓存里到底有什么**（论文数 / 实验记录数）。
+   * 实验可比性页据此如实说明「这份语料有没有实验记录」，
+   * 不再无脑承诺「重新加载就能补齐实验记录」。
+   */
+  const [sampleStats, setSampleStats] = useState<Record<string, { papers: number; experiments: number; at: number }>>({});
   const scopedRelations = useMemo(() => scopeRelations(relations, scope), [relations, scope]);
   /** 当前语料集身份（用于分析产物的归属校验） */
   const currentCorpusId = CORPUS_META[corpus].id;
@@ -294,6 +313,9 @@ export default function App() {
       if (pl) setPlan(pl);
       const sp = readScopedSnapshot<UserProfile>(await loadMeta('demoProfile'), currentCorpusId);
       if (sp) setSampleProfile(sp);
+      // 各语料预置缓存的内容摘要（刷新后仍要知道「这份语料有没有实验记录」）
+      const ss = await loadMeta<Record<string, { papers: number; experiments: number; at: number }>>('sampleStats');
+      if (ss) setSampleStats(ss);
     })();
   }, []);
 
@@ -303,7 +325,7 @@ export default function App() {
   };
 
   /* ---------- 导入 ---------- */
-  const importFiles = async (files: FileList) => {
+  const importFiles = async (files: FileList | File[]) => {
     /**
      * 本轮批次的哈希去重集合：开始时装入已在本机的哈希，每导入一个就加进去。
      * 不能用 `papers` 闭包判断重复 —— setState 是异步的，一次选多个文件时闭包里的
@@ -313,10 +335,14 @@ export default function App() {
     const titleByHash = new Map<string, string>(
       papers.filter((p) => p.contentHash).map((p) => [p.contentHash as string, p.title]),
     );
+    /** 本次真正写进库里的论文（去重跳过的不算），用于导入后切范围与给出入口 */
+    const added: Paper[] = [];
     for (const file of Array.from(files)) {
       log(`导入文件：${file.name}（${(file.size / 1024 / 1024).toFixed(1)} MB）`);
       try {
         const hash = await hashFile(file);
+        // 只要用户在**本次会话里**还留着这份文件，就记住它，便于真正「重新解析」
+        fileCacheRef.current.set(hash, file);
         if (seenHashes.has(hash)) {
           log(
             `  跳过：与已导入的「${titleByHash.get(hash) ?? file.name}」内容相同（按内容哈希去重，不重复消耗模型额度）`,
@@ -334,24 +360,137 @@ export default function App() {
           },
         });
         if (!outcome.paper) continue;
-        const paper: Paper = { ...outcome.paper, titleFrom: 'heuristic' };
+        /**
+         * 标题状态必须如实：PDF 首页排版多变，实测会把摘要句抓成标题。
+         * 不像标题的一律先标「待确认」，等模型在原文里核验出真标题再改写。
+         */
+        const paper: Paper = {
+          ...outcome.paper,
+          titleFrom: looksLikeTitle(outcome.paper.title) ? 'heuristic' : 'unverified',
+        };
         outcome.warnings.forEach((w) => log(`  提示：${w}`));
         if (!outcome.ok) {
           log(`  失败：${outcome.error}`);
           await repo.savePaper(paper);
           setPapers((p) => [...p, paper]);
+          added.push(paper);
           continue;
         }
         log(`  解析成功：标题「${paper.title}」，${paper.pages.length} 页，${paper.charCount} 字符`);
+        if (paper.titleFrom === 'unverified') {
+          log('  注意：从首页猜出来的标题不像论文标题，已标记为「标题待确认」（模型抽取后会用原文核验的真标题替换）');
+        }
         await repo.savePaper(paper);
         setPapers((p) => [...p, paper]);
+        added.push(paper);
       } catch (err) {
         log(`  异常：${(err as Error).message}`);
+      }
+    }
+    if (added.length) {
+      /**
+       * 导入后**必须让用户找得到这篇论文**：
+       * 用户导入的论文属于「我上传的论文」集合，而案例模式的列表只显示预置 5 篇，
+       * 旧实现不切换范围也没入口 → 论文在库里但整页看不见（实测问题 1）。
+       */
+      const last = added[added.length - 1];
+      setLastImportedId(last.id);
+      const ownCount = papers.filter((p) => (p.corpusId ?? 'user-import') === 'user-import').length + added.length;
+      if (mapMode !== 'own') {
+        setMapMode('own');
+        log(`已切到「我上传的论文」范围（共 ${ownCount} 篇），列表与计数都已指向这个集合；案例数据不受影响，可随时切回。`);
       }
     }
     setTick((t) => t + 1);
     // 论文集合变了：在途分析结果不再对应当前数据
     invalidateTasks();
+  };
+
+  /**
+   * 真正重新解析一份 PDF（用户实测问题 2）。
+   *
+   * 旧实现把「重试解析」接到了模型抽取上 —— 那是完全不同的动作：PDF 都没解析出文本，
+   * 抽取只会再失败一次，用户还以为是「解析重试」。这里分两种情况：
+   * - 本次会话还留着这份 File → 直接重跑 PDF 解析；
+   * - 已经不在了（刷新过 / 换了文件）→ 打开文件选择器请用户重新选一次，再真正解析。
+   */
+  const reparsePaper = async (paperId: string, picked?: File) => {
+    const target = papers.find((p) => p.id === paperId);
+    if (!target) {
+      log('重新解析中止：找不到这篇论文（可能已被移除）。');
+      return;
+    }
+    let file = picked;
+    if (!file) {
+      file = target.contentHash ? fileCacheRef.current.get(target.contentHash) : undefined;
+    }
+    if (!file) {
+      // 请用户重新选文件：由隐藏的 input 接手，选完再回到这里
+      reparseTargetRef.current = paperId;
+      log(`需要重新选择「${target.title}」对应的 PDF 文件（浏览器不会长期保留你选择过的文件，我们不拿模型抽取冒充解析重试）。`);
+      reparseInputRef.current?.click();
+      return;
+    }
+    const hash = await hashFile(file);
+    if (picked && target.contentHash && hash !== target.contentHash) {
+      // 用户重新选的其实是**另一份文件**：按新论文导入，绝不覆盖原来那条记录
+      log('重新选择的是另一份文件（内容哈希与原来不同），按新论文导入，不覆盖原有记录。');
+      await importFiles([file]);
+      return;
+    }
+    fileCacheRef.current.set(hash, file);
+    log(`重新解析 PDF：${file.name}（${(file.size / 1024 / 1024).toFixed(1)} MB）…`);
+    try {
+      const outcome = await parsePdfFile(file, {
+        contentHash: hash,
+        sample: { purpose: '用户导入的真实文件（重新解析）', license: '版权归原作者，仅在本机解析用于个人阅读' },
+      });
+      if (!outcome.paper) {
+        log('  重新解析失败：解析器没有返回论文对象。');
+        return;
+      }
+      const next: Paper = {
+        ...outcome.paper,
+        // 沿用原来的 id，避免同一篇论文出现两条记录（方法/关系的关联也不会断）
+        id: target.id,
+        titleFrom: looksLikeTitle(outcome.paper.title) ? 'heuristic' : 'unverified',
+      };
+      outcome.warnings.forEach((w) => log(`  提示：${w}`));
+      if (outcome.ok) {
+        log(`  重新解析成功：标题「${next.title}」，${next.pages.length} 页，${next.charCount} 字符`);
+      } else {
+        log(`  重新解析仍然失败：${outcome.error}`);
+      }
+      await repo.savePaper(next);
+      setPapers((ps) => ps.map((p) => (p.id === next.id ? next : p)));
+      setLastImportedId(next.id);
+      setTick((t) => t + 1);
+      invalidateTasks();
+    } catch (err) {
+      log(`  重新解析异常：${(err as Error).message}`);
+    }
+  };
+
+  /**
+   * 这份 PDF 现在能不能**直接**重解析（不需要用户再选一次文件）。
+   * 本次会话里选过就还在内存缓存里；刷新过就没了 —— 界面据此给出不同的按钮文案，
+   * 不让用户以为点了「重新选择」却没有选择框弹出。
+   */
+  const canReparseInPlace = useCallback(
+    (paperId: string) => {
+      const p = papers.find((x) => x.id === paperId);
+      return Boolean(p?.contentHash && fileCacheRef.current.has(p.contentHash));
+    },
+    [papers],
+  );
+
+  /** 隐藏 input 的回调：用户重新选完文件后真正执行解析 */
+  const onReparseFilePicked = async (files: FileList | null) => {
+    const paperId = reparseTargetRef.current;
+    reparseTargetRef.current = null;
+    if (reparseInputRef.current) reparseInputRef.current.value = '';
+    if (!paperId || !files || !files.length) return;
+    await reparsePaper(paperId, files[0]);
   };
 
   const importPaste = async (title: string, text: string) => {
@@ -592,6 +731,16 @@ export default function App() {
         relations: cachedRelations.length,
         message: `已加载 ${hyd.length} 篇论文、${experiments} 条实验记录、${cachedRelations.length} 条方法关系`,
         at: Date.now(),
+      });
+      /**
+       * 记下「这份语料的预置缓存里到底有什么」。
+       * 实验可比性页要靠它如实说明有没有实验记录 —— 否则会出现
+       * 「重载以补齐实验记录」这种对 NLP 样例根本不可能成立的承诺（实测问题 3）。
+       */
+      setSampleStats((prev) => {
+        const next = { ...prev, [key]: { papers: hyd.length, experiments, at: Date.now() } };
+        void saveMeta('sampleStats', next);
+        return next;
       });
       log(`已加载 ${hyd.length} 篇论文、${experiments} 条实验记录、${cachedRelations.length} 条关系（语料集：${cfg.label}）`);
       log(`缓存生成信息：模型 ${index.meta.model}，提示词 ${index.meta.promptVersion}，时间 ${index.meta.generatedAt}`);
@@ -1106,6 +1255,16 @@ export default function App() {
 
   return (
     <div className="app">
+      {/* 「重新选择 PDF」用的隐藏文件选择器：解析失败后由用户重新选一次文件，再真正重跑 PDF 解析 */}
+      <input
+        ref={reparseInputRef}
+        type="file"
+        accept="application/pdf,.pdf"
+        style={{ display: 'none' }}
+        aria-hidden="true"
+        tabIndex={-1}
+        onChange={(e) => void onReparseFilePicked(e.target.files)}
+      />
       <AppBrandBar
         corpusLabel={scope.meta.label}
         fontsReady={fontsReady}
@@ -1208,6 +1367,11 @@ export default function App() {
               scope={scope}
               methods={methods}
               jobs={jobs}
+              lastImportedId={lastImportedId}
+              onReparse={reparsePaper}
+              canReparseInPlace={canReparseInPlace}
+              onUseOwnScope={() => setMapMode('own')}
+              onUseCaseScope={() => setMapMode('case')}
               modelReady={modelReady}
               config={config}
               onSaveConfig={async (c) => {
@@ -1273,6 +1437,9 @@ export default function App() {
               corpusLoading={corpusLoading}
               loadResult={loadResult}
               focusPaper={expFocus}
+              cacheStats={sampleStats[corpus] ?? null}
+              visionStats={sampleStats.vision ?? null}
+              onSwitchToVision={() => void switchCorpus('vision')}
               onProgress={(p) => {
                 setExpPicked(p.picked);
                 setExpCompared(p.compared);
@@ -1303,6 +1470,9 @@ export default function App() {
               relations={scopedRelations}
               jobs={jobs}
               modelReady={modelReady}
+              lastImportedId={lastImportedId}
+              onReparse={reparsePaper}
+              canReparseInPlace={canReparseInPlace}
               onImport={importFiles}
               onPaste={importPaste}
               onExtract={extract}

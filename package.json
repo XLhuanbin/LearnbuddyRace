@@ -18,7 +18,8 @@
     "verify:scope": "node scripts/verify-scope-flow.mjs",
     "verify:mobile": "node scripts/verify-mobile-map.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "samples": "node samples/download-samples.mjs"
+    "samples": "node samples/download-samples.mjs",
+    "verify:import": "node scripts/verify-import-flow.mjs"
   },
   "dependencies": {
     "pdfjs-dist": "^4.10.38",

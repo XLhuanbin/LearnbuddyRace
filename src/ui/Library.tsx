@@ -9,6 +9,7 @@ import {
   METHOD_FIELD_LABELS,
   TRAINING_STAGE_LABELS,
 } from '../core/types';
+import { titleNeedsConfirm } from '../core/rules';
 import { FIELD_KEYS_ORDER } from '../core/cache';
 import { buildMethodProfile, shortContribution } from '../core/grouping';
 import { FieldCard, Tag, Banner } from './common';
@@ -89,8 +90,11 @@ export function LibraryView({
   onImport,
   onPaste,
   onExtract,
+  onReparse,
+  canReparseInPlace,
   onCancel,
   onRemove,
+  lastImportedId,
   onRestore,
   onOverride,
   onOpenEvidence,
@@ -121,6 +125,12 @@ export function LibraryView({
   onImport: (files: FileList) => void;
   onPaste: (title: string, text: string) => void;
   onExtract: (paperId: string, force?: boolean) => void;
+  /** 重新解析 PDF：真正重跑解析（必要时请用户重新选一次文件），不是模型抽取 */
+  onReparse: (paperId: string) => void;
+  /** 这份 PDF 现在能否直接重解析（文件还在本次会话的内存里） */
+  canReparseInPlace: (paperId: string) => boolean;
+  /** 刚导入的论文（列表里高亮） */
+  lastImportedId?: string | null;
   /** 停止等待：只停止本次等待，不代表服务端已停止计算或不再计费 */
   onCancel: (paperId: string) => void;
   onRemove: (paperId: string) => void;
@@ -373,6 +383,11 @@ export function LibraryView({
                   <div className="lrow-r1">
                     <h3 className="paper-title lrow-short" title={p.title}>
                       {p.title}
+                      {titleNeedsConfirm(p) && (
+                        <span className="titleflag" title="这个标题是从 PDF 首页猜出来的，还没有在原文里核验">
+                          标题待确认
+                        </span>
+                      )}
                     </h3>
                     <span className="spacer" />
                     {m && (
@@ -386,8 +401,9 @@ export function LibraryView({
                       </button>
                     )}
                     {p.parseStatus === 'failed' && (
-                      <button className="btn primary sm" disabled={!!job && job.status === 'running'} onClick={() => onExtract(p.id, true)}>
-                        重试解析
+                      /* 真正重新解析 PDF，不再拿模型抽取冒充「解析重试」 */
+                      <button className="btn primary sm" disabled={!!job && job.status === 'running'} onClick={() => onReparse(p.id)}>
+                        {canReparseInPlace(p.id) ? '重新解析这份 PDF' : '重新选择 PDF 并重新解析'}
                       </button>
                     )}
                     {job?.status === 'running' && (
@@ -536,9 +552,12 @@ export function LibraryView({
                             {p.parseError}
                             <br />
                             <strong>已有数据：</strong>该论文的元数据已保存（标题、页数、内容哈希），移除前一直保留。
+                            <br />
+                            <strong>怎么重试：</strong>
+                            重新选择这份 PDF 重新解析（必要时请你重新选一次文件）；这不是模型抽取，配置模型也修不了 PDF 解析。
                           </div>
-                          <button className="btn sm" onClick={() => onExtract(p.id, true)}>
-                            重试解析
+                          <button className="btn sm" onClick={() => onReparse(p.id)}>
+                            {canReparseInPlace(p.id) ? '重新解析这份 PDF' : '重新选择 PDF 并重新解析'}
                           </button>
                         </div>
                       )}

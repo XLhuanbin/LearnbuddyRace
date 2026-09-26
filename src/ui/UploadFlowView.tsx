@@ -8,6 +8,7 @@ import { buildMethodProfile, shortContribution } from '../core/grouping';
 import type { CorpusScope } from '../core/corpus';
 import { effectiveFieldValue } from '../core/effective';
 import { FlowBar, NextStep, PageHead, Status } from './common';
+import { titleNeedsConfirm } from '../core/rules';
 
 interface Props {
   papers: Paper[];
@@ -24,9 +25,18 @@ interface Props {
   onImport: (files: FileList) => void;
   onPaste: (title: string, text: string) => void;
   onExtract: (paperId: string, force: boolean) => void;
+  /** 重新解析 PDF（会真正重跑解析；必要时要用户重新选一次文件） */
+  onReparse: (paperId: string) => void;
+  /** 这份 PDF 现在能否直接重解析（文件还在本次会话的内存里） */
+  canReparseInPlace: (paperId: string) => boolean;
   onCancel: (paperId: string) => void;
   onEnterMap: () => void;
   onOpenPaper: (paperId: string) => void;
+  /** 刚刚导入的论文：默认选中它并给出醒目入口 */
+  lastImportedId?: string | null;
+  /** 切到「我上传的论文」/「案例」范围（列表与计数会一起跟着走） */
+  onUseOwnScope: () => void;
+  onUseCaseScope: () => void;
 }
 
 type StepState = 'done' | 'running' | 'waiting' | 'failed';
@@ -134,12 +144,19 @@ export function UploadFlowView({
   onImport,
   onPaste,
   onExtract,
+  onReparse,
+  canReparseInPlace,
   onCancel,
   onEnterMap,
   onOpenPaper,
+  lastImportedId,
+  onUseOwnScope,
+  onUseCaseScope,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [sel, setSel] = useState<string | null>(null);
+  /** 用户手动选过哪一篇（导入后要自动跳到刚导入的那一篇） */
+  const [touched, setTouched] = useState(false);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteTitle, setPasteTitle] = useState('');
   const [pasteText, setPasteText] = useState('');
@@ -152,22 +169,36 @@ export function UploadFlowView({
    */
   const casePapers = scope.presetPapers;
   const ownPapers = scope.ownPapers;
+  /**
+   * 列表范围规则（与全局分析范围保持一致）：
+   * - 只要进入过 own 范围（导入后 App 会切过去），就显示我上传的论文；
+   * - 案例里一篇都没有但用户有自传论文时，也显示自传论文（否则页面会是空的）；
+   * - 其余情况显示案例。
+   * 无论哪种，**列表 / 页头计数 / 当前选中 / 抽取入口都取自同一个 `shown`**。
+   */
   const listMode: 'case' | 'own' = scope.mode === 'own' || (casePapers.length === 0 && ownPapers.length > 0) ? 'own' : 'case';
   const shown = listMode === 'own' ? ownPapers : casePapers;
+  /** 自传论文存在但当前看的是案例列表 → 必须给出醒目入口（不能静默藏着） */
+  const hiddenOwn = listMode === 'case' && ownPapers.length > 0 ? ownPapers.length : 0;
   /** 待处理：还没生成方法结果的论文（与总数/完成数同一个集合） */
   const pendingCount = shown.filter((p) => p.parseStatus !== 'failed' && !methods.some((m) => m.paperId === p.id)).length;
   const hasMethod = (p: Paper) => methods.some((m) => m.paperId === p.id);
   const doneCount = shown.filter(hasMethod).length;
   const needModel = !modelReady && shown.some((p) => p.parseStatus === 'ok' && !hasMethod(p));
 
-  /** 默认选中「最需要注意」的那一篇：失败 > 进行中 > 未完成 > 第一篇 */
+  /**
+   * 默认选中「最需要注意」的那一篇：刚导入的 > 失败 > 进行中 > 未完成 > 第一篇。
+   * 「刚导入」优先，是为了让用户上传完立刻看到自己那篇论文的抽取入口。
+   */
   const autoSel =
+    (lastImportedId && shown.some((p) => p.id === lastImportedId) ? lastImportedId : null) ??
     shown.find((p) => p.parseStatus === 'failed' || jobs[p.id]?.status === 'failed')?.id ??
     shown.find((p) => jobs[p.id]?.status === 'running')?.id ??
     shown.find((p) => p.parseStatus === 'ok' && !hasMethod(p))?.id ??
     shown[0]?.id ??
     null;
-  const currentId = sel ?? autoSel;
+  // 用户没手动选过时，始终跟随 autoSel（这样导入后会自动跳到刚导入的那一篇）
+  const currentId = (touched ? sel : null) ?? autoSel;
   const current = shown.find((p) => p.id === currentId);
   const currentMethod = current ? methods.find((m) => m.paperId === current.id) : undefined;
   const currentJob = current ? jobs[current.id] : undefined;
@@ -327,6 +358,40 @@ export function UploadFlowView({
         </div>
       )}
 
+      {/* 刚导入的论文：明确告诉用户「在哪里、被选中了、抽取入口在右边」 */}
+      {lastImportedId &&
+        (() => {
+          const just = shown.find((p) => p.id === lastImportedId);
+          if (!just) return null;
+          const t = just.title.length > 52 ? just.title.slice(0, 52) + '…' : just.title;
+          return (
+            <div className="justbar" role="status">
+              <Status kind="ok">刚刚导入</Status>
+              <span className="small">
+                已选中「<strong>{t}</strong>」，右侧就是它的处理进度与抽取入口。
+              </span>
+              {listMode === 'own' ? (
+                <button className="btn ghost sm" onClick={onUseCaseScope}>
+                  切回{scope.meta.label}
+                </button>
+              ) : null}
+            </div>
+          );
+        })()}
+
+      {/* 自传论文存在、但当前显示的是案例列表 → 醒目入口，绝不静默藏着（实测问题 1） */}
+      {hiddenOwn > 0 && (
+        <div className="ownentry" role="status">
+          <div>
+            <strong>你上传的 {hiddenOwn} 篇论文不在当前列表里</strong>
+            <span className="small dim">（列表显示的是{scope.meta.label}的 {casePapers.length} 篇预置论文）</span>
+          </div>
+          <button className="btn primary sm" onClick={onUseOwnScope}>
+            查看我上传的 {hiddenOwn} 篇论文 →
+          </button>
+        </div>
+      )}
+
       {shown.length > 0 ? (
         <div className="work2">
           {/* 左：论文列表（只显示名称 / 当前阶段 / 状态） */}
@@ -348,11 +413,21 @@ export function UploadFlowView({
               return (
                 <button
                   key={p.id}
-                  className={`pitem${p.id === currentId ? ' on' : ''}`}
-                  onClick={() => setSel(p.id)}
+                  className={`pitem${p.id === currentId ? ' on' : ''}${p.id === lastImportedId ? ' just' : ''}`}
+                  onClick={() => {
+                    setSel(p.id);
+                    setTouched(true);
+                  }}
                   aria-current={p.id === currentId ? 'true' : undefined}
                 >
-                  <span className="nm">{p.title}</span>
+                  <span className="nm">
+                    {p.title}
+                    {titleNeedsConfirm(p) && (
+                      <span className="titleflag" title="PDF 首页排版多变，这个标题是猜出来的，还没在原文里核验">
+                        标题待确认
+                      </span>
+                    )}
+                  </span>
                   <span className="mname">{m ? shortNameOf(m) : '尚未提取方法'}</span>
                   <span className="idea">
                     {m ? shortContribution(effectiveFieldValue(m, 'coreIdea')) || '尚未提取到核心思路' : '还没有方法结果'}
@@ -372,6 +447,12 @@ export function UploadFlowView({
               <>
                 <div className="detail-head">
                   <h3>{current.title}</h3>
+                  {/* PDF 首页排版多变，猜出来的标题必须标明「待确认」，不能当成已确认标题 */}
+                  {titleNeedsConfirm(current) && (
+                    <span className="titleflag" title="这个标题是从 PDF 首页猜出来的，还没有在原文里核验">
+                      标题待确认
+                    </span>
+                  )}
                   {currentMethod && <span className="mname">{shortNameOf(currentMethod)}</span>}
                   <Status
                     kind={currentJob?.status === 'running' ? 'info' : currentMethod ? (currentMethod.cached ? 'cached' : 'live') : failedStep ? 'bad' : 'pending'}
@@ -418,7 +499,7 @@ export function UploadFlowView({
                     <dt>下一步</dt>
                     <dd>
                       {current.parseStatus === 'failed'
-                        ? '重试解析（扫描件需要先做 OCR）'
+                        ? '重新选择这份 PDF 重新解析（扫描件需要先做 OCR）'
                         : !currentMethod
                           ? modelReady
                             ? '开始提取方法字段'
@@ -437,8 +518,10 @@ export function UploadFlowView({
                     </button>
                   )}
                   {current.parseStatus === 'failed' && (
-                    <button className="btn primary sm" onClick={() => onExtract(current.id, true)}>
-                      重试解析
+                    /* 这里必须是**真正重新解析 PDF**：不能拿模型抽取冒充解析重试（实测问题 2）。
+                       浏览器不会长期保留用户选过的文件，所以必要时会请他重新选一次。 */
+                    <button className="btn primary sm" onClick={() => onReparse(current.id)}>
+                      {canReparseInPlace(current.id) ? '重新解析这份 PDF' : '重新选择 PDF 并重新解析'}
                     </button>
                   )}
                   {currentJob?.status === 'running' && (
@@ -465,8 +548,8 @@ export function UploadFlowView({
                       <br />
                       <strong>如何重试：</strong>
                       {failedStep.no === '02'
-                        ? '点上面的「重试解析」；扫描件需要先做 OCR，系统不会返回空结果冒充成功。'
-                        : '点上面的「重试解析 / 开始提取字段」；也可以先在设置里检查接口地址、模型名与额度。'}
+                        ? '点上面的「重新选择 PDF 并重新解析」——它会真的重跑一次 PDF 解析（必要时请你重新选一次文件）；扫描件需要先做 OCR，系统不会返回空结果冒充成功。'
+                        : '点上面的「开始提取字段」；也可以先在设置里检查接口地址、模型名与额度。换个 PDF 解析失败不是模型问题，不是在这里重试。'}
                       <br />
                       <strong>已完成的数据：</strong>
                       {current.parseStatus === 'ok'

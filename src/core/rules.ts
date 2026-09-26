@@ -283,6 +283,19 @@ export function looksLikeTitle(s: string | undefined): boolean {
   return true;
 }
 
+/**
+ * 这条标题是否需要标注「标题待确认」。
+ *
+ * 判据：既不是模型在原文里核验过的、也不是用户自己填的，且本身不像标题
+ * （PDF 首页排版多变，实测会把摘要句抓成标题）。界面必须据此给出提示，
+ * 不能把摘要句当作已确认标题展示。
+ */
+export function titleNeedsConfirm(paper: { title?: string; titleFrom?: string } | undefined): boolean {
+  if (!paper) return false;
+  if (paper.titleFrom === 'model-verified' || paper.titleFrom === 'user') return false;
+  return !looksLikeTitle(paper.title);
+}
+
 /* ============================ 条件条目的适用范围 ============================ */
 
 /** 论文级 vs 局部实验级的表述标记（注意转义斜杠） */

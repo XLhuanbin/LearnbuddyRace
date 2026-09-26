@@ -16,6 +16,16 @@ interface Props {
   loadResult?: { key: CorpusKey; ok: boolean; papers: number; experiments: number; relations: number; message: string; at: number };
   focusPaper?: string | null;
   onProgress?: (p: { picked: number; compared: boolean }) => void;
+  /**
+   * 当前语料**预置缓存里到底有什么**（论文数与实验记录数，来自实际加载结果）。
+   * 有了它才能如实说明「这份语料本来就没有实验记录」，
+   * 而不是无脑承诺「重新加载就能补齐」（NLP 样例实测就是 0 条，重载还是 0）。
+   */
+  cacheStats?: { papers: number; experiments: number; at: number } | null;
+  /** 切到有实验记录的那个语料（视觉演进案例） */
+  onSwitchToVision?: () => void;
+  /** 视觉案例预置缓存的内容（用于「切回去」时给出真实数字，而不是空口承诺） */
+  visionStats?: { papers: number; experiments: number; at: number } | null;
 }
 
 const LEVEL_KIND: Record<string, string> = {
@@ -72,6 +82,9 @@ export function ExperimentsView({
   loadResult,
   focusPaper,
   onProgress,
+  cacheStats,
+  onSwitchToVision,
+  visionStats,
 }: Props) {
   const [picked, setPicked] = useState<string[]>([]);
   const [paperFilter, setPaperFilter] = useState<string | null>(focusPaper ?? null);
@@ -204,6 +217,10 @@ export function ExperimentsView({
   /* ---------------- 空状态：分清「没有语料」与「有论文但无实验记录」 ---------------- */
   if (!all.length) {
     const hasPapers = scope.papers.length > 0;
+    /** 预置缓存里实际有多少实验记录（已加载过才知道；不知道时不下结论、也不承诺） */
+    const cacheKnown = Boolean(cacheStats);
+    const cacheHasExperiments = (cacheStats?.experiments ?? 0) > 0;
+    const canSwitchToVision = scope.key !== 'vision' && Boolean(onSwitchToVision);
     return (
       <div>
         <Crumb trail={[{ label: '研究地图', on: () => onGo?.('graph') }, { label: '实验可比性' }]} />
@@ -221,23 +238,54 @@ export function ExperimentsView({
             </>
           }
           actions={
-            onLoadSample ? (
-              <button className="btn primary" onClick={() => onLoadSample()} disabled={loading}>
-                {loading ? '正在加载…' : hasPapers ? '重新加载演示案例（补齐实验记录）' : '加载演示案例'}
+            /**
+             * 主按钮只在**确实能补出实验记录**时才承诺「补齐」。
+             * 实测：NLP 开发样例的预置缓存里就是 0 条实验记录，重载仍是 0 —— 那时主按钮换成
+             * 「切回有实验记录的视觉案例」，而不是让用户白点一次。
+             */
+            !cacheKnown ? (
+              /* 还不知道这份语料的缓存里有什么 → 先给「加载」入口（不给任何承诺，也不让用户无路可走） */
+              <button className="btn primary" onClick={() => onLoadSample?.()} disabled={loading || !onLoadSample}>
+                {loading ? '正在加载…' : '加载本语料的预置缓存'}
               </button>
-            ) : undefined
+            ) : cacheHasExperiments ? (
+              <button className="btn primary" onClick={() => onLoadSample?.()} disabled={loading}>
+                {loading ? '正在加载…' : '重新加载本语料的预置缓存（补齐实验记录）'}
+              </button>
+            ) : canSwitchToVision ? (
+              <button className="btn primary" onClick={() => onSwitchToVision?.()} disabled={loading}>
+                切回视觉方法演进案例（有实验记录）
+              </button>
+            ) : (
+              <button className="btn ghost" onClick={() => onLoadSample?.()} disabled={loading || !onLoadSample}>
+                {loading ? '正在加载…' : '加载本语料的预置缓存'}
+              </button>
+            )
           }
         />
         <div className="lite">
           <p className="small dim" style={{ marginTop: 0 }}>
-            {hasPapers
-              ? '论文已加载，但当前语料还没有生成实验记录。可以重新加载演示案例来补齐（不会重复添加论文）。'
-              : '还没有加载语料。点右上角的主按钮加载演示案例，5 篇论文与实验记录会一起就绪。'}
+            {cacheKnown && !cacheHasExperiments
+              ? `这份语料（${scope.meta.label}）的预置缓存里没有实验记录（已实际加载核对：${cacheStats?.papers ?? 0} 篇论文、0 条实验记录），重新加载也不会多出来。这一页只比较「一条实验记录」之间的口径，没有记录就没有可比内容。`
+              : hasPapers
+                ? '论文已加载，但当前语料还没有生成实验记录。可以重新加载本语料的预置缓存来补齐（不会重复添加论文）。'
+                : '还没有加载本语料的预置缓存。加载后能看到这份语料实际包含什么——有些开发回归样例本来就不含实验记录，那时这里不会有可比内容。'}
           </p>
+          {cacheKnown && !cacheHasExperiments && visionStats && visionStats.experiments > 0 && (
+            <p className="small dim" style={{ marginTop: 4 }}>
+              视觉方法演进案例的预置缓存里有 <strong>{visionStats.papers} 篇论文、{visionStats.experiments} 条实验记录</strong>
+              ，要比较实验口径请切回那个案例。
+            </p>
+          )}
           <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
             <button className="btn ghost sm" onClick={() => onGo?.('library')}>
               去论文集合查看论文
             </button>
+            {canSwitchToVision && (
+              <button className="btn ghost sm" onClick={() => onSwitchToVision?.()}>
+                切回视觉方法演进案例
+              </button>
+            )}
           </div>
           {loadResult && (
             <div className="row" style={{ gap: 8, marginTop: 10 }}>

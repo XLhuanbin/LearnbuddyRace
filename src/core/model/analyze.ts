@@ -283,15 +283,23 @@ export async function extractMethod(
   return method;
 }
 
-/** 用「已在原文中验证」的模型标题校正启发式标题；未验证则保留原值 */
+/**
+ * 用「已在原文中验证」的模型标题校正启发式标题。
+ *
+ * 三种结果必须分得清：
+ * ① 模型标题可用 → 采用，标 `model-verified`；
+ * ② 模型没给/不可用，但原启发式标题本身像标题 → 保持原样（不宣称已确认）；
+ * ③ 模型没给/不可用，且原启发式标题**也不像标题**（实测：DDPM 这类 PDF 会把摘要句抓成标题）
+ *    → 必须标 `unverified`，界面据此显示「标题待确认」。
+ *    旧实现在 ②③ 合并的分支里直接 `return paper`，导致摘要句一直挂着「已确认」的样子。
+ */
 export function applyTitleCorrection(paper: Paper, method: Method): Paper {
-  if (!method.paperTitleGuess) return paper;
-  if (paper.title === method.paperTitleGuess) return paper;
-  if (!looksLikeTitle(method.paperTitleGuess)) {
-    // 模型给出的不是标题（实测出现过回显摘要句的情况），不采用，并标记标题未确认
-    return { ...paper, titleFrom: looksLikeTitle(paper.title) ? paper.titleFrom : 'unverified' };
+  const guess = method.paperTitleGuess;
+  if (guess && guess !== paper.title && looksLikeTitle(guess)) {
+    return { ...paper, title: guess, titleFrom: 'model-verified' };
   }
-  return { ...paper, title: method.paperTitleGuess, titleFrom: 'model-verified' };
+  if (looksLikeTitle(paper.title)) return paper;
+  return { ...paper, titleFrom: 'unverified' };
 }
 
 export interface ExtractProgressEvent {
