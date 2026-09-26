@@ -690,7 +690,7 @@ export default function App() {
       if (keptOverrides) {
         log(`已保留 ${keptOverrides} 处人工字段修正（按同 ID 合并写入，重新加载案例不会覆盖你的修正）`);
       }
-      const keptManualRels = relSwap.keep.filter((r) => r.userEdited || r.aiOriginal).length;
+      const keptManualRels = relSwap.keep.filter((r) => r.userEdited).length;
       if (keptManualRels) {
         log(`已保留 ${keptManualRels} 条人工修正关系（缓存结果不覆盖人工修正）`);
       }

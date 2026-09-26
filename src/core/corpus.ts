@@ -167,9 +167,19 @@ export function scopeRelations(relations: Relation[], scope: CorpusScope): Relat
   return relationsInScope(relations, scope.scopeMethodIds);
 }
 
-/** 人工关系：用户手工添加（userEdited）或人工修正过的（带 aiOriginal） */
+/**
+ * 人工关系：**用户实际改过或手工添加的**（`userEdited === true`）。
+ *
+ * ⚠️ 不要把 `aiOriginal` 也算进来。它是「AI 原始判定快照」，**普通 AI 关系也会有**
+ * （关系生成时逐条写入，见 `model/analyze.ts`；实测 `public/samples-vision/index.json` 的
+ * 10 条缓存关系全部带 `aiOriginal`、全部没有 `userEdited`）。用 `userEdited || aiOriginal`
+ * 判定会把整批普通关系当成人工关系，后果是：
+ * - 同 ID 的新结果一条也写不进库（`replaceRelationsInScope().write` 恒为空）；
+ * - 旧的普通关系永远不会被按范围替换/删除。
+ * `aiOriginal` 的正确用途只有两个：界面上展示「AI 原判定」、以及「恢复 AI 原判定」按钮。
+ */
 export function isManualRelation(r: Relation): boolean {
-  return Boolean(r.userEdited || r.aiOriginal);
+  return Boolean(r.userEdited);
 }
 
 /**

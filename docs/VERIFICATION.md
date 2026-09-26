@@ -1087,3 +1087,53 @@ IndexedDB 里已存在一条人工修正关系 〔{"id":"r_0_m_p_arxiv_1512.0338
 | `npm run verify:reload` | **20/20**（新增） |
 
 **未删任何旧断言**；新增断言全部对应本次实测缺陷或真实行为分支。未调用真实模型（只用预置缓存 + 界面人工修正 + 本机粘贴解析）。
+
+## V45 「人工关系」判定修正（aiOriginal ≠ 人工，2026-09-26 第十一轮）
+
+**复现**：`scripts/verify-relation-manual-flag.mjs`（`npm run verify:relations`）用**真实缓存数据**
+（`public/samples-vision/index.json`）在内存 / IndexedDB / 刷新后三层核对；另在 `tests/core.test.ts` 加了同一批真实数据的断言。
+
+### 修复前（失败证据）
+
+```
+缓存关系 10 条｜带 aiOriginal 10 条｜带 userEdited 0 条
+✗ 真实缓存：普通 AI 关系不得被判成人工关系 — 被判成人工的条数=10
+✗ 真实缓存 + 同 ID 新结果：新结果能写进库 — write=0（期望 10）
+✗ 保留上一轮行为：用户改过的那条（userEdited）同 ID 优先 — write=0（期望 9）
+结果：通过 307，失败 3
+```
+
+结论：`aiOriginal` 只是 AI 原始判定快照（关系生成时逐条写入），把它当人工标志会让
+`replaceRelationsInScope().write` 恒为空 —— 普通关系既不能被新结果替换，也不会被按范围删除。
+
+### 修复后
+
+`isManualRelation(r) = Boolean(r.userEdited)`，并保留「人工关系同 ID 优先」；`loadSample()` 的日志计数同步改为只算 `userEdited`。
+
+| 命令 | 实际结果 |
+| --- | --- |
+| `npm run typecheck` | 0 error |
+| `npm test` | **310/310**（新增真实缓存数据断言 8 条，未删任何旧断言） |
+| `npm run build` | 成功（指纹 `94695f1053`） |
+| `npm run e2e` | **77/77** |
+| `npm run verify:scope` | **25/25** |
+| `npm run verify:import` | **25/25** |
+| `npm run verify:reload` | **20/20**（上一轮的人工修正保护行为未被破坏） |
+| `npm run verify:relations` | **16/16**（新增） |
+
+### 三层实测（`npm run verify:relations` 输出摘要）
+
+```
+✓ 基线注入：两条都带 aiOriginal、都没有 userEdited（与真实缓存关系同构）
+✓ 加载案例后：IndexedDB 里正好 10 条缓存关系｜全部带 aiOriginal｜userEdited 全空
+✓ 范围内那条「旧普通关系」被按范围删除（不在新结果里的普通关系不会赖着不走）
+✓ 被改过值的普通关系换回了缓存值（普通 AI 关系可以被新结果替换）〔improves → unclear〕
+✓ 内存（关系图）：画出全部缓存关系〔10 条边〕；普通 AI 关系没有被标成「·人工」〔标记数 0〕
+✓ 界面人工修正后：IndexedDB 里恰好 1 条 userEdited（且带 aiOriginal 快照）
+✓ 重载后：人工修正的那条仍是用户改的值〔type=extends〕；其余 9 条按缓存值写入
+✓ 内存（关系图）：只有那 1 条被标成「·人工」〔标记数 1〕
+✓ 刷新后：人工关系保留 / 普通关系仍为缓存值 / 旧普通关系没有复活
+结果：通过 16，失败 0
+```
+
+未调用真实模型（只用预置缓存 + 界面人工修正 + 直读/写 IndexedDB 制造旧值基线）；未改首页与手机布局。

@@ -1500,6 +1500,70 @@ console.log('=== 25. 唯一分析范围 / 关系生命周期 / 案例切换（�
     mergedList[0].overrides.length === 1 && (mergedList[1].overrides?.length ?? 0) === 0,
   );
 
+  // ---- 2d) 真实缓存数据：`aiOriginal` 不是「人工」标志（实测缺陷） ----
+  // aiOriginal 是「AI 原始判定快照」，普通 AI 关系也会有（关系生成时逐条写入）。
+  // 旧实现 isManualRelation = userEdited || aiOriginal，会把整批缓存关系都当成人工关系，
+  // 于是同 ID 的新结果一条也写不进去、旧的普通关系也永远删不掉。
+  const rawVision = JSON.parse(readFileSync('public/samples-vision/index.json', 'utf8')) as { relations: Relation[] };
+  const cacheRels = rawVision.relations;
+  check(
+    '真实缓存：10 条关系，且全部带 aiOriginal（= AI 原始判定快照，不是人工痕迹）',
+    cacheRels.length === 10 && cacheRels.every((r) => !!r.aiOriginal),
+    `${cacheRels.length} 条，带 aiOriginal ${cacheRels.filter((r) => !!r.aiOriginal).length} 条`,
+  );
+  check('真实缓存：没有任何一条被用户改过（userEdited 全空）', cacheRels.every((r) => !r.userEdited));
+  check(
+    '真实缓存：普通 AI 关系不得被判成人工关系（否则替换会被全部挡掉）',
+    cacheRels.filter(isManualRelation).length === 0,
+    `被判成人工的条数=${cacheRels.filter(isManualRelation).length}`,
+  );
+
+  const realMethodIds = new Set<string>(cacheRels.flatMap((r) => [r.fromMethodId, r.toMethodId]));
+  const incomingReal: Relation[] = cacheRels.map((r) => ({ ...r, rationale: '本次新模型结果' }));
+  const swapReal = replaceRelationsInScope(cacheRels, incomingReal, realMethodIds);
+  check(
+    '真实缓存 + 同 ID 新结果：新结果能写进库（write 不为空）',
+    swapReal.write.length === cacheRels.length,
+    `write=${swapReal.write.length}（期望 ${cacheRels.length}）`,
+  );
+  check(
+    '真实缓存 + 同 ID 新结果：范围内容就是「被替换」而不是「被保护」',
+    swapReal.deleteIds.length === 0 && !swapReal.write.some((r) => swapReal.deleteIds.includes(r.id)),
+    `deleteIds=${swapReal.deleteIds.length}`,
+  );
+  const staleRel: Relation = {
+    id: 'r_stale_plain_test',
+    fromMethodId: cacheRels[0].fromMethodId,
+    toMethodId: cacheRels[1].toMethodId,
+    type: 'similar',
+    evidenceState: 'candidate',
+    rationale: '旧的普通关系（不在新结果里）',
+  };
+  const swapStale = replaceRelationsInScope([...cacheRels, staleRel], incomingReal, realMethodIds);
+  check(
+    '真实缓存：旧的普通关系（不在新结果里）→ 按范围删除',
+    swapStale.deleteIds.includes('r_stale_plain_test'),
+    `deleteIds=[${swapStale.deleteIds.join(',')}]`,
+  );
+  const userEditedRel: Relation = { ...cacheRels[0], userEdited: true, type: 'extends', rationale: '用户改过的' };
+  const swapEdited = replaceRelationsInScope(
+    [userEditedRel, ...cacheRels.slice(1)],
+    incomingReal,
+    realMethodIds,
+  );
+  check(
+    '保留上一轮行为：用户改过的那条（userEdited）同 ID 优先，不被新结果覆盖',
+    swapEdited.next.find((r) => r.id === userEditedRel.id)?.type === 'extends' &&
+      swapEdited.next.find((r) => r.id === userEditedRel.id)?.rationale === '用户改过的' &&
+      !swapEdited.write.some((r) => r.id === userEditedRel.id) &&
+      swapEdited.write.length === cacheRels.length - 1,
+    `write=${swapEdited.write.length}（期望 ${cacheRels.length - 1}）`,
+  );
+  check(
+    '用户改过的那条也带 aiOriginal（AI 原判定快照）—— 说明只有 userEdited 才是人工标志',
+    !!userEditedRel.aiOriginal && isManualRelation(userEditedRel),
+  );
+
   // ---- 3) 删除论文后不存在悬挂关系 ----
   const afterRemove = collectPaperRemoval(papers, methods, relations, 'p_user_1');
   check('删除论文：连同它的方法一起删（方法 ID 不是 m_<paperId> 也照样删）', afterRemove.removedMethods.length === 1 && afterRemove.removedMethods[0].id === 'mm_custom_own_1');
