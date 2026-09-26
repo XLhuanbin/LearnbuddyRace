@@ -1026,3 +1026,64 @@ CNN 教师 ≠ CNN 架构；以 X 为起点/借用技巧不改变家族；单篇
 | `npm run verify:import` | **25/25**（新增，独立数据目录 ×2） |
 
 **未删任何断言换通过率**；本轮新增的断言全部对应一个实测问题或一条真实行为分支。
+
+## V44 重载案例的数据安全（人工修正不丢，2026-09-26 第十轮）
+
+**复现**：`scripts/verify-cache-reload-safety.mjs`（`npm run verify:reload`），独立 Chrome 数据目录，
+用户给的顺序：加载视觉案例 → 界面修正 ResNet 一个字段 → 关系图修正一条已有关系 → 重新加载演示案例 → 刷新；
+每一步直读 IndexedDB（papers / methods.overrides / relations.userEdited）。
+
+### 修复前（失败证据）
+
+```
+界面可以保存字段修正 〔字段「研究任务」→「人工修正-回归测试值」〕
+IndexedDB 里 ResNet 方法已记录 1 处人工修正 〔overrides=1｜{"field":"researchTask","newValue":"人工修正-回归测试值"}〕
+IndexedDB 里已存在一条人工修正关系 〔{"id":"r_0_m_p_arxiv_1512.03385_m_p_arxiv_2010.11929","type":"extends","userEdited":true,...}〕
+这条人工关系与缓存关系的 ID 相同 〔缓存里同 id：true〕
+重载后：ResNet overrides=0｜人工关系={"type":"unclear","userEdited":false}      ← 两者都被缓存覆盖
+刷新后：ResNet overrides=0｜人工关系={"type":"unclear","userEdited":false}
+结果：通过 12，失败 5   （失败项＝方法 overrides、关系 userEdited、界面「已人工修正」标记）
+```
+失败项：`重载后立即查看` 与 `刷新后查看` 的方法/关系人工修正，以及界面标记。
+`范围外关系不受影响` 当时就是通过的（范围过滤本来就排除范围外）。
+
+### 修复后（同一脚本，20 项全绿）
+
+```
+重载后：ResNet overrides=1｜人工关系={"type":"extends","userEdited":true}
+  ✓ 【重载后立即查看】方法人工修正保留（overrides 还在） 〔overrides=1〕
+  ✓ 【重载后立即查看】关系人工修正保留（userEdited 与改过的类型还在） 〔type=extends（期望 extends）userEdited=true〕
+  ✓ 【重载后立即查看】范围外关系不受影响 〔关系总数 11〕
+  ✓ 【重载后立即查看】范围外论文不受影响（我粘贴导入的那篇还在） 〔论文总数 6〕
+刷新后：ResNet overrides=1｜人工关系={"type":"extends","userEdited":true}
+  ✓ 【刷新后查看】方法人工修正仍在 / 关系人工修正仍在 / 范围外关系仍在 / 范围外论文仍在
+  ✓ 刷新后界面上仍能看到「已人工修正」标记
+```
+
+### 单元回归（纯函数层，防止同类问题复发）
+
+在 `tests/core.test.ts` 增加（共 8 条，`npm test` 302 项）：
+
+| 检查 | 说明 |
+| --- | --- |
+| 落库集合：与人工关系撞 ID 的缓存结果**不写库**，也不删那条人工关系 | `replaceRelationsInScope().write` 的行为 |
+| 落库集合：正常替换时 write = 新结果，deleteIds = 被替换掉的旧关系 | |
+| 落库集合：write 与 deleteIds 没有交集（同一事务里不能先写后删） | |
+| 落库集合（混合）：一条被替换、一条撞人工 | |
+| 同 ID 覆盖写方法：保留人工修正，AI 结果仍按缓存更新 | `mergeCachedMethod()` |
+| 没有人工修正时按缓存原样写入 / 缓存里没有这条方法时直接写入 | |
+| 批量合并：逐条按 id 找旧记录，只有被修正过的那条带上 overrides | `mergeCachedMethods()` |
+
+### 命令结果
+
+| 检查 | 实际结果 |
+| --- | --- |
+| `npm run typecheck` | 0 error |
+| `npm test` | **302/302** |
+| `npm run build` | 成功（指纹 `cdf0eeb581`） |
+| `npm run e2e` | **77/77** |
+| `npm run verify:scope` | **25/25** |
+| `npm run verify:import` | **25/25**（确认上一轮的导入流程未被本轮改动破坏） |
+| `npm run verify:reload` | **20/20**（新增） |
+
+**未删任何旧断言**；新增断言全部对应本次实测缺陷或真实行为分支。未调用真实模型（只用预置缓存 + 界面人工修正 + 本机粘贴解析）。

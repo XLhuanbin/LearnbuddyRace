@@ -63,6 +63,37 @@ async function txBatch(store: StoreName, ops: { kind: 'put' | 'delete'; value?: 
   });
 }
 
+/** 跨 store 事务里的一个操作 */
+export type StoreOp =
+  | { store: StoreName; kind: 'put'; value: { id: string } }
+  | { store: StoreName; kind: 'delete'; key: string };
+
+/**
+ * **跨 store 的原子事务**。
+ *
+ * 用途：案例加载 = 论文 / 方法 / 关系的写入与删除必须在**同一个事务**里完成。
+ * 旧实现是一条一条 `saveMethod`/`saveRelations`/`deleteRelations` 各自开事务：
+ * 中途失败会留下「新数据写了一半、旧数据删了一半」的中间态，
+ * 而且写入用的是原始缓存对象，会把同一 ID 上的人工修正覆盖掉。
+ * 任一操作失败 → 整个事务 abort → 全部回滚，原数据保持原样。
+ */
+async function txApply(ops: StoreOp[]): Promise<void> {
+  if (!ops.length) return;
+  const db = await openDb();
+  const stores = [...new Set(ops.map((o) => o.store))] as StoreName[];
+  return new Promise<void>((resolve, reject) => {
+    const t = db.transaction(stores, 'readwrite');
+    for (const op of ops) {
+      const os = t.objectStore(op.store);
+      if (op.kind === 'put') os.put(op.value);
+      else os.delete(op.key);
+    }
+    t.oncomplete = () => resolve();
+    t.onerror = () => reject(t.error);
+    t.onabort = () => reject(t.error ?? new Error('事务被中断'));
+  });
+}
+
 export const db = {
   put: <T extends { id: string }>(store: StoreName, value: T) => tx<IDBValidKey>(store, 'readwrite', (s) => s.put(value)),
   get: <T>(store: StoreName, id: string) => tx<T | undefined>(store, 'readonly', (s) => s.get(id)),
@@ -96,6 +127,17 @@ export const repo = {
   saveRelations: (rs: Relation[]) => db.putMany('relations', rs),
   /** 批量删关系（单事务）：只删被替换掉的旧关系 */
   deleteRelations: (ids: string[]) => db.deleteMany('relations', ids),
+  /**
+   * 关系的「写入 + 删除」放在**同一个事务**里完成（按范围原子替换的正确写法）。
+   * 分两次调用会留下「新的写完了、旧的还没删」的中间态。
+   */
+  swapRelations: (puts: Relation[], deleteIds: string[]) =>
+    txApply([
+      ...puts.map((value) => ({ store: 'relations' as const, kind: 'put' as const, value })),
+      ...deleteIds.map((key) => ({ store: 'relations' as const, kind: 'delete' as const, key })),
+    ]),
+  /** 跨 store 原子事务（案例加载：论文/方法/关系的写入与删除一起提交或一起回滚） */
+  applyAtomic: (ops: StoreOp[]) => txApply(ops),
   clearRelations: () => db.clear('relations'),
   listPlans: () => db.all<ReadingPlan>('plans'),
   savePlan: (p: ReadingPlan & { id: string }) => db.put('plans', p),

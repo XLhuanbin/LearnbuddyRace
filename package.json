@@ -19,7 +19,8 @@
     "verify:mobile": "node scripts/verify-mobile-map.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "samples": "node samples/download-samples.mjs",
-    "verify:import": "node scripts/verify-import-flow.mjs"
+    "verify:import": "node scripts/verify-import-flow.mjs",
+    "verify:reload": "node scripts/verify-cache-reload-safety.mjs"
   },
   "dependencies": {
     "pdfjs-dist": "^4.10.38",

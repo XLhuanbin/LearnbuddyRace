@@ -181,12 +181,16 @@ export function isManualRelation(r: Relation): boolean {
  * - **当前范围内的人工关系也保留**（与「重新分析不覆盖人工修正」同一原则），
  *   且当新结果与人工关系 id 相同时，人工的版本优先。
  * 调用方负责把 `next` 写入存储。本函数是纯函数：不改动入参，写入失败时原数据仍是 `all`。
+ *
+ * **落库要注意**：必须写 `write` 而不是 `incoming`。直接写 incoming 会把「与人工关系撞 ID」
+ * 的缓存版本写进库，把人工修正覆盖掉（内存里保住了、库里丢了，一刷新就现形）。
+ * `deleteIds` 已经排除了 `write` 里的 ID，避免同一个 ID 在同一事务里先写后删。
  */
 export function replaceRelationsInScope(
   all: Relation[],
   incoming: Relation[],
   methodIds: Set<string>,
-): { keep: Relation[]; drop: Relation[]; next: Relation[] } {
+): { keep: Relation[]; drop: Relation[]; next: Relation[]; write: Relation[]; deleteIds: string[] } {
   const outOfRange: Relation[] = [];
   const inRange: Relation[] = [];
   for (const r of all) {
@@ -199,11 +203,36 @@ export function replaceRelationsInScope(
   for (const r of outOfRange) byId.set(r.id, r);
   for (const r of manual) byId.set(r.id, r);
   const manualIds = new Set(manual.map((r) => r.id));
+  const write: Relation[] = [];
   for (const r of incoming) {
-    if (manualIds.has(r.id)) continue; // 人工修正优先，重新分析不覆盖
+    if (manualIds.has(r.id)) continue; // 人工修正优先：既不覆盖内存，也不写库
     byId.set(r.id, r);
+    write.push(r);
   }
-  return { keep: [...outOfRange, ...manual], drop, next: [...byId.values()] };
+  const writeIds = new Set(write.map((r) => r.id));
+  const deleteIds = drop.filter((r) => !writeIds.has(r.id)).map((r) => r.id);
+  return { keep: [...outOfRange, ...manual], drop, next: [...byId.values()], write, deleteIds };
+}
+
+/**
+ * 用缓存结果替换一条方法记录时，**保留用户的人工修正**。
+ *
+ * 案例加载（重新加载演示案例）会把预置方法按同 ID 覆盖写库。缓存里的方法永远没有
+ * `overrides`，直接覆盖就会把用户逐字段核对过的修正丢掉（实测：重载后 overrides 1 → 0）。
+ * 这里只保留「用户产生的东西」：人工修正记录；AI 字段值仍按缓存更新
+ * （但要保证修正值本身还有效 —— `effectiveField` 会优先读修正值）。
+ */
+export function mergeCachedMethod(incoming: Method, prev?: Method): Method {
+  if (!prev) return incoming;
+  const overrides = prev.overrides ?? [];
+  if (!overrides.length) return incoming;
+  return { ...incoming, overrides };
+}
+
+/** 批量版本：按 id 找旧记录，逐个合并人工修正 */
+export function mergeCachedMethods(incoming: Method[], prev: Method[]): Method[] {
+  const byId = new Map(prev.map((m) => [m.id, m]));
+  return incoming.map((m) => mergeCachedMethod(m, byId.get(m.id)));
 }
 
 /**

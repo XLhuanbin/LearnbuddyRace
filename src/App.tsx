@@ -42,6 +42,8 @@ import {
   collectPaperRemoval,
   legacyCorpusPatches,
   readScopedSnapshot,
+  mergeCachedMethods,
+  isManualRelation,
   replaceRelationsInScope,
   scopeCorpus,
   scopeRelations,
@@ -649,31 +651,49 @@ export default function App() {
       });
       const cachedRelations = relCheck.relations;
 
-      // 幂等替换该语料集已有记录：**先写新的、再删被替换掉的旧的**，
-      // 中途失败时旧数据仍在（原约定「失败时保留已有数据」）。
+      /**
+       * 幂等替换该语料集已有记录：**先写新的、再删被替换掉的旧的**，中途失败时旧数据仍在。
+       *
+       * 两个数据安全要点（2026-09-26 实测修复）：
+       * ① 同 ID 覆盖写方法时必须**合并人工修正** —— 缓存里永远没有 overrides，
+       *    直接覆盖就会把用户逐字段核对过的修正丢掉（实测：重载后 1 → 0）；
+       * ② 论文 / 方法 / 关系的所有写入与删除必须在**同一个 IndexedDB 事务**里提交，
+       *    否则「原子替换」只是说法：中途失败会留下半新半旧的中间态。
+       */
       const prevScopePaperIds = papers.filter((x) => x.corpusId === corpusId).map((x) => x.id);
       const prevScopeMethodIds = methods.filter((x) => x.corpusId === corpusId).map((x) => x.id);
-      for (const x of hyd) await repo.savePaper(x);
-      for (const m of cachedMethods) await repo.saveMethod(m);
+      const mergedMethods = mergeCachedMethods(cachedMethods, methods);
       const newPaperIds = new Set(hyd.map((x) => x.id));
-      const newMethodIds = new Set(cachedMethods.map((m) => m.id));
-      await repo.deletePapers(prevScopePaperIds.filter((id) => !newPaperIds.has(id)));
-      await repo.deleteMethods(prevScopeMethodIds.filter((id) => !newMethodIds.has(id)));
+      const newMethodIds = new Set(mergedMethods.map((m) => m.id));
+      const paperDeleteIds = prevScopePaperIds.filter((id) => !newPaperIds.has(id));
+      const methodDeleteIds = prevScopeMethodIds.filter((id) => !newMethodIds.has(id));
       /**
-       * 关系按范围**原子替换**：只替换「两端都属于本次加载语料的方法」的关系。
-       * 之前这里调的是 repo.clearRelations()（整库清空），会把其它案例的关系、
-       * 用户上传论文的关系以及人工添加/修正过的关系一起删掉。
-       * 批量写/删各在一个事务里，整批失败就整批回滚 —— 原关系保持不变。
+       * 关系按范围替换：只替换「两端都属于本次加载语料的方法」的关系。
+       * 落库写的是 `relSwap.write`（已剔除与人工关系撞 ID 的缓存版本），**不是原始缓存数组** ——
+       * 直接写缓存数组会把人工修正覆盖掉：内存里保住了、库里丢了，一刷新就现形。
        */
-      const loadedMethodIds = new Set<string>(cachedMethods.map((m) => m.id));
-      const incomingIds = new Set(cachedRelations.map((r) => r.id));
+      const loadedMethodIds = new Set<string>(mergedMethods.map((m) => m.id));
       const relSwap = replaceRelationsInScope(relations, cachedRelations, loadedMethodIds);
-      await repo.saveRelations(cachedRelations);
-      await repo.deleteRelations(relSwap.drop.filter((r) => !incomingIds.has(r.id)).map((r) => r.id));
+      await repo.applyAtomic([
+        ...hyd.map((value) => ({ store: 'papers' as const, kind: 'put' as const, value })),
+        ...paperDeleteIds.map((key) => ({ store: 'papers' as const, kind: 'delete' as const, key })),
+        ...mergedMethods.map((value) => ({ store: 'methods' as const, kind: 'put' as const, value })),
+        ...methodDeleteIds.map((key) => ({ store: 'methods' as const, kind: 'delete' as const, key })),
+        ...relSwap.write.map((value) => ({ store: 'relations' as const, kind: 'put' as const, value })),
+        ...relSwap.deleteIds.map((key) => ({ store: 'relations' as const, kind: 'delete' as const, key })),
+      ]);
+      const keptOverrides = mergedMethods.reduce((a, m) => a + (m.overrides?.length ?? 0), 0);
 
       setPapers((prev) => [...prev.filter((x) => x.corpusId !== corpusId), ...hyd]);
-      setMethods((prev) => [...prev.filter((x) => x.corpusId !== corpusId), ...cachedMethods]);
+      setMethods((prev) => [...prev.filter((m) => m.corpusId !== corpusId), ...mergedMethods]);
       setRelations(relSwap.next);
+      if (keptOverrides) {
+        log(`已保留 ${keptOverrides} 处人工字段修正（按同 ID 合并写入，重新加载案例不会覆盖你的修正）`);
+      }
+      const keptManualRels = relSwap.keep.filter((r) => r.userEdited || r.aiOriginal).length;
+      if (keptManualRels) {
+        log(`已保留 ${keptManualRels} 条人工修正关系（缓存结果不覆盖人工修正）`);
+      }
       setMapMode('case');
       setCorpusMeta(index.meta);
 
@@ -1025,14 +1045,12 @@ export default function App() {
         return;
       }
       /**
-       * 按范围原子替换关系（不再 repo.clearRelations 整库清空）：
+       * 按范围替换关系（不再 repo.clearRelations 整库清空）：
        * 只替换两端都属于当前范围的关系，其它案例、用户上传论文、人工添加/修正的关系原样保留。
-       * 写入顺序是「先写新关系、再删被替换掉的旧关系」——中途失败时原关系还在。
+       * 写库用 `swap.write`（已剔除与人工关系撞 ID 的模型结果），且写入与删除在**同一个事务**里完成。
        */
       const swap = replaceRelationsInScope(relations, rels, scope.scopeMethodIds);
-      const incomingIds = new Set(rels.map((r) => r.id));
-      await repo.saveRelations(rels);
-      await repo.deleteRelations(swap.drop.filter((r) => !incomingIds.has(r.id)).map((r) => r.id));
+      await repo.swapRelations(swap.write, swap.deleteIds);
       setRelations(swap.next);
       const cnt = (s: string) => rels.filter((r) => r.evidenceState === s).length;
       log(

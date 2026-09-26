@@ -913,3 +913,50 @@ Swin 三条 1K-only 记录的预训练字段缺失；浏览器端实时抽取尚
 
 **未改**：首页、手机布局、预置论文内容、证据判定规则（本轮只动导入流程与标题状态表达）。
 **数据保留**：论文 / 方法 / 人工修正一律不动；重复上传仍按内容哈希去重；重新解析沿用原 `paperId`（方法关联不断）。
+
+## 三十三、2026-09-26 重新加载案例不再丢失人工修正（第十轮，数据安全）
+
+用户按真实操作顺序实测：**「重新加载演示案例」会把方法人工修正与关系人工修正一起丢掉**（刷新后更明显）。
+先复现再改，复现与修复证据见 `docs/VERIFICATION.md` §V44；新增回归 `npm run verify:reload`
+（`scripts/verify-cache-reload-safety.mjs`，20 项，独立 Chrome 数据目录 + 直读 IndexedDB）。
+
+### 复现证据（改代码之前）
+
+| 步骤 | IndexedDB 实测 |
+| --- | --- |
+| 加载视觉案例 | 论文 5 / 方法 5 / 关系 10 |
+| 界面修正 ResNet「研究任务」 | 方法 `overrides=1`（`researchTask → 人工修正-回归测试值`） |
+| 关系图修正一条已有关系（改为 `extends`） | 关系 `userEdited=true, type=extends, rationale=人工修正关系的理由-回归测试`，**id 与缓存关系相同**（用户要求的「同 ID」情形正是默认情形） |
+| 点「重新加载演示案例」 | `overrides=0`（丢失）；关系变回 `type=unclear, userEdited=false`（被缓存版本覆盖） |
+| 刷新页面 | 同上，仍然丢失；界面「已人工修正」标记消失 |
+
+### 根因（两处，都是「内存里保住了、库里丢了」）
+
+1. **方法**：`loadSample()` 用 `repo.saveMethod(cachedMethods[i])` 同 ID 覆盖写。缓存里的方法**永远没有 `overrides`**，
+   于是用户逐字段核对过的修正被直接覆盖掉。
+2. **关系**：`replaceRelationsInScope()` 在内存里已经做到「人工优先」（`manualIds.has(id)` 就跳过），
+   但落库那一行写的是 `repo.saveRelations(cachedRelations)` —— **原始缓存数组**，把同 ID 的人工关系覆盖掉了。
+   内存与库不一致，所以「重载后立即看」和「刷新后看」都会丢。
+   另外 `saveRelations` 与 `deleteRelations` 是**两次独立事务**，「原子替换」只是说法。
+
+### 修复
+
+- `src/core/corpus.ts`
+  - `replaceRelationsInScope()` 增加 `write`（= incoming 去掉「与人工关系撞 ID」的那些）与 `deleteIds`
+    （已排除 write 的 ID，避免同一事务里先写后删）。**落库必须用 `write`，不是 `incoming`**。
+  - 新增 `mergeCachedMethod()` / `mergeCachedMethods()`：同 ID 覆盖写方法时保留 `overrides`（用户产生的东西），
+    AI 字段值仍按缓存更新。
+- `src/core/storage.ts`
+  - 新增 `txApply()`：**跨 store 的单个 IndexedDB 事务**（`db.transaction([stores], 'readwrite')`），任一操作失败整个事务 abort。
+  - 新增 `repo.applyAtomic(ops)` 与 `repo.swapRelations(puts, deleteIds)`（关系的写入+删除同事务）。
+- `src/App.tsx`
+  - `loadSample()`：合并人工修正后，用一个 `applyAtomic` 事务提交「论文写入+删除 / 方法写入+删除 / 关系写入+删除」；
+    并在日志里明确写出「已保留 N 处人工字段修正 / N 条人工修正关系」。
+  - `genRelations()`：同样改用 `swap.write` + `repo.swapRelations`（模型结果不再覆盖人工修正，写删同事务）。
+
+### 「原子替换」这句话的边界（如实说明）
+
+- 现在**论文、方法、关系的写入与删除确实在同一个事务里完成**（`applyAtomic`），失败整体回滚。
+- 但**分析产物不在这个事务里**：分歧 / 阅读路线 / 语料元信息 / 示例条件存在 `meta` store，按 `corpusId` 各自覆盖写入。
+  它们失败时不会污染论文/方法/关系（那部分已提交或回滚），但严格说「整个案例加载是一个原子操作」并不成立 ——
+  所以文档与注释统一表述为「**论文/方法/关系按一个事务替换；分析产物各自独立存档**」，不再笼统宣称整体原子。

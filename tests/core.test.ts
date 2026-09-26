@@ -42,6 +42,8 @@ import {
   collectPaperRemoval,
   corpusOfPaperId,
   isManualRelation,
+  mergeCachedMethod,
+  mergeCachedMethods,
   legacyCorpusPatches,
   paperIdOf,
   readScopedSnapshot,
@@ -1432,13 +1434,70 @@ console.log('=== 25. 唯一分析范围 / 关系生命周期 / 案例切换（�
       !swap.next.some((r) => r.id === 'rel_vision'),
   );
   check('替换是纯函数：不改动入参（写入失败时原关系仍是原样）', relations.length === 4 && relations[0].id === 'rel_vision');
+  const swapCollide = replaceRelationsInScope(
+    relations,
+    [{ id: 'rel_vision_manual', fromMethodId: mVision.id, toMethodId: mVisionB.id, type: 'extends', evidenceState: 'inferred', rationale: 'AI 想覆盖' }],
+    visionMethodIds,
+  );
   check(
     '替换：新结果与人工关系 id 相同时，人工版本优先',
-    replaceRelationsInScope(
-      relations,
-      [{ id: 'rel_vision_manual', fromMethodId: mVision.id, toMethodId: mVisionB.id, type: 'extends', evidenceState: 'inferred', rationale: 'AI 想覆盖' }],
-      visionMethodIds,
-    ).next.find((r) => r.id === 'rel_vision_manual')?.rationale === '人工添加',
+    swapCollide.next.find((r) => r.id === 'rel_vision_manual')?.rationale === '人工添加',
+  );
+
+  // ---- 2b) 落库集合（write / deleteIds）：同 ID 撞人工关系时不许写库，也不许先写后删 ----
+  // 这是「重载后人工关系丢失」的根因所在：内存里保住了，但写库用的是原始缓存数组。
+  check(
+    '落库集合：与人工关系撞 ID 的缓存结果**不写库**（否则这条修正会被覆盖）',
+    swapCollide.write.length === 0 && !swapCollide.deleteIds.includes('rel_vision_manual'),
+    `write=[${swapCollide.write.map((r) => r.id).join(',')}] delete=[${swapCollide.deleteIds.join(',')}]`,
+  );
+  check(
+    '落库集合：正常替换时 write = 新结果，deleteIds = 被替换掉的旧关系',
+    swap.write.map((r) => r.id).join(',') === 'rel_vision_new' && swap.deleteIds.join(',') === 'rel_vision',
+    `write=[${swap.write.map((r) => r.id).join(',')}] delete=[${swap.deleteIds.join(',')}]`,
+  );
+  check(
+    '落库集合：write 与 deleteIds 没有交集（同一个 ID 不能在同一个事务里先写后删）',
+    !swap.write.some((r) => swap.deleteIds.includes(r.id)),
+  );
+  // 混合情形：一条被替换掉、一条撞人工关系
+  const swapMixed = replaceRelationsInScope(
+    relations,
+    [
+      { id: 'rel_vision', fromMethodId: mVision.id, toMethodId: mVisionB.id, type: 'improves', evidenceState: 'explicit', rationale: '重新分析' },
+      { id: 'rel_vision_manual', fromMethodId: mVision.id, toMethodId: mVisionB.id, type: 'extends', evidenceState: 'inferred', rationale: 'AI 想覆盖' },
+    ],
+    visionMethodIds,
+  );
+  check(
+    '落库集合（混合）：既写新结果、又不写撞人工的那条、也不删刚写进去的那条',
+    swapMixed.write.map((r) => r.id).join(',') === 'rel_vision' &&
+      swapMixed.deleteIds.length === 0 &&
+      swapMixed.next.find((r) => r.id === 'rel_vision_manual')?.rationale === '人工添加',
+    `write=[${swapMixed.write.map((r) => r.id).join(',')}] delete=[${swapMixed.deleteIds.join(',')}]`,
+  );
+
+  // ---- 2c) 缓存方法同 ID 覆盖写时保留人工修正 ----
+  const baseMethod = methods.find((m) => m.id === mVision.id)!;
+  const withOverride: Method = {
+    ...baseMethod,
+    overrides: [{ field: 'researchTask', oldValue: 'AI 原值', newValue: '人工核对后的值', at: 1 }],
+  };
+  const cachedFresh: Method = { ...baseMethod, cached: true, overrides: [] };
+  const mergedM = mergeCachedMethod(cachedFresh, withOverride);
+  check(
+    '同 ID 覆盖写方法：保留人工修正（overrides 不丢），AI 结果仍按缓存更新',
+    mergedM.overrides.length === 1 &&
+      mergedM.overrides[0].newValue === '人工核对后的值' &&
+      mergedM.cached === true,
+    `overrides=${mergedM.overrides.length}`,
+  );
+  check('没有人工修正时按缓存原样写入（不引入空 overrides 差异）', mergeCachedMethod(cachedFresh, baseMethod).overrides.length === 0);
+  check('缓存里没有这条方法时直接写入（不报错）', mergeCachedMethod(cachedFresh, undefined) === cachedFresh);
+  const mergedList = mergeCachedMethods([cachedFresh, { ...baseMethod, id: 'm_new_id' }], [withOverride]);
+  check(
+    '批量合并：逐条按 id 找旧记录，只有被修正过的那条带上 overrides',
+    mergedList[0].overrides.length === 1 && (mergedList[1].overrides?.length ?? 0) === 0,
   );
 
   // ---- 3) 删除论文后不存在悬挂关系 ----
