@@ -222,7 +222,7 @@ a { color: var(--accent); }
 }
 
 .main { flex: 1; min-width: 0; padding: 26px 32px 72px; background: var(--bg); }
-.main-inner { max-width: 820px; margin: 0 auto; }
+.main-inner { max-width: 920px; margin: 0 auto; }
 /* 研究地图是唯一使用宽画布的工作页 */
 .main.mapmain .main-inner { max-width: var(--content-max); }
 /* 宣传首页仍使用宽版面 */

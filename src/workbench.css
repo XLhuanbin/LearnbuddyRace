@@ -307,11 +307,6 @@ details.moreprop .morebody { font-size: var(--fs-aux); color: var(--fg-2); line-
   overflow: hidden;
 }
 .lrow-role .lb { color: var(--fg-3); font-size: var(--fs-meta); margin-right: 6px; }
-.lrow-body {
-  border-top: 1px dashed var(--line);
-  margin-top: var(--space-2);
-  padding-top: var(--space-3);
-}
 
 /* 论文标题 + 低权重元数据同一行（元数据不额外占高度） */
 .lrow-head { display: flex; align-items: baseline; gap: var(--space-3); }
@@ -372,13 +367,6 @@ details.moreprop .morebody { font-size: var(--fs-aux); color: var(--fg-2); line-
   text-overflow: ellipsis;
 }
 .lrow-fam { flex: 0 0 auto; white-space: nowrap; }
-.lrow-r2 {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-3);
-}
-.lrow-stats { flex-wrap: nowrap; white-space: nowrap; }
 
 /* ------------------------------------------------------------------ *
    方法提取：左论文列表 + 右当前论文详情
@@ -699,22 +687,18 @@ details.moreprop .morebody { font-size: var(--fs-aux); color: var(--fg-2); line-
   white-space: nowrap;
 }
 .lrow-r2 {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-3);
-  margin-top: 10px;
+  display: block;
+  margin-top: 8px;
 }
 .lrow-r2 .lrow-role {
-  min-width: 0;
-  margin: 0;
-  font-size: var(--fs-body);
-  line-height: 1.45;
-  color: var(--fg-2);
   display: -webkit-box;
-  -webkit-line-clamp: 1;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  margin-top: 4px;
+  font-size: var(--fs-body);
+  line-height: 1.6;
+  color: var(--fg-2);
 }
 .lrow-stats { display: inline-flex; align-items: center; gap: var(--space-3); flex-wrap: nowrap; white-space: nowrap; }
 .lrow-stats .kv { font-size: var(--fs-aux); color: var(--fg-2); }
@@ -723,3 +707,164 @@ details.moreprop .morebody { font-size: var(--fs-aux); color: var(--fg-2); line-
   .lrow-r2 { grid-template-columns: 1fr; }
   .lrow-r2 .lrow-role { -webkit-line-clamp: 2; }
 }
+
+/* 论文集合：行的第二行（年份/方法名 + 摘要）与详情双向展开动画 */
+.lrow-meta-inline {
+  display: block;
+  font-size: var(--fs-aux);
+  color: var(--fg-3);
+}
+.lrow-r2 .lrow-role {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.lrow-body {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  overflow: hidden;
+  transition: max-height 260ms var(--ease), opacity 220ms var(--ease), transform 220ms var(--ease),
+    margin-top 220ms var(--ease);
+  margin-top: 0;
+}
+.lrow-body.open {
+  max-height: 4000px;
+  opacity: 1;
+  transform: none;
+  margin-top: 14px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lrow-body,
+  .lrow-body.open { transition: none; transform: none; }
+}
+
+/* 论文集合：折叠区收起时必须真的不占位（.fold-body 的 display 会盖掉 details 的默认折叠） */
+.libmanage:not([open]) > .fold-body { display: none; }
+
+/* 方法提取页：结果摘要 / 单列阅读 / 行分隔 / 详情平滑展开 */
+.resultsum { display: flex; flex-direction: column; gap: 2px; }
+.resultsum strong { font-family: var(--font-serif); font-size: 20px; font-weight: 650; color: var(--fg); }
+.resultsum .sub { font-size: var(--fs-aux); color: var(--fg-3); }
+.work2 { display: block; }
+.work2-detail { margin-top: 18px; animation: fadeUp 220ms var(--ease) 1; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.work2-list .pitem { display: block; width: 100%; text-align: left; padding: 12px 2px; border-top: 1px solid var(--line); }
+.work2-list .pitem:last-child { border-bottom: 1px solid var(--line); }
+.work2-list .pitem .nm { display: block; font-size: 17px; font-weight: 650; color: var(--fg); }
+.work2-list .pitem .mname { display: block; margin-top: 2px; font-size: var(--fs-aux); color: var(--accent); }
+.work2-list .pitem .idea {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  margin-top: 2px; font-size: var(--fs-body); color: var(--fg-2);
+}
+.work2-list .pitem .st { display: block; margin-top: 4px; font-size: var(--fs-meta); color: var(--fg-3); }
+.detail-idea { margin: 6px 0 10px; font-size: var(--fs-body); color: var(--fg-2); }
+.stepline { margin: 10px 0 0; }
+@media (prefers-reduced-motion: reduce) {
+  .work2-detail { animation: none; }
+}
+
+/* ===== 结构修复：折叠区收起时必须真的不占位（.fold-body 的 display 会盖掉 details 默认行为） ===== */
+details.fold:not([open]) > .fold-body { display: none; }
+
+/* ===== 方法提取：字段行独立布局（不再复用处理时间线的四列） ===== */
+.method-field-row {
+  display: grid;
+  grid-template-columns: 120px 90px minmax(0, 1fr);
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+  align-items: start;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.method-field-row .value {
+  min-width: 0;
+  max-width: none;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.75;
+  font-size: var(--fs-body);
+  color: var(--fg-2);
+}
+.method-field-row .nm { font-size: var(--fs-body); color: var(--fg); }
+.method-field-row .stt { font-size: var(--fs-meta); color: var(--fg-3); }
+@media (max-width: 700px) {
+  .method-field-row { grid-template-columns: 1fr auto; gap: 6px 12px; }
+  .method-field-row .value { grid-column: 1 / -1; }
+}
+
+/* ===== 方法提取：单列结构占满主内容宽度，不用固定左栏 ===== */
+.work2, .work2-list, .work2-detail { width: 100%; max-width: none; min-width: 0; background: none; box-shadow: none; border: none; padding: 0; }
+
+/* ===== 论文集合：详情首层一句话 + 列表下一行文字入口 ===== */
+.lrow-idea { margin: 0 0 10px; font-size: var(--fs-body); color: var(--fg-2); }
+.nextline { margin: 14px 0 0; }
+.nextline .linkbtn { background: none; border: none; padding: 0; font: inherit; font-size: var(--fs-aux); color: var(--accent); cursor: pointer; }
+
+/* 实验可比性：已报告实验结果（内联 SVG/CSS 条，按指标+单位分组，不做综合分与排名） */
+.exchart { margin: 18px 0 0; padding: 14px 16px; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); }
+.exchart-title { margin: 0 0 10px; font-size: var(--fs-section); font-weight: 650; }
+.exgroup + .exgroup { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.exgroup-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.exgroup-head .nm { font-size: var(--fs-body); color: var(--fg); }
+.exgroup-head .dim { font-size: var(--fs-meta); color: var(--fg-3); }
+.exrow { display: grid; grid-template-columns: 132px minmax(0, 1fr) 96px; gap: 12px; align-items: center; padding: 3px 0; }
+.exrow .lab { font-size: var(--fs-aux); color: var(--fg-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exrow .bar { display: block; height: 10px; background: var(--bg-3); border-radius: 5px; overflow: hidden; }
+.exrow .bar i { display: block; height: 100%; min-width: 2px; background: var(--accent-line); border-radius: 5px; }
+.exrow .val { font-family: var(--mono); font-size: var(--fs-aux); color: var(--fg); text-align: right; }
+.exnote { margin: 10px 0 0; font-size: var(--fs-meta); color: var(--fg-3); }
+.compared { margin-top: 12px; }
+@media (max-width: 700px) {
+  .exrow { grid-template-columns: 96px minmax(0, 1fr) 78px; gap: 8px; }
+}
+
+/* 阅读路线：摘要 + 有向节点图（箭头只表示阅读顺序） */
+.routesum { margin: 16px 0 0; padding: 14px 16px; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); }
+.routesum .rs-line1 { margin: 0; font-family: var(--font-serif); font-size: 20px; font-weight: 650; color: var(--fg); }
+.routesum .rs-line2 { margin: 6px 0 0; font-size: var(--fs-aux); color: var(--fg-3); }
+.routegraph { list-style: none; display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; overflow-x: auto; margin: 14px 0 0; padding: 2px 0 6px; }
+.rgnode { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.rgnode button {
+  display: grid; gap: 1px; text-align: left; cursor: pointer;
+  background: var(--bg); border: 1px solid var(--line-2); border-radius: var(--radius);
+  padding: 8px 12px; transition: transform 160ms var(--ease), border-color 160ms var(--ease), background 160ms var(--ease);
+}
+.rgnode .no { font-family: var(--mono); font-size: var(--fs-meta); color: var(--fg-3); }
+.rgnode .nm { font-size: 15px; font-weight: 650; color: var(--fg); }
+.rgnode .yr { font-size: var(--fs-meta); color: var(--fg-3); }
+.rgnode.on button { background: var(--accent-soft); border-color: var(--accent-line); transform: scale(1.04); }
+.rgarrow {
+  position: relative; display: block; width: 34px; height: 1px; background: var(--line-2);
+  color: transparent; font-size: 0;
+  transform-origin: left center;
+  animation: rgDraw 420ms var(--ease) both;
+  animation-delay: var(--rgd, 0ms);
+}
+.rgarrow::after {
+  content: ''; position: absolute; right: -1px; top: 50%; width: 7px; height: 7px;
+  border-top: 1px solid var(--line-2); border-right: 1px solid var(--line-2);
+  transform: translateY(-50%) rotate(45deg);
+}
+@keyframes rgDraw { from { transform: scaleX(0); opacity: 0; } to { transform: scaleX(1); opacity: 1; } }
+@keyframes rgDrawV { from { transform: scaleY(0); opacity: 0; } to { transform: scaleY(1); opacity: 1; } }
+.rgnote { margin: 6px 0 0; font-size: var(--fs-meta); color: var(--fg-3); }
+@media (max-width: 700px) {
+  .routegraph { flex-direction: column; align-items: stretch; overflow-x: visible; }
+  .rgarrow { width: 1px; height: 22px; align-self: center; transform-origin: top center; animation-name: rgDrawV; }
+  .rgarrow::after { right: 50%; top: auto; bottom: -1px; transform: translateX(50%) rotate(135deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rgnode button { transition: none; }
+  .rgnode.on button { transform: none; }
+  .rgarrow { animation: none; }
+}
+
+/* 路线图下方：选中节点的简短内容（双向动画） */
+.rgexpand { max-height: 0; opacity: 0; transform: translateY(-4px); overflow: hidden; transition: max-height 260ms var(--ease), opacity 220ms var(--ease), transform 220ms var(--ease); }
+.rgexpand.open { max-height: 420px; opacity: 1; transform: none; margin-top: 10px; }
+.rgexpand .sect { font-size: var(--fs-meta); color: var(--fg-3); margin: 8px 0 2px; }
+.rgexpand p { margin: 0; font-size: var(--fs-body); color: var(--fg-2); line-height: 1.7; }
+@media (prefers-reduced-motion: reduce) { .rgexpand, .rgexpand.open { transition: none; transform: none; } }

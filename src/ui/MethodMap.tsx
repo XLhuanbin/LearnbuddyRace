@@ -313,8 +313,9 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onCompar
       </div>
 
       {/* 详情浮层：桌面右侧 / 窄屏底部；点开即在可见区域 */}
+      <aside className={`mapdetail${selectedRelation || nodeDetail ? ' open' : ''}`} aria-hidden={!(selectedRelation || nodeDetail)} aria-label="方法联系与方法详情">
       {selectedRelation ? (
-        <aside className="mapdetail" aria-label="关系详情">
+        <>
           <div className="dh">
             <h3>方法联系</h3>
             <button className="x" onClick={() => setSelectedEdge(null)} aria-label="关闭">
@@ -348,9 +349,9 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onCompar
               )}
             </div>
           </details>
-        </aside>
+        </>
       ) : nodeDetail ? (
-        <aside className="mapdetail" aria-label="方法详情">
+        <>
           <div className="dh">
             <h3>
               {nodeDetail.profile.shortName}
@@ -369,6 +370,9 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onCompar
           <div className="sect">一句话贡献</div>
           <p>{shortContribution(nodeDetail.profile.approach) || '未提取到（仍需确认）'}</p>
 
+          <details className="fold">
+            <summary>查看核心做法 · 局限 · 原文依据</summary>
+            <div className="fold-body">
           <div className="sect">核心做法</div>
           <p>
             {nodeDetail.profile.approach
@@ -448,8 +452,11 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onCompar
               比较实验表现（次级）
             </button>
           </div>
-        </aside>
+            </div>
+          </details>
+        </>
       ) : null}
+      </aside>
     </div>
   );
 }

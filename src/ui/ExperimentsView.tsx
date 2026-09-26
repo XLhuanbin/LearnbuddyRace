@@ -269,6 +269,57 @@ export function ExperimentsView({
         }
       />
 
+      <section className="exchart">
+        <h3 className="exchart-title">已报告实验结果</h3>
+        {(() => {
+          const groups = new Map<string, ExperimentRecord[]>();
+          for (const e of classification) {
+            const key = `${e.metricName}|${e.metricUnit ?? ''}`;
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key)!.push(e);
+          }
+          return [...groups.entries()].slice(0, 4).map(([key, list]) => {
+            const [name, unit] = key.split('|');
+            const nums = list.map((e) => Number(e.metricValue)).filter((n) => Number.isFinite(n));
+            const max = nums.length ? Math.max(...nums) : 0;
+                  const axisMax = (unit ?? '').includes('%') ? 100 : max > 0 ? max : 1;
+                  const min = nums.length ? Math.min(...nums) : 0;
+                  const numeric = nums.length > 0;
+            return (
+              <div className="exgroup" key={key}>
+                <div className="exgroup-head">
+                  <span className="nm">
+                    {name}
+                    {unit ? `（${unit}）` : ''}
+                  </span>
+                  <span className="dim">
+                          {list.length} 条记录 · 横轴 {axisMax}{unit ?? ''}
+                        </span>
+                </div>
+                {list.slice(0, 8).map((e) => {
+                  const v = Number(e.metricValue);
+                  const num = Number((String(e.metricValue).match(/-?[0-9]+(?:\.[0-9]+)?/) || [])[0]);
+                        const pct = Number.isFinite(num) ? Math.max(0, Math.min(100, Math.round((num / axisMax) * 100))) : 0;
+                  return (
+                    <div className="exrow" key={e.id}>
+                      <span className="lab">{e.modelVariant}</span>
+                      <span className="bar">
+                              <i style={{ width: `${pct}%` }} />
+                            </span>
+                      <span className="val">
+                        {e.metricValue}
+                        {unit ?? ''}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          });
+        })()}
+        <p className="exnote">条长＝原文报告的数值（百分比指标按 0–100% 横轴，不同单位各自独立）；数值大小不代表好坏，不同指标或不同条件不自动代表可比。</p>
+      </section>
+
       {/* ② 结论优先：先说能不能比，再说差在哪 */}
       <div className="verdict-first">
         {pickedList.length === 2 && cmp ? (
@@ -312,7 +363,7 @@ export function ExperimentsView({
                 {pickedList.map(
                   (e) =>
                     e.evidence && (
-                      <button key={e.id} className="btn primary sm" onClick={() => onOpenEvidence(e.evidence!)}>
+                      <button key={e.id} className="btn ghost sm" onClick={() => onOpenEvidence(e.evidence!)}>
                         查看原文证据（{labelOf(e)} · p.{e.evidence.page ?? '?'}）
                       </button>
                     ),
@@ -323,7 +374,12 @@ export function ExperimentsView({
               </div>
             </div>
 
-            {/* ③ 关键条件：首屏只列 4 项，其余条件折进下方 */}
+            {/* 已报告实验结果：只展示原始数值，按 指标+单位 分组，不做综合分与跨指标排名 */}
+
+            {/* ③ 比较依据（条件 · 差异 · 证据）：默认收起 */}
+            <details className="fold compared">
+              <summary>查看比较依据（关键条件 · 完整条件差异 · 原文证据）</summary>
+              <div className="fold-body">
             <div style={{ marginTop: 14 }}>
               <div className="small dim" style={{ marginBottom: 6 }}>
                 决定结论的关键条件（先看这 4 项，其余条件默认收起）
@@ -377,6 +433,9 @@ export function ExperimentsView({
                 </details>
               )}
             </div>
+
+            </div>
+            </details>
 
             {/* ④ 完整条件 / 证据 / 警告（折叠） */}
             <details className="fold" style={{ marginTop: 12 }}>

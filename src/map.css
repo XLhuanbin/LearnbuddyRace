@@ -103,12 +103,17 @@
   bottom: 12px;
   width: 330px;
   background: var(--bg);
-  border: 1px solid var(--line-2);
+  border: 1px solid transparent;
   border-radius: var(--radius);
   box-shadow: 0 12px 40px rgba(22, 32, 46, .16);
-  padding: 16px 16px 14px;
-  overflow-y: auto;
-  animation: mapIn .16s ease;
+  padding: 0 16px;
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(8px);
+  overflow: hidden;
+  pointer-events: none;
+  transition: opacity 220ms var(--ease), transform 220ms var(--ease), max-height 260ms var(--ease),
+    padding 220ms var(--ease), border-color 220ms var(--ease);
 }
 @keyframes mapIn {
   from { opacity: 0; transform: translateY(6px); }
@@ -434,4 +439,18 @@
 .maphead-links .linkbtn:hover {
   background: var(--bg-3);
   border-color: var(--accent-line);
+}
+
+/* 地图详情：选中时平滑展开，再点/关闭时反向收起 */
+.mapdetail.open {
+  padding: 16px 16px 14px;
+  max-height: 100%;
+  opacity: 1;
+  transform: none;
+  overflow-y: auto;
+  border-color: var(--line-2);
+  pointer-events: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mapdetail { transition: none; }
 }

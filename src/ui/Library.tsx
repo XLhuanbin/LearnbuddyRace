@@ -195,23 +195,11 @@ export function LibraryView({
     return buildMethodProfile(m, papers.find((p) => p.id === paperId), papers).family.name;
   };
 
-  /** 一句话摘要：核心思路首句 + 关系摘要（「关系不明确」不当作关系），控制在一句以内 */
-  const summaryOf = (paperId: string, method?: Method): string => {
-    if (!method) return '还没有方法分析结果。';
+  /** 一两句话摘要：只取真实解析出来的核心思路，不拼关系状态、不拼引文与页码 */
+  const summaryOf = (_paperId: string, method?: Method): string => {
+    if (!method) return '尚未提取方法';
     const idea = shortContribution(method.fields.coreIdea?.value ?? '');
-    const all = relations.filter((r) => r.fromMethodId === method.id || r.toMethodId === method.id);
-    const mine = all.filter((r) => r.type !== 'unclear');
-    if (!mine.length) {
-      return `${idea || '未提取到核心思路'}${all.length ? `；与它相关的 ${all.length} 个配对都判为「关系不明确」` : '；这组论文里暂时没有可核验的方法关系'}`;
-    }
-    const r = mine[0];
-    const other = nameOf(r.fromMethodId === method.id ? r.toMethodId : r.fromMethodId);
-    const clause =
-      r.fromMethodId === method.id
-        ? `${other} ${REL_VERB[r.type] ?? '关系不明确'}`
-        : `${other} 是它的前置方法`;
-    const rest = mine.length > 1 ? `，另有 ${mine.length - 1} 条关系` : '';
-    return `${idea ? idea + '；' : ''}${clause}（${REL_STATE[r.evidenceState] ?? r.evidenceState}${r.evidence ? ' · 有引文' : ' · 无直接引文'}）${rest}`;
+    return idea || '尚未提取到核心思路';
   };
 
   return (
@@ -221,37 +209,33 @@ export function LibraryView({
       {/* 1. 顶部案例摘要 */}
       <PageHead
         title="论文集合"
-        sub={
-          <>
-            当前案例里的全部论文，每篇都有解析出来的字段、实验条件与原文依据；证据与条件收进「查看论文」，列表本身只讲清楚
-            <strong>这是什么、分析到哪一步、在研究链条里处在什么位置</strong>。
-          </>
-        }
+        sub="先看每篇论文做了什么；字段、原文依据与完整条件都在「查看详情」里。"
         badges={
           <>
-            <Status kind={scope.presetPaperCount ? 'ok' : 'info'}>{scope.meta.label}</Status>
-            <Status kind="info">{visiblePapers.length} 篇论文</Status>
-            <Status kind={analysedCount ? 'ok' : 'pending'}>已完成分析 {analysedCount}/{visiblePapers.length}</Status>
             <span className="metaline">
-              <span>{scope.meta.domain}</span>
+              <span>{visiblePapers.length} 篇论文 · {scope.meta.label}</span>
               <span className="sep">·</span>
-              <span>{scope.meta.purpose}</span>
-              <span className="sep">·</span>
-              <span>{visiblePapers.some((p) => p.cached) ? '来源：缓存案例（离线真实模型生成）' : modelReady ? '来源：实时分析' : '未配置模型'}</span>
-              <span className="sep">·</span>
-              <span>实验记录 {experimentCount} 条</span>
+              <span>{visiblePapers.some((x) => x.cached) ? '演示案例' : modelReady ? '实时分析' : '演示案例'}</span>
             </span>
             {loading && <Status kind="info">正在加载…</Status>}
           </>
         }
         actions={
-          <button className="btn primary" onClick={onGoMap} disabled={!visiblePapers.length}>
-            进入研究地图
+          <button className="btn primary" onClick={() => fileRef.current?.click()}>
+            上传 PDF
           </button>
         }
       />
 
-      {/* 2. 一行式工具栏：上传与语料管理（次要操作） */}
+      {/* 2. 管理论文与案例：上传 / 粘贴 / 加载示例 / 切换案例，默认收起 */}
+      <details className="fold libmanage">
+        <summary>管理论文与案例（上传 · 粘贴 · 加载示例 · 切换案例 · 进入研究地图）</summary>
+        <div className="fold-body">
+          <div className="row" style={{ marginBottom: 10 }}>
+            <button className="btn" onClick={onGoMap} disabled={!visiblePapers.length}>
+              进入研究地图
+            </button>
+          </div>
       <div className="toolbar">
         <button className="btn" onClick={() => fileRef.current?.click()}>
           上传 PDF
@@ -344,6 +328,8 @@ export function LibraryView({
           </div>
         </Banner>
       )}
+        </div>
+      </details>
 
       {visiblePapers.length === 0 ? (
         <div className="quiet-group tint">
@@ -363,10 +349,6 @@ export function LibraryView({
         </div>
       ) : (
         <>
-          <SectionHead
-            title={`论文列表（${visiblePapers.length} 篇）`}
-            sub="标题 → 方法标签 → 一句话作用 → 分析状态与数量 → 操作；证据与条件收进「查看论文」"
-          />
 
           <div className="lrows">
             {visiblePapers.map((p) => {
@@ -384,13 +366,12 @@ export function LibraryView({
                   {/* 第一行：论文短标题 · 方法族 · 查看论文 / 更多操作 */}
                   <div className="lrow-r1">
                     <h3 className="paper-title lrow-short" title={p.title}>
-                      {methodShortName(p.id)}
+                      {p.title}
                     </h3>
-                    <span className="lrow-fam">{m ? methodFamilyOf(p.id) : "未提取方法族"}</span>
                     <span className="spacer" />
                     {m && (
                       <button className="btn sm" onClick={() => setExpanded(open ? null : p.id)} aria-expanded={open}>
-                        {open ? '收起论文' : '查看论文'}
+                        {open ? '收起详情' : '查看详情'}
                       </button>
                     )}
                     {p.parseStatus === 'ok' && !m && (
@@ -409,6 +390,7 @@ export function LibraryView({
                       </button>
                     )}
                     {m && (
+                      open && (
                       <details className="moreprop">
                         <summary>更多操作</summary>
                         <div className="morebody">
@@ -428,17 +410,16 @@ export function LibraryView({
                           </div>
                         </div>
                       </details>
+                      )
                     )}
                   </div>
 
                   {/* 第二行：一句话作用 · 当前状态 · 实验数量 */}
                   <div className="lrow-r2">
-                    <span className="lrow-role">{summaryOf(p.id, m)}</span>
-                    <span className="lrow-stats">
-                      <Status kind={st.kind}>{st.text}</Status>
-                      <span className="kv">实验 {m ? exps.length + " 条" : "0 条"}</span>
-                      {(m?.overrides?.length ?? 0) > 0 && <span className="kv">人工修正 {m!.overrides.length} 处</span>}
+                    <span className="lrow-meta-inline">
+                      {[p.year ?? '年份未知', m ? methodShortName(p.id) : '尚未提取方法'].filter(Boolean).join(' · ')}
                     </span>
+                    <span className="lrow-role">{summaryOf(p.id, m)}</span>
                   </div>
 
                   {job?.status === 'running' && (
@@ -497,8 +478,11 @@ export function LibraryView({
                     </div>
                   )}
 
-                  {open && m && (
-                    <div className="lrow-body expand-in">
+                  {m && (
+                    <div className={`lrow-body${open ? ' open' : ''}`} aria-hidden={!open}>
+                      <p className="lrow-idea">
+                        {m ? methodShortName(p.id) + ' · ' + (shortContribution(m.fields.coreIdea?.value ?? '') || '尚未提取到核心思路') : '尚未提取方法'}
+                      </p>
                       {/* 次要信息与「查看实验」：默认隐藏在详情里 */}
                       <div className="row" style={{ gap: 12, marginBottom: 12, alignItems: 'center' }}>
                         <span className="lrow-meta">
@@ -521,7 +505,9 @@ export function LibraryView({
                       <div className="row" style={{ marginBottom: 12, gap: 8 }}>
                         <Status kind={m.cached ? 'cached' : 'live'}>{m.cached ? '缓存结果（离线真实模型生成）' : '实时分析结果'}</Status>
                         <span className="small dim">
-                          字段证据 {verified}/7 · 有值 {withValue}/7{m.model ? ` · 模型 ${m.model}` : ''}
+                          关键实验 {exps.length} 条
+                          {st.text ? ` · ${st.text}` : ''}
+                          {(m?.overrides?.length ?? 0) > 0 ? ` · 人工修正 ${m!.overrides.length} 处` : ''}
                         </span>
                         <span className="spacer" />
                         {(staleNotes?.length ?? 0) > 0 && <Status kind="stale">结果已过期提示 {staleNotes!.length} 条</Status>}
@@ -687,13 +673,11 @@ export function LibraryView({
       )}
 
       {visiblePapers.length > 0 && (
-        <NextStep
-          title="进入研究地图"
-          desc={`已加载 ${visiblePapers.length} 篇、完成分析 ${analysedCount} 篇。地图里可以看方法分组、方法之间的真实关系，以及从哪里开始读。`}
-          actionLabel="进入研究地图"
-          onAction={onGoMap}
-          secondary={{ label: '看实验能不能直接比较', onAction: onGoExperiments }}
-        />
+        <p className="nextline">
+          <button className="linkbtn" onClick={onGoMap} disabled={!visiblePapers.length}>
+            进入研究地图 →
+          </button>
+        </p>
       )}
 
       {logLines.length > 0 && (

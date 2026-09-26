@@ -4,6 +4,7 @@ import type { JobState } from './Library';
 import { verifiedOf } from './Library';
 import { FIELD_KEYS_ORDER } from '../core/cache';
 import { METHOD_FIELD_LABELS, FIELD_STATUS_TEXT } from '../core/types';
+import { buildMethodProfile, shortContribution } from '../core/grouping';
 import { FlowBar, NextStep, PageHead, Status } from './common';
 
 interface Props {
@@ -198,22 +199,23 @@ export function UploadFlowView({
     ];
   })();
 
+  /** 方法短名：与论文集合 / 研究地图使用同一套派生规则 */
+  const shortNameOf = (m: Method) => buildMethodProfile(m, papers.find((x) => x.id === m.paperId), papers).shortName;
+
   return (
     <div>
       <PageHead
         title="方法提取"
-        sub={
-          <>
-            一条处理流程：<strong>上传论文 → 解析文本 → 提取方法字段 → 校验原文证据 → 进入研究地图</strong>。
-            左边选论文，右边只看当前这一篇的阶段、结果与字段证据；失败会写清哪一步失败、原因、如何重试，以及已完成的数据是否保留。
-          </>
-        }
+        sub="先看提取出了多少个方法，再看每篇论文的方法结果；处理时间线与字段证据都收在下面。"
         badges={
-          <>
-            <Status kind={shown.length ? 'ok' : 'pending'}>本机待处理 {shown.length} 篇</Status>
-            <Status kind={doneCount ? 'ok' : 'pending'}>已生成方法字段 {doneCount} 篇</Status>
-            <Status kind={modelReady ? 'live' : 'warn'}>{modelReady ? '模型接口已配置' : '未配置模型'}</Status>
-          </>
+          <div className="resultsum">
+            <strong>{methods.length ? `已提取 ${methods.length} 个方法` : '尚未提取方法'}</strong>
+            <span className="sub">
+              {methods.length
+                ? `来自 ${new Set(methods.map((m) => m.paperId)).size} 篇论文；可以查看方法结果或进入研究地图。`
+                : '选择 PDF 文件或粘贴论文正文即可开始；未配置模型时只有演示案例能离线出结果。'}
+            </span>
+          </div>
         }
         actions={
           <button className="btn primary" onClick={() => fileRef.current?.click()}>
@@ -222,8 +224,13 @@ export function UploadFlowView({
         }
       />
 
-      {/* 顶部：一条全局流程 */}
-      <FlowBar steps={overview} />
+      {/* 处理时间线：只作辅助状态，默认收起 */}
+      <details className="fold stepline">
+        <summary>处理时间线（上传论文 → 解析文本 → 提取方法字段 → 校验原文证据 → 进入研究地图）</summary>
+        <div className="fold-body">
+          <FlowBar steps={overview} />
+        </div>
+      </details>
 
       <div className="toolbar" style={{ borderBottom: 'none', paddingTop: 0 }}>
         <button className="btn ghost" onClick={() => setPasteOpen((v) => !v)}>
@@ -328,9 +335,13 @@ export function UploadFlowView({
                   aria-current={p.id === currentId ? 'true' : undefined}
                 >
                   <span className="nm">{p.title}</span>
+                  <span className="mname">{m ? shortNameOf(m) : '尚未提取方法'}</span>
+                  <span className="idea">
+                    {m ? shortContribution(m.fields.coreIdea?.value ?? '') || '尚未提取到核心思路' : '还没有方法结果'}
+                  </span>
                   <span className="st">
                     <i className={`dot ${state === 'done' ? 'ok' : state === 'failed' ? 'bad' : state === 'running' ? 'run' : 'mute'}`} />
-                    {c.no} {c.name} · {STATE_TEXT[c.state]}
+                    {m ? '已完成' : `${c.no} ${c.name} · ${STATE_TEXT[c.state]}`}
                   </span>
                 </button>
               );
@@ -343,6 +354,7 @@ export function UploadFlowView({
               <>
                 <div className="detail-head">
                   <h3>{current.title}</h3>
+                  {currentMethod && <span className="mname">{shortNameOf(currentMethod)}</span>}
                   <Status
                     kind={currentJob?.status === 'running' ? 'info' : currentMethod ? (currentMethod.cached ? 'cached' : 'live') : failedStep ? 'bad' : 'pending'}
                   >
@@ -350,6 +362,15 @@ export function UploadFlowView({
                   </Status>
                 </div>
 
+                {currentMethod && (
+                  <p className="detail-idea">
+                    {shortContribution(currentMethod.fields.coreIdea?.value ?? '') || '尚未提取到核心思路'}
+                  </p>
+                )}
+
+                <details className="fold">
+                  <summary>查看处理细节（当前阶段 · 已完成步骤 · 字段与证据数量）</summary>
+                  <div className="fold-body">
                 <dl className="kvlist">
                   <div>
                     <dt>当前阶段</dt>
@@ -388,6 +409,8 @@ export function UploadFlowView({
                     </dd>
                   </div>
                 </dl>
+                  </div>
+                </details>
 
                 <div className="row" style={{ gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
                   {current.parseStatus === 'ok' && !currentMethod && (
@@ -435,6 +458,9 @@ export function UploadFlowView({
                   </div>
                 )}
 
+                  <details className="fold">
+                    <summary>查看处理过程与原文依据（处理时间线 · 字段 · 证据）</summary>
+                    <div className="fold-body">
                 {/* 完整时间线：只显示当前这一篇 */}
                 <div className="secthead">
                   <h3>处理时间线</h3>
@@ -461,34 +487,19 @@ export function UploadFlowView({
                       <span className="sub">首屏只显示 3 个关键字段，其余默认收起</span>
                     </div>
                     <div className="quiet-group" style={{ marginTop: 0, borderTop: 'none', paddingTop: 0 }}>
-                      {FIELD_KEYS_ORDER.slice(0, 3).map((k) => {
-                        const f = currentMethod.fields[k];
-                        return (
-                          <div className="lnrow" key={k}>
-                            <span className="nm">{METHOD_FIELD_LABELS[k]}</span>
-                            <span className={`stt ${f.evidence?.verified ? 'done' : f.status === 'missing' ? 'failed' : 'waiting'}`}>
-                              {FIELD_STATUS_TEXT[f.status]}
-                            </span>
-                            <span className="res">
-                              {f.value ? f.value.slice(0, 96) + (f.value.length > 96 ? '…' : '') : '未提取到'}
-                              {f.evidence ? (f.evidence.verified ? ` · 引文已定位（p.${f.evidence.page ?? '?'}）` : ' · 引文未通过校验') : ' · 无引文'}
-                            </span>
-                          </div>
-                        );
-                      })}
-                      {FIELD_KEYS_ORDER.length > 3 && (
+                      {FIELD_KEYS_ORDER.length > 0 && (
                         <details className="fold" style={{ marginTop: 10 }}>
-                          <summary>查看全部字段与证据（共 {FIELD_KEYS_ORDER.length} 项）</summary>
+                          <summary>查看字段与原文依据（共 {FIELD_KEYS_ORDER.length} 项）</summary>
                           <div className="fold-body">
-                            {FIELD_KEYS_ORDER.slice(3).map((k) => {
+                            {FIELD_KEYS_ORDER.map((k) => {
                               const f = currentMethod.fields[k];
                               return (
-                                <div className="lnrow" key={k}>
+                                <div className="method-field-row" key={k}>
                                   <span className="nm">{METHOD_FIELD_LABELS[k]}</span>
                                   <span className={`stt ${f.evidence?.verified ? 'done' : f.status === 'missing' ? 'failed' : 'waiting'}`}>
                                     {FIELD_STATUS_TEXT[f.status]}
                                   </span>
-                                  <span className="res">
+                                  <span className="value">
                                     {f.value ? f.value.slice(0, 96) + (f.value.length > 96 ? '…' : '') : '未提取到'}
                                     {f.evidence
                                       ? f.evidence.verified
@@ -505,6 +516,8 @@ export function UploadFlowView({
                     </div>
                   </>
                 )}
+                    </div>
+                  </details>
               </>
             ) : (
               <p className="small dim" style={{ margin: 0 }}>
@@ -522,16 +535,12 @@ export function UploadFlowView({
       )}
 
       {shown.length > 0 && (
-        <NextStep
-          title={shown.length === 1 ? '再加 1 篇同方向论文' : '进入研究地图'}
-          desc={
-            shown.length === 1
-              ? '已有 1 篇：可以看单篇理解，但跨论文的方法关系与阅读顺序需要至少 2 篇；系统不会为单篇论文编造跨论文关系。'
-              : `已有 ${shown.length} 篇、完成字段提取 ${doneCount} 篇。研究地图里可以看方法分组、真实关系与阅读顺序。`
-          }
-          actionLabel="进入研究地图"
-          onAction={onEnterMap}
-        />
+        <p className="nextline">
+          <button className="linkbtn" onClick={onEnterMap} disabled={!methods.length}>
+            进入研究地图 →
+          </button>
+          <span className="small dim">（{shown.length} 篇论文 · 已完成字段提取 {doneCount} 篇）</span>
+        </p>
       )}
     </div>
   );

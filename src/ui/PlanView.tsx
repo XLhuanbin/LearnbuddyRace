@@ -63,6 +63,8 @@ export function DecisionView({
   const [openStep, setOpenStep] = useState<string | null>(null);
   const [showAllReasons, setShowAllReasons] = useState<string | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  /** 路线图里当前选中的步骤（一次只展开一个） */
+  const [graphStep, setGraphStep] = useState<number | null>(null);
 
   const paperById = new Map(papers.map((p) => [p.id, p]));
   const methodById = new Map(methods.map((m) => [m.id, m]));
@@ -84,6 +86,13 @@ export function DecisionView({
 
   /** 默认不展开任何一步：每一步只显示 4 行正文，点击后才展开完整内容 */
   const isOpen = (paperId: string) => openStep === paperId;
+
+  /** 方法短名（与论文集合 / 研究地图同一套派生规则） */
+  const shortOf = (paperId: string) => {
+    const m = methods.find((x) => x.paperId === paperId);
+    if (!m) return (paperById.get(paperId)?.title ?? paperId).slice(0, 18);
+    return buildMethodProfile(m, paperById.get(paperId), papers).shortName;
+  };
 
   return (
     <div>
@@ -201,6 +210,51 @@ export function DecisionView({
       )}
 
       {/* 研究路径：编号 + 竖向轨道 + 每步一个内容区 */}
+      {plan && plan.steps.length > 0 && (
+        <section className="routesum">
+          <p className="rs-line1">
+            推荐阅读顺序：
+            {plan.steps.map((s) => shortOf(s.paperId)).join(' → ')}
+          </p>
+          <p className="rs-line2">
+            {plan.cached ? '示例路线' : '个性化路线'} ·{' '}
+            {plan.steps
+              .slice(0, 2)
+              .map((s) => [s.reason, s.focus].filter(Boolean).join('；').slice(0, 60))
+              .filter(Boolean)
+              .join(' · ') || '每一步的理由与重点见下方路线图。'}
+          </p>
+          <ol className="routegraph">
+            {plan.steps.map((s, i) => (
+              <li key={`${s.paperId}-${i}`} className={`rgnode${graphStep === i ? ' on' : ''}`}>
+                <button
+                  onClick={() => setGraphStep(graphStep === i ? null : i)}
+                  aria-expanded={graphStep === i}
+                >
+                  <span className="no">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="nm">{shortOf(s.paperId)}</span>
+                  <span className="yr">{paperById.get(s.paperId)?.year ?? ''}</span>
+                </button>
+                {i < plan.steps.length - 1 && (
+                  <span className="rgarrow" aria-hidden="true" style={{ ['--rgd' as never]: `${i * 90}ms` }} />
+                )}
+              </li>
+            ))}
+          </ol>
+          <p className="rgnote">箭头只表示阅读顺序，不是方法之间的关系。</p>
+          <div className={`rgexpand${graphStep !== null ? ' open' : ''}`}>
+            {graphStep !== null && plan.steps[graphStep] && (
+              <div className="rgbody">
+                <div className="sect">为什么先读</div>
+                <p>{plan.steps[graphStep].reason || '路线里没有给出这一步的理由（未生成或缺失）。'}</p>
+                <div className="sect">重点看什么</div>
+                <p>{plan.steps[graphStep].focus || '路线里没有给出这一步的重点。'}</p>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
       {plan && plan.steps.length > 0 && (
         <>
           <SectionHead title="研究路径" sub="按顺序读；每一步都给出理由、重点与下一步" />
