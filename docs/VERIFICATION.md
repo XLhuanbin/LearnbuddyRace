@@ -7,6 +7,12 @@
 
 ---
 
+
+> **验收脚本位置说明（2026-09-26 补充）**：第 29–30 轮用到的四个走查脚本已随仓库提交到 `scripts/`，
+> 可直接用 `npm run verify:ui` / `verify:layout` / `verify:scope` / `verify:mobile` 运行
+> （需要本机有 Chrome/Chromium，可用 `CHROME_PATH` 指定）。更早几轮记录里出现的 `.build/*.mjs`
+> 属于本地过程脚本，按 `.gitignore` 不随仓库分发；它们对应的结论已写在本文档与 `docs/VERIFICATION.md`。
+
 ## 第一阶段（环境与最小流程）· 摘要
 
 | 编号 | 检查项 | 实际结果 |
@@ -909,7 +915,7 @@ CNN 教师 ≠ CNN 架构；以 X 为起点/借用技巧不改变家族；单篇
 | V40.5 | 证据必须来自关系两端 | 用只存在于第三篇论文里的句子去认证 A→B → 不通过定位，「原文明示」被降级为「待核查」并留下 `stateAdjusted` 记录 |
 | V40.6 | 人工修正后的有效值 | 修正 `methodName`/`datasets` 后，家族判断、可比性条件矩阵、比较表、导出四处都读到新值；状态降为「待人工核对」；AI 原值与原证据保留；导出里 AI 原值只以「原 AI 值 / AI 原始引文」对照出现 |
 | V40.7 | 缓存关系按当前规则重校验 | 现役两套缓存（vision / nlp-dev）均为 `r3.0.0 / v3.0.0 / cacheVersion 3`，与当前一致 → 视觉 10 条关系复算 **0 降级**（先跑复现脚本确认，避免误伤线上显示）；规则版本变化时旧 `inferred` 降级「待核查」并给出说明 |
-| V40.8 | 非法模型 JSON | 顶层非对象 / `relations` 缺失 / 非数组 / 数组混入非对象 / `steps` 缺失 / `steps` 为空数组 → 全部**明确失败**；`experiments` 类型错失败、缺失允许 0 条；```json 包裹仍能解析 |
+| V40.8 | 非法模型 JSON | 顶层非对象 / `relations` 缺失 / 非数组 / 数组混入非对象 / `steps` 缺失 / `steps` 为空数组 → 全部**明确失败**；`experiments` 类型错失败、缺失允许 0 条；被 JSON 代码块包裹时仍能正确解析 |
 | V40.9 | 端到端与走查 | 见下表 |
 
 **测试过程发现并修掉的缺陷**（不是预先知道的）：`validateRelation` 用 `fields.methodName.value` 读取，
@@ -921,8 +927,8 @@ CNN 教师 ≠ CNN 架构；以 X 为起点/借用技巧不改变家族；单篇
 | `npm test` | **280/280** |
 | `npm run build` | 成功（指纹 `2dddb18ee1`，`app.js` 795836 字节 + `index.css` 79094 字节） |
 | `npm run e2e` | **75/75** |
-| `.build/verify-scope.mjs` | **25/25**（新增 S0b：视觉案例原文依据能展开真实上下文） |
-| `.build/verify-desktop.mjs` | **83/83** |
+| `npm run verify:scope` | **25/25**（新增 S0b：视觉案例原文依据能展开真实上下文） |
+| `npm run verify:layout` | **83/83** |
 | 未执行 | 「实时生成阅读路线 → 刷新后仍在」需要模型密钥，本机未端到端跑；改用单元测试锁住读写契约（`asScopedSnapshot` / `readScopedSnapshot` + 语料隔离） |
 
 ## V41 桌面端 UI 修复（2026-09-26）
@@ -949,13 +955,13 @@ CNN 教师 ≠ CNN 架构；以 X 为起点/借用技巧不改变家族；单篇
 | `npm test` | **286/286** |
 | `npm run build` | 成功（指纹 `7e55301671`，`app.js` 799084 字节 + `index.css` 80857 字节） |
 | `npm run e2e` | **77/77**（新增：状态行直接可见、筛选与集合操作拆分） |
-| `.build/verify-desktop-ui.mjs` | **44/44**（1280×800 与 1440×900 各 22 项） |
-| `.build/verify-scope.mjs` | **25/25** |
-| `.build/verify-desktop.mjs` | **83/83** |
-| `.build/check-mobile-map.mjs` | **3/3** |
+| `npm run verify:ui` | **44/44**（1280×800 与 1440×900 各 22 项） |
+| `npm run verify:scope` | **25/25** |
+| `npm run verify:layout` | **83/83** |
+| `npm run verify:mobile` | **3/3** |
 | 截图 | `docs/desktop-ui/`：研究地图 / 方法提取 / 方法关系 / 实验比较 / 阅读路线 × 两个视口，另有「研究地图（详情打开）」与「窄屏回归 390×844」 |
 
 **未通过项（如实记录）**：`.build/verify-map-editorial.mjs` 在 M0 即失败 —— 它假设「首页点体验案例 → 直接进研究地图」，
 而自 2026-09-24 起流程已改为先进入论文集合；它断言的 `.side.research` 侧栏等也不再是当前默认形态。
 该脚本属于更早几轮的历史走查，本轮未改动 landing / 外壳 / 导航，**不是本轮引入的失败**；其覆盖的画布与详情断言已由
-`.build/verify-desktop-ui.mjs` 替代，后续应显式归档或重写（见 STATUS.md 末尾的待办）。
+`npm run verify:ui` 替代，后续应显式归档或重写（见 STATUS.md 末尾的待办）。

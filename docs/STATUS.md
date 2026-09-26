@@ -23,6 +23,12 @@
 | 规则版本 | `RULES_VERSION = r3.0.0`（可比性 / 关系可信度 / 条件范围 / 分歧复核） |
 | 提示词版本 | `PROMPT_VERSION = v3.0.0`（**预置语料已按 v3 全量重新生成**，与程序版本一致，不再标为过期） |
 
+
+> **验收脚本位置说明（2026-09-26 补充）**：第 29–30 轮用到的四个走查脚本已随仓库提交到 `scripts/`，
+> 可直接用 `npm run verify:ui` / `verify:layout` / `verify:scope` / `verify:mobile` 运行
+> （需要本机有 Chrome/Chromium，可用 `CHROME_PATH` 指定）。更早几轮记录里出现的 `.build/*.mjs`
+> 属于本地过程脚本，按 `.gitignore` 不随仓库分发；它们对应的结论已写在本文档与 `docs/VERIFICATION.md`。
+
 ## 一、第二阶段新增能力（均已实现并通过程序校验 + 端到端走查）
 
 ### 亮点一：证据绑定
@@ -772,7 +778,7 @@ Swin 三条 1K-only 记录的预训练字段缺失；浏览器端实时抽取尚
 
 | # | 缺陷 | 证据 | 修复 |
 | --- | --- | --- | --- |
-| 1 | 视觉案例取不到论文全文 | 视觉 5 篇全文只在 `public/samples-vision/text/`，`samples/text/` 下**不存在**；旧代码走默认 base | 新增 `corpusBaseOfPaper(corpusId)`，两处 `loadPaperText()` 显式传 base；`.build/verify-scope.mjs` 新增 S0b 断言「原文依据能展开真实上下文」 |
+| 1 | 视觉案例取不到论文全文 | 视觉 5 篇全文只在 `public/samples-vision/text/`，`samples/text/` 下**不存在**；旧代码走默认 base | 新增 `corpusBaseOfPaper(corpusId)`，两处 `loadPaperText()` 显式传 base；`npm run verify:scope` 新增 S0b 断言「原文依据能展开真实上下文」 |
 | 2 | 分歧引文完全没做定位校验 | `divergenceRules` 把模型字符串直接透传成 `sides[].quote` | 每个 side 过 `buildEvidence()`：定位成功才用原文切片 + 真实页码；失败/无全文 → `verified=false`、不填页码、带原因 |
 | 3 | App 里手写 `verified: true` | `src/App.tsx` 的地图问题证据曾自己包装模型字符串 | 删除，改为转发规则模块算好的 `quoteEvidence`（自己给自己发核验证书是不允许的） |
 | 4 | A→B 与 B→A 被合并成一条 | 去重键是 `[from,to].sort()`（无向） | 改成有向键 `from->to`；证据搜索范围收窄到关系两端；`candidate` 不再被映射成 `inferred` |
@@ -799,8 +805,8 @@ Swin 三条 1K-only 记录的预训练字段缺失；浏览器端实时抽取尚
 | `npm test` | **280/280**（新增第 26 组回归 35 条） |
 | `npm run build` | 成功（指纹 `2dddb18ee1`） |
 | `npm run e2e` | **75/75** |
-| `.build/verify-scope.mjs` | **25/25**（新增视觉全文 S0b） |
-| `.build/verify-desktop.mjs` | **83/83** |
+| `npm run verify:scope` | **25/25**（新增视觉全文 S0b） |
+| `npm run verify:layout` | **83/83** |
 
 ## 三十、2026-09-26 桌面端 UI 修复（第八轮）
 
@@ -831,8 +837,8 @@ Swin 三条 1K-only 记录的预训练字段缺失；浏览器端实时抽取尚
 | `npm test` | **286/286** |
 | `npm run build` | 成功（指纹 `7e55301671`） |
 | `npm run e2e` | **77/77**（新增 2 条） |
-| `.build/verify-desktop-ui.mjs` | **44/44**（1280×800 + 1440×900 × 5 页，截图在 `docs/desktop-ui/`） |
-| `.build/verify-scope.mjs` / `.build/verify-desktop.mjs` / `.build/check-mobile-map.mjs` | 25/25 · 83/83 · 3/3 |
+| `npm run verify:ui` | **44/44**（1280×800 + 1440×900 × 5 页，截图在 `docs/desktop-ui/`） |
+| `npm run verify:scope` / `npm run verify:layout` / `npm run verify:mobile` | 25/25 · 83/83 · 3/3 |
 
 **已知未修（如实列出）**：390px 下 `.mapdetail` 抽屉底边会超出视口约 55px（移动端规则缺 `position: fixed`）——
-本轮按要求「不动手机布局」未改，`.build/check-mobile-map.mjs` 会打印实测数值。
+本轮按要求「不动手机布局」未改，`npm run verify:mobile` 会打印实测数值。

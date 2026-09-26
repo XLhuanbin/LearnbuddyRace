@@ -13,6 +13,10 @@
     "variation": "node scripts/analyze.mjs --decision-variation",
     "test": "node scripts/test.mjs",
     "e2e": "node scripts/e2e-check.mjs",
+    "verify:ui": "node scripts/verify-desktop-ui.mjs",
+    "verify:layout": "node scripts/verify-desktop-layout.mjs",
+    "verify:scope": "node scripts/verify-scope-flow.mjs",
+    "verify:mobile": "node scripts/verify-mobile-map.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "samples": "node samples/download-samples.mjs"
   },
