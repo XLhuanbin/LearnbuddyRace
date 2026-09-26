@@ -9,9 +9,10 @@
  * - 关系证据判定：引文里写了 BERT 就不能说「没有指名」；只有引用标记不算认证具体端点；改进类关系需要改进措辞。
  */
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { locateQuote, normalize, pageAt } from '../src/core/text';
 import { assemblePages, guessPdfMeta } from '../src/core/parse/assemble';
+import { RULES_VERSION } from '../src/core/rules';
 import { buildEvidence } from '../src/core/evidence';
 import {
   compareConditions,
@@ -22,11 +23,33 @@ import {
   LEVEL_LABELS,
 } from '../src/core/comparability';
 import { validateMethod, validateRelation } from '../src/core/validate';
+import { buildEvidence } from '../src/core/evidence';
+import { effectiveField } from '../src/core/effective';
+import { corpusBaseOfPaper, revalidateCachedRelations } from '../src/core/cache';
 import { applyDivergenceRules } from '../src/core/divergenceRules';
 import { hasThirdPartySubject } from '../src/core/rules';
-import { hasConfigEvidence, parseGpuCount } from '../src/core/model/analyze';
+import {
+  assembleRelationsFromModel,
+  hasConfigEvidence,
+  parseExperimentRecords,
+  parseGpuCount,
+  requireReadingSteps,
+} from '../src/core/model/analyze';
 import { buildRelationHints, findRelationCandidates, primaryAlias } from '../src/core/relationCandidates';
-import { CORPUS_META, corpusOfPaperId, legacyCorpusPatches, paperIdOf, scopeCorpus, scopeRelations } from '../src/core/corpus';
+import {
+  CORPUS_META,
+  asScopedSnapshot,
+  collectPaperRemoval,
+  corpusOfPaperId,
+  isManualRelation,
+  legacyCorpusPatches,
+  paperIdOf,
+  readScopedSnapshot,
+  relationsInScope,
+  replaceRelationsInScope,
+  scopeCorpus,
+  scopeRelations,
+} from '../src/core/corpus';
 import {
   buildMethodOverview,
   buildMethodProfile,
@@ -39,22 +62,24 @@ import {
   canonicalMetricName,
   canonicalResolution,
   compareExperiments,
+  pickComparableExperimentPair,
   suggestComparablePairs,
 } from '../src/core/experiments';
 import type { ExperimentRecord } from '../src/core/types';
-import { toMarkdown } from '../src/core/compare';
+import { buildComparison, toMarkdown } from '../src/core/compare';
 import { migrateMethod, migrateRelation } from '../src/core/cache';
 import {
   CANCEL_NOTICE,
   FAILURE_NOTICE,
   describeDependents,
   describeJobOutcome,
+  describeOverrideDependents,
   mergeReanalysisResult,
 } from '../src/core/reanalysis';
-import { chat, ModelError } from '../src/core/model/client';
+import { chat, ModelError, parseJsonLoose, parseJsonObject, requireArrayField, requireArrayOfObjects } from '../src/core/model/client';
 import { createServer, type Server } from 'node:http';
 import { methodAliases, assessRelationEvidence, assessClaimScope, parseSplitsByDataset, looksLikeTitle } from '../src/core/rules';
-import type { ConditionValue, ExperimentConditions, Method, Paper, Relation } from '../src/core/types';
+import type { ConditionValue, ExperimentConditions, Method, Paper, ReadingPlan, Relation } from '../src/core/types';
 
 let pass = 0;
 let fail = 0;
@@ -1312,8 +1337,381 @@ console.log('=== 22. 方法家族 / 技术策略 / 概览统计 / 关系方向�
   check('概览统计口径已说明（单篇去重 + 全部/部分）', /同一篇论文内先去重/.test(ov4.note));
 }
 
-console.log('');
-console.log(`结果：通过 ${pass}，失败 ${fail}`);
+console.log('=== 25. 唯一分析范围 / 关系生命周期 / 案例切换（本轮修复回归） ===');
+{
+  const vid = CORPUS_META.vision.id;
+  const nid = CORPUS_META['nlp-dev'].id;
+
+  // 三类数据同时存在：视觉案例 2 篇、NLP 案例 1 篇、用户上传 2 篇
+  const pVision = { ...PAPER(paperIdOf('1512.03385'), 'ResNet', 2015, 'resnet full text'), corpusId: vid } as Paper;
+  const pVisionB = { ...PAPER(paperIdOf('2010.11929'), 'ViT', 2020, 'vit full text'), corpusId: vid } as Paper;
+  const pNlp = { ...PAPER(paperIdOf('1810.04805'), 'BERT', 2018, 'bert full text'), corpusId: nid } as Paper;
+  const pOwn = { ...PAPER('p_user_1', '我上传的论文 A', 2024, 'own text a'), corpusId: 'user-import' as const } as Paper;
+  const pOwn2 = { ...PAPER('p_user_2', '我上传的论文 B', 2024, 'own text b'), corpusId: 'user-import' as const } as Paper;
+
+  const mVision = { ...mkMethod(paperIdOf('1512.03385'), emptyConditions()), corpusId: vid } as Method;
+  const mVisionB = { ...mkMethod(paperIdOf('2010.11929'), emptyConditions()), corpusId: vid } as Method;
+  const mNlp = { ...mkMethod(paperIdOf('1810.04805'), emptyConditions()), corpusId: nid } as Method;
+  // 用户论文的方法 ID 故意**不是** m_<paperId>，用来证明删除论文不依赖这个命名约定
+  const mOwn = { id: 'mm_custom_own_1', paperId: 'p_user_1', corpusId: 'user-import' as const, fields: {} as Method['fields'], conditions: emptyConditions(), overrides: [] } as Method;
+  const mOwn2 = { id: 'mm_custom_own_2', paperId: 'p_user_2', corpusId: 'user-import' as const, fields: {} as Method['fields'], conditions: emptyConditions(), overrides: [] } as Method;
+
+  const papers = [pVision, pVisionB, pNlp, pOwn, pOwn2];
+  const methods = [mVision, mVisionB, mNlp, mOwn, mOwn2];
+  const relations: Relation[] = [
+    { id: 'rel_vision', fromMethodId: mVision.id, toMethodId: mVisionB.id, type: 'extends', evidenceState: 'inferred', rationale: 'AI 生成' },
+    { id: 'rel_vision_manual', fromMethodId: mVisionB.id, toMethodId: mVision.id, type: 'improves', evidenceState: 'candidate', rationale: '人工添加', userEdited: true },
+    { id: 'rel_cross', fromMethodId: mVision.id, toMethodId: mNlp.id, type: 'extends', evidenceState: 'inferred', rationale: '跨语料（本来就不该出现）' },
+    { id: 'rel_own', fromMethodId: mOwn.id, toMethodId: mOwn2.id, type: 'extends', evidenceState: 'inferred', rationale: '用户论文之间的关系' },
+  ];
+
+  // ---- 1) 三类数据不会互相进入分析 ----
+  const scopeVisionCase = scopeCorpus(papers, methods, 'vision', 'case');
+  check(
+    '案例模式：分析范围只含当前案例的论文与方法',
+    scopeVisionCase.papers.length === 2 &&
+      scopeVisionCase.methods.length === 2 &&
+      scopeVisionCase.papers.every((p) => p.corpusId === vid) &&
+      scopeVisionCase.methods.every((m) => m.corpusId === vid),
+    JSON.stringify({ p: scopeVisionCase.papers.map((x) => x.id), m: scopeVisionCase.methods.map((x) => x.id) }),
+  );
+  check(
+    '案例模式：不把用户上传的论文混进分析范围',
+    !scopeVisionCase.papers.some((p) => p.id === 'p_user_1') && !scopeVisionCase.methods.some((m) => m.id === 'mm_custom_own_1'),
+  );
+  const relsVisionCase = scopeRelations(relations, scopeVisionCase);
+  check(
+    '案例模式：关系只保留两端都在案例方法里的（用户关系与跨语料关系都进不来）',
+    relsVisionCase.length === 2 && relsVisionCase.every((r) => r.id !== 'rel_own' && r.id !== 'rel_cross'),
+    relsVisionCase.map((r) => r.id).join(','),
+  );
+
+  const scopeOwn = scopeCorpus(papers, methods, 'vision', 'own');
+  check(
+    '我上传模式：分析范围只含 user-import',
+    scopeOwn.papers.length === 2 &&
+      scopeOwn.methods.length === 2 &&
+      scopeOwn.papers.every((p) => (p.corpusId ?? 'user-import') === 'user-import') &&
+      scopeOwn.methods.every((m) => (m.corpusId ?? 'user-import') === 'user-import'),
+  );
+  check('我上传模式：案例关系不会进入', scopeRelations(relations, scopeOwn).map((r) => r.id).join(',') === 'rel_own');
+
+  const scopeNlp = scopeCorpus(papers, methods, 'nlp-dev', 'case');
+  check(
+    'NLP 案例模式：只有 NLP 的论文与方法（视觉/用户数据都不进来）',
+    scopeNlp.papers.length === 1 && scopeNlp.methods.length === 1 && scopeNlp.methods[0].corpusId === nid,
+  );
+  check('NLP 案例模式：视觉与用户的关系都不出现', scopeRelations(relations, scopeNlp).length === 0);
+  check(
+    '集合计数仍按「预置 + 自传」统计（与论文集合页一致，不受模式影响）',
+    scopeVisionCase.paperCount === 4 && scopeVisionCase.presetPaperCount === 2,
+    `${scopeVisionCase.paperCount}/${scopeVisionCase.presetPaperCount}`,
+  );
+
+  // ---- 2) 替换当前案例的关系不会删掉用户关系 / 人工关系 ----
+  const visionMethodIds = new Set(scopeVisionCase.methods.map((m) => m.id));
+  const incoming: Relation[] = [
+    { id: 'rel_vision_new', fromMethodId: mVision.id, toMethodId: mVisionB.id, type: 'extends', evidenceState: 'inferred', rationale: '重新分析结果' },
+  ];
+  const swap = replaceRelationsInScope(relations, incoming, visionMethodIds);
+  check(
+    '替换：只丢掉当前范围内「非人工」的旧关系',
+    swap.drop.map((r) => r.id).join(',') === 'rel_vision',
+    swap.drop.map((r) => r.id).join(','),
+  );
+  check(
+    '替换：用户关系、跨语料关系原样保留',
+    swap.keep.some((r) => r.id === 'rel_own') && swap.keep.some((r) => r.id === 'rel_cross'),
+    swap.keep.map((r) => r.id).join(','),
+  );
+  check('替换：当前范围内的人工关系也保留（人工修正不会被重新分析覆盖）', isManualRelation(relations[1]) && swap.next.some((r) => r.id === 'rel_vision_manual'));
+  check(
+    '替换后：范围内换成新关系，范围外还是原来的',
+    swap.next.some((r) => r.id === 'rel_vision_new') &&
+      swap.next.some((r) => r.id === 'rel_own') &&
+      !swap.next.some((r) => r.id === 'rel_vision'),
+  );
+  check('替换是纯函数：不改动入参（写入失败时原关系仍是原样）', relations.length === 4 && relations[0].id === 'rel_vision');
+  check(
+    '替换：新结果与人工关系 id 相同时，人工版本优先',
+    replaceRelationsInScope(
+      relations,
+      [{ id: 'rel_vision_manual', fromMethodId: mVision.id, toMethodId: mVisionB.id, type: 'extends', evidenceState: 'inferred', rationale: 'AI 想覆盖' }],
+      visionMethodIds,
+    ).next.find((r) => r.id === 'rel_vision_manual')?.rationale === '人工添加',
+  );
+
+  // ---- 3) 删除论文后不存在悬挂关系 ----
+  const afterRemove = collectPaperRemoval(papers, methods, relations, 'p_user_1');
+  check('删除论文：连同它的方法一起删（方法 ID 不是 m_<paperId> 也照样删）', afterRemove.removedMethods.length === 1 && afterRemove.removedMethods[0].id === 'mm_custom_own_1');
+  check('删除论文：方法记录里不再有该论文', afterRemove.methods.every((m) => m.paperId !== 'p_user_1'));
+  check(
+    '删除论文：它参与的关系被一起删掉',
+    afterRemove.removedRelations.some((r) => r.id === 'rel_own') &&
+      afterRemove.relations.every((r) => r.fromMethodId !== 'mm_custom_own_1' && r.toMethodId !== 'mm_custom_own_1'),
+  );
+  const aliveMethodIds = new Set(afterRemove.methods.map((m) => m.id));
+  check('删除论文后不存在悬挂关系（每条关系的两端都还在）', afterRemove.relations.every((r) => aliveMethodIds.has(r.fromMethodId) && aliveMethodIds.has(r.toMethodId)));
+  check('删除论文不影响其它关系', afterRemove.relations.some((r) => r.id === 'rel_vision'));
+
+  // ---- 4) 案例地图的每条边两端都属于当前案例方法 ----
+  const caseMethodIds = new Set(scopeVisionCase.methods.map((m) => m.id));
+  const caseEdges = relationsInScope(relations, caseMethodIds);
+  check(
+    '案例地图：每条边两端都属于当前案例方法',
+    caseEdges.length > 0 && caseEdges.every((r) => caseMethodIds.has(r.fromMethodId) && caseMethodIds.has(r.toMethodId)),
+    caseEdges.map((r) => r.id).join(','),
+  );
+  check(
+    '案例地图：关系端点集合 ⊆ 画布节点集合（数量与节点集合一致）',
+    scopeVisionCase.methods.length === 2 && caseEdges.every((r) => new Set(scopeVisionCase.methods.map((m) => m.id)).has(r.fromMethodId) && new Set(scopeVisionCase.methods.map((m) => m.id)).has(r.toMethodId)),
+  );
+  check(
+    '把全量关系丢给案例地图时，用户关系与跨语料关系会被端点过滤掉（修复前的缺陷）',
+    caseEdges.length === 2 && !caseEdges.some((r) => r.id === 'rel_own') && !caseEdges.some((r) => r.id === 'rel_cross'),
+  );
+
+  // ---- 5) 切换案例后不会恢复旧案例的 plan / divergence ----
+  const storedPlan = asScopedSnapshot(vid, { kind: 'plan-of-vision' });
+  const storedDiv = asScopedSnapshot(vid, { kind: 'divergence-of-vision' });
+  check('切换案例后不会恢复上一个案例的阅读路线', readScopedSnapshot<{ kind: string }>(storedPlan, nid) === undefined);
+  check('切换案例后不会恢复上一个案例的分歧结果', readScopedSnapshot<{ kind: string }>(storedDiv, nid) === undefined);
+  check('本案例自己的产物仍然能恢复', readScopedSnapshot<{ kind: string }>(storedPlan, vid)?.kind === 'plan-of-vision');
+  check('旧版本没有语料集标识的裸数据一律不复用（宁可显示「尚未生成」）', readScopedSnapshot<{ kind: string }>({ kind: 'legacy' }, vid) === undefined);
+  check('切换时写入的空快照不会被当成有效结果', !readScopedSnapshot(asScopedSnapshot(nid, null), nid));
+}
+
+console.log('=== 26. 全文路径 / 证据定位 / 关系装配 / 有效值 / 结构校验（本轮修复回归） ===');
+{
+  const vid = CORPUS_META.vision.id;
+
+  // ---- 1) 视觉案例全文路径可加载 ----
+  check('视觉案例的全文目录是 samples-vision/（不是 samples/）', corpusBaseOfPaper(vid) === './samples-vision/');
+  check('其它语料仍走 samples/', corpusBaseOfPaper('nlp-dev') === './samples/' && corpusBaseOfPaper('user-import') === './samples/');
+  let okFiles = 0;
+  for (const arxiv of CORPUS_META.vision.arxivIds) {
+    const id = paperIdOf(arxiv);
+    const file = `public/samples-vision/text/${id}.json`;
+    if (existsSync(file)) {
+      const j = JSON.parse(readFileSync(file, 'utf8')) as { paperId?: string; rawText?: string };
+      if (j.paperId === id && typeof j.rawText === 'string' && j.rawText.length > 1000) okFiles += 1;
+    }
+  }
+  check('视觉 5 篇论文的全文文件真实存在且可用（rawText 非空）', okFiles === 5, `命中 ${okFiles}/5`);
+  const wrongDir = CORPUS_META.vision.arxivIds.filter((a) => existsSync(`public/samples/text/${paperIdOf(a)}.json`)).length;
+  check('视觉论文在 samples/text/ 下确实不存在（说明旧默认目录必然取不到全文）', wrongDir === 0, `存在 ${wrongDir} 个`);
+
+  // ---- 2) 伪造 quote 不会变成 verified ----
+  const demoPaper = PAPER(
+    'p_demo',
+    'Demo Paper',
+    2020,
+    'We propose ResNet, a residual learning framework to ease the training of networks that are substantially deeper.',
+  );
+  const goodEv = buildEvidence(demoPaper, { quote: 'a residual learning framework to ease the training' });
+  const fakeEv = buildEvidence(demoPaper, { quote: 'We achieve 99.9% top-1 accuracy on ImageNet with 10x fewer parameters.', page: 7 });
+  check('能定位的引文 → verified=true，页码来自定位结果', goodEv?.verified === true && goodEv.locator === 'page+offset');
+  check('伪造引文 → verified=false（不会被包装成已核验）', fakeEv?.verified === false);
+  check('伪造引文不采用模型自称的页码', fakeEv?.page === undefined && fakeEv?.locator === 'none', `page=${fakeEv?.page} locator=${fakeEv?.locator}`);
+  check('伪造引文保留片段与失败原因，供人工核对', !!fakeEv?.quote && !!fakeEv?.verifyNote);
+
+  // ---- 3) candidate 保留 / 4) A→B 与 B→A 不合并 / 证据端点 ----
+  const pRes = PAPER('p_resnet', 'Deep Residual Learning', 2015, 'ResNet is a residual learning framework. We build on VGG and improve it.');
+  const pVit = PAPER('p_vit', 'An Image is Worth 16x16 Words', 2020, 'ViT applies a pure transformer directly to sequences of image patches.');
+  const pOther = PAPER('p_other', 'Something Else', 2021, 'This paper is unrelated to both of them.');
+  // 关系两端有可靠的方法名（否则 validateRelation 会把任何关系都降级为待核查）
+  const namedFields = (name: string) =>
+    ({
+      methodName: { value: name, status: 'verified' as const },
+      coreIdea: { value: `${name} 的核心思路`, status: 'verified' as const },
+    }) as unknown as Method['fields'];
+  const mRes = mkMethod('p_resnet', emptyConditions(), namedFields('ResNet'));
+  const mVit = mkMethod('p_vit', emptyConditions(), namedFields('ViT'));
+  const mOther = mkMethod('p_other', emptyConditions(), namedFields('SomethingElse'));
+  const triplePapers = [pRes, pVit, pOther];
+  const tripleMethods = [mRes, mVit, mOther];
+
+  const asm = assembleRelationsFromModel(
+    [
+      { from: mRes.id, to: mVit.id, type: 'extends', evidenceState: 'candidate', quote: 'ViT applies a pure transformer directly to sequences of image patches.' },
+      { from: mVit.id, to: mRes.id, type: 'improves', evidenceState: 'inferred', rationale: '因为 ViT 的后续工作改进了 ResNet 的卷积表示方式，属于技术承接。' },
+    ],
+    triplePapers,
+    tripleMethods,
+  ).relations;
+  const ab = asm.filter((r) => r.fromMethodId === mRes.id && r.toMethodId === mVit.id);
+  const ba = asm.filter((r) => r.fromMethodId === mVit.id && r.toMethodId === mRes.id);
+  check('A→B 与 B→A 不会被无向键合并（两条都保留）', ab.length === 1 && ba.length === 1, `A→B ${ab.length} 条 / B→A ${ba.length} 条`);
+  check('candidate 保持 candidate（不被映射成 inferned/系统推断）', ab[0]?.evidenceState === 'candidate', String(ab[0]?.evidenceState));
+
+  const crossAsm = assembleRelationsFromModel(
+    [{ from: mRes.id, to: mVit.id, type: 'extends', evidenceState: 'explicit', quote: 'This paper is unrelated to both of them.' }],
+    triplePapers,
+    tripleMethods,
+  ).relations;
+  check('第三篇论文里的句子不能认证 A→B（证据只能来自关系两端）', crossAsm[0]?.evidence?.verified !== true);
+  check('因此「原文明示」被降级为「待核查」并留下调整记录', crossAsm[0]?.evidenceState === 'candidate' && (crossAsm[0]?.stateAdjusted?.length ?? 0) > 0);
+
+  // ---- 5) 人工修正后四个下游入口读取新值 ----
+  const fBase = {
+    methodName: { value: 'ResNet', status: 'verified' as const, evidence: { paperId: 'p_fix', quote: 'ResNet', locator: 'page' as const, verified: true, page: 1 } },
+    coreIdea: { value: '残差学习', status: 'verified' as const },
+    datasets: { value: 'COCO', status: 'verified' as const, evidence: { paperId: 'p_fix', quote: 'COCO', locator: 'page' as const, verified: true, page: 2 } },
+    metrics: { value: 'top-1 accuracy', status: 'verified' as const },
+  } as unknown as Method['fields'];
+  const fixedMethod: Method = {
+    ...mkMethod('p_fix', emptyConditions(), fBase),
+    overrides: [
+      { field: 'methodName', previousValue: 'ResNet', newValue: 'Vision Transformer (ViT)', at: 1 },
+      { field: 'datasets', previousValue: 'COCO', newValue: 'ImageNet-1K', at: 2 },
+    ],
+  };
+  const fixPaper = PAPER('p_fix', 'Fixed Paper', 2020, '');
+  check('家族判断读取人工修正后的方法名', classifyFamily(fixedMethod).id === 'transformer', classifyFamily(fixedMethod).id);
+  const cond = compareConditions([fixPaper], [fixedMethod]);
+  const dsCell = cond.dimensions.find((d) => d.dimension === 'datasets')?.cells[0];
+  check('可比性/条件矩阵读取人工修正后的数据集', (dsCell?.values ?? []).includes('ImageNet-1K'), JSON.stringify(dsCell?.values));
+  const cmp = buildComparison([fixedMethod], [fixPaper]);
+  const dsRow = cmp.rows.find((r) => r.field === 'datasets');
+  check('比较表读取人工修正后的值', dsRow?.cells[0]?.display === 'ImageNet-1K', String(dsRow?.cells[0]?.display));
+  check('比较表同时标明该值不是原文核验（待人工核对）', dsRow?.cells[0]?.state === 'unverified', String(dsRow?.cells[0]?.state));
+  const md = toMarkdown([fixedMethod], [fixPaper], []);
+  check(
+    '导出读取人工修正后的值，AI 原值只作为「原 AI 值 / 原始引文」对照出现',
+    md.includes('ImageNet-1K') && md.includes('人工修正') && /原 AI 值/.test(md) && /AI 原始引文/.test(md),
+  );
+  const eff = effectiveField(fixedMethod, 'datasets');
+  check('人工修正值不冒充原文已核验（状态降为待人工核对）', eff.status === 'unverified' && eff.userCorrected === true, eff.status);
+  check('AI 原值、原证据与修正记录都保留', fixedMethod.fields.datasets.value === 'COCO' && !!eff.evidence && fixedMethod.overrides[1].previousValue === 'COCO');
+  check('人工修正后下游提示要求重算（关系 / 路线 / 比较）', describeOverrideDependents('X', ['数据集']).length >= 3);
+
+  // ---- 6) 刷新后实时路线仍存在（按语料集隔离） ----
+  const livePlan = {
+    steps: [{ paperId: 'p_resnet', order: 1, focus: 'f', reason: 'r', basis: 'paper' }],
+    cached: false,
+    generatedAt: 1,
+  } as unknown as ReadingPlan;
+  const storedPlan = asScopedSnapshot(vid, livePlan);
+  const back = readScopedSnapshot<ReadingPlan>(storedPlan, vid);
+  check('实时生成的路线按语料集身份落盘后可原样读回（刷新后仍在）', back?.steps?.length === 1 && back?.cached === false);
+  check('换成别的语料集读不到这条路线', readScopedSnapshot<ReadingPlan>(storedPlan, CORPUS_META['nlp-dev'].id) === undefined);
+
+  // ---- 7) 非法模型 JSON 明确失败 ----
+  const throws = (fn: () => unknown) => {
+    try {
+      fn();
+      return false;
+    } catch {
+      return true;
+    }
+  };
+  check('顶层不是对象 → 明确失败', throws(() => parseJsonObject('[1,2,3]', '关系分析结果')));
+  check('relations 缺失 → 明确失败', throws(() => requireArrayField(parseJsonObject('{"foo":1}', '关系分析结果'), 'relations', '关系分析结果')));
+  check('relations 不是数组 → 明确失败', throws(() => requireArrayField({ relations: 'oops' }, 'relations', '关系分析结果')));
+  check('数组里混进非对象 → 明确失败', throws(() => requireArrayOfObjects([{ a: 1 }, 'x'], '关系分析结果.relations')));
+  check('阅读路线 steps 缺失 → 明确失败', throws(() => requireReadingSteps({ candidates: [] })));
+  check('阅读路线 steps 为空数组 → 明确失败（不把 0 步当成功）', throws(() => requireReadingSteps({ steps: [] })));
+  check('阅读路线 steps 结构正确 → 通过', requireReadingSteps({ steps: [{ paperId: 'p1' }] }).length === 1);
+  check('experiments 不是数组 → 解析实验记录时明确失败', throws(() => parseExperimentRecords(demoPaper, { experiments: 'oops' })));
+  check('experiments 缺失 → 允许 0 条（不伪造，也不误判为失败）', parseExperimentRecords(demoPaper, {}).length === 0);
+  check('```json 包裹仍能正确解析（宽松解析没有被打死）', parseJsonLoose<{ a: number }>('说明文字\n```json\n{"a":1}\n```').a === 1);
+
+  // ---- 8) 缓存关系按当前规则重校验（规则版本变化不得继续冒充当前结论） ----
+  const cachedRel: Relation = {
+    id: 'r_cached',
+    fromMethodId: mRes.id,
+    toMethodId: mVit.id,
+    type: 'extends',
+    evidenceState: 'inferred',
+    rationale: '因为 ViT 的后续工作改进了 ResNet 的卷积表示方式，属于技术承接。',
+  };
+  const sameRules = revalidateCachedRelations([cachedRel], [mRes, mVit], [pRes, pVit], {
+    cachedRulesVersion: RULES_VERSION,
+    rulesVersionChanged: false,
+  });
+  check('规则版本一致时，缓存关系保持原判定', sameRules.relations[0]?.evidenceState === 'inferred' && sameRules.downgraded === 0);
+  const changedRules = revalidateCachedRelations([cachedRel], [mRes, mVit], [pRes, pVit], {
+    cachedRulesVersion: 'r1.0.0',
+    rulesVersionChanged: true,
+  });
+  check(
+    '规则版本变化后，旧的 inferred 降级为「待核查」并写明原因',
+    changedRules.relations[0]?.evidenceState === 'candidate' &&
+      (changedRules.relations[0]?.stateAdjusted?.length ?? 0) > 0 &&
+      changedRules.downgraded === 1,
+  );
+  check('重校验会给出可展示的说明，不静默处理', changedRules.notes.length === 1 && /规则/.test(changedRules.notes[0]));
+
+  // ---- 9) 跨方法挑「同口径」实验：挑不到就不给对照（不允许摆不可比的数字） ----
+  const mkExp = (
+    id: string,
+    paperId: string,
+    dataset: string,
+    metric: string,
+    value: string,
+    taskTag: ExperimentRecord['taskTag'] = 'classification',
+  ) =>
+    ({
+      id,
+      paperId,
+      taskTag,
+      modelVariant: 'M',
+      evalDataset: dataset,
+      metricName: metric,
+      metricValue: value,
+    }) as ExperimentRecord;
+
+  /**
+   * 口径完整的记录：所有对比维度都写明且两侧一致 + 表格行列已核验。
+   * （任何一个维度为空都会被当成「未知」，从而降级为信息不足 —— 这正是对照页不该摆数字的情形）
+   */
+  const full = (e: ExperimentRecord): ExperimentRecord =>
+    ({
+      ...e,
+      evalSplit: 'test',
+      pretrainData: 'none',
+      trainData: 'ImageNet-1K',
+      inputResolution: '224x224',
+      extraData: 'none',
+      distillation: 'none',
+      testTimeAug: 'none',
+      inferenceMode: 'single model',
+      verification: {
+        quoteLocated: true,
+        tableCaptionLocated: true,
+        rowLabelLocated: true,
+        colLabelLocated: true,
+        rowColConfirmed: true,
+        issues: [],
+      },
+    }) as ExperimentRecord;
+
+  const sameCaliber = pickComparableExperimentPair(
+    [full(mkExp('e1', 'pa', 'ImageNet-1K', 'top-1 accuracy', '76.1'))],
+    [full(mkExp('e2', 'pb', 'ImageNet-1K', 'top-1 accuracy', '81.2'))],
+  );
+  check('同数据集同指标时能挑出一对可直接对照的实验', !!sameCaliber && sameCaliber.a.id === 'e1' && sameCaliber.b.id === 'e2');
+  check(
+    '挑出的这一对确实是「可直接比较 / 有条件可比较」',
+    sameCaliber?.cmp.level === 'directly_comparable' || sameCaliber?.cmp.level === 'comparable_with_conditions',
+    sameCaliber?.cmp.level,
+  );
+
+  const crossDataset = pickComparableExperimentPair(
+    [mkExp('x1', 'pa', 'ImageNet-1K', 'top-1 accuracy', '76.1')],
+    [mkExp('x2', 'pb', 'COCO', 'top-1 accuracy', '40.0')],
+  );
+  check('数据集不同时不把它当成对照（不返回硬阻断的一对）', crossDataset === null, crossDataset?.cmp.level);
+
+  const crossTask = pickComparableExperimentPair(
+    [mkExp('t1', 'pa', 'ImageNet-1K', 'top-1 accuracy', '76.1')],
+    [mkExp('t2', 'pb', 'ImageNet-1K', 'top-1 accuracy', '40.0', 'detection')],
+  );
+  check('任务不同的记录不参与分类对照', crossTask === null, crossTask?.cmp.level);
+
+  check('同一方法的实验不会被拿去和自己比较', pickComparableExperimentPair([], []) === null);
+  check('一侧没有实验时返回 null（界面据此不展示数字）', pickComparableExperimentPair([], [mkExp('z1', 'pb', 'ImageNet-1K', 'top-1 accuracy', '1.0')]) === null);
+}
 
 console.log('');
 console.log(`结果：通过 ${pass}，失败 ${fail}`);

@@ -296,8 +296,8 @@ export function validateRelation(
     } else {
       const assessment = assessRelationEvidence(
         quote,
-        fromMethod?.fields.methodName.value,
-        toMethod?.fields.methodName.value,
+        fromMethod?.fields?.methodName?.value,
+        toMethod?.fields?.methodName?.value,
         next.type,
       );
       next.evidenceAssessment = assessment.reason;
@@ -320,8 +320,9 @@ export function validateRelation(
     }
   }
 
-  const fromName = fromMethod?.fields.methodName.value;
-  const toName = toMethod?.fields.methodName.value;
+  // 字段记录可能不完整（历史缓存 / 迁移数据），这里必须容错：缺字段不等于崩溃
+  const fromName = fromMethod?.fields?.methodName?.value;
+  const toName = toMethod?.fields?.methodName?.value;
   if (next.evidenceState !== 'candidate' && (!fromName || !toName)) {
     downgrade('candidate', '关系两端至少有一方未抽取出可靠的方法名称，无法确认关系主体。');
   }

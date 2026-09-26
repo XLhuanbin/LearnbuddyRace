@@ -5,10 +5,14 @@ import { verifiedOf } from './Library';
 import { FIELD_KEYS_ORDER } from '../core/cache';
 import { METHOD_FIELD_LABELS, FIELD_STATUS_TEXT } from '../core/types';
 import { buildMethodProfile, shortContribution } from '../core/grouping';
+import type { CorpusScope } from '../core/corpus';
+import { effectiveFieldValue } from '../core/effective';
 import { FlowBar, NextStep, PageHead, Status } from './common';
 
 interface Props {
   papers: Paper[];
+  /** 当前分析范围（案例 = 当前语料全部论文；我上传 = 用户自传）。论文列表必须与它一致 */
+  scope: CorpusScope;
   methods: Method[];
   jobs: Record<string, JobState>;
   modelReady: boolean;
@@ -118,6 +122,7 @@ function stepsOf(p: Paper, m: Method | undefined, job: JobState | undefined, mod
  */
 export function UploadFlowView({
   papers,
+  scope,
   methods,
   jobs,
   modelReady,
@@ -140,8 +145,17 @@ export function UploadFlowView({
   const [pasteText, setPasteText] = useState('');
   const [draft, setDraft] = useState(config);
 
-  const ownPapers = papers.filter((p) => (p.corpusId ?? 'user-import') === 'user-import');
-  const shown = ownPapers.length ? ownPapers : papers.slice(-3);
+  /**
+   * 论文列表用**当前分析范围**的论文，和导航 / 地图 / 实验比较是同一个集合。
+   * 旧实现写成 papers.slice(-3)：案例模式下只显示最后 3 篇，既和页头总数不一致，
+   * 也让前两篇（ResNet / ViT）根本点不开 —— 这是一处静默的业务截断，已删除。
+   */
+  const casePapers = scope.presetPapers;
+  const ownPapers = scope.ownPapers;
+  const listMode: 'case' | 'own' = scope.mode === 'own' || (casePapers.length === 0 && ownPapers.length > 0) ? 'own' : 'case';
+  const shown = listMode === 'own' ? ownPapers : casePapers;
+  /** 待处理：还没生成方法结果的论文（与总数/完成数同一个集合） */
+  const pendingCount = shown.filter((p) => p.parseStatus !== 'failed' && !methods.some((m) => m.paperId === p.id)).length;
   const hasMethod = (p: Paper) => methods.some((m) => m.paperId === p.id);
   const doneCount = shown.filter(hasMethod).length;
   const needModel = !modelReady && shown.some((p) => p.parseStatus === 'ok' && !hasMethod(p));
@@ -319,6 +333,10 @@ export function UploadFlowView({
           <div className="work2-list">
             <div className="secthead">
               <h3>论文列表（{shown.length}）</h3>
+              <span className="sub">
+                {listMode === 'own' ? '我上传的论文' : scope.meta.label} · 共 {shown.length} 篇 · 已完成 {doneCount} 篇
+                {pendingCount ? ' · 待处理 ' + pendingCount + ' 篇' : ''}
+              </span>
             </div>
             {shown.map((p) => {
               const m = methods.find((x) => x.paperId === p.id);
@@ -337,7 +355,7 @@ export function UploadFlowView({
                   <span className="nm">{p.title}</span>
                   <span className="mname">{m ? shortNameOf(m) : '尚未提取方法'}</span>
                   <span className="idea">
-                    {m ? shortContribution(m.fields.coreIdea?.value ?? '') || '尚未提取到核心思路' : '还没有方法结果'}
+                    {m ? shortContribution(effectiveFieldValue(m, 'coreIdea')) || '尚未提取到核心思路' : '还没有方法结果'}
                   </span>
                   <span className="st">
                     <i className={`dot ${state === 'done' ? 'ok' : state === 'failed' ? 'bad' : state === 'running' ? 'run' : 'mute'}`} />
@@ -364,7 +382,7 @@ export function UploadFlowView({
 
                 {currentMethod && (
                   <p className="detail-idea">
-                    {shortContribution(currentMethod.fields.coreIdea?.value ?? '') || '尚未提取到核心思路'}
+                    {shortContribution(effectiveFieldValue(currentMethod, 'coreIdea')) || '尚未提取到核心思路'}
                   </p>
                 )}
 

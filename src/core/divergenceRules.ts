@@ -8,8 +8,9 @@
  * 一致性因此由代码保证：比较页、分歧页、离线缓存走的是同一套判定。
  */
 
-import type { ConditionDimension, DivergenceFinding, Method, Paper } from './types';
+import type { ConditionDimension, DivergenceFinding, Evidence, Method, Paper } from './types';
 import { LEVEL_LABELS, comparePair, differingDimensions, pairLevel } from './comparability';
+import { buildEvidence } from './evidence';
 
 export interface RawDivergenceFinding {
   kind?: string;
@@ -178,12 +179,38 @@ export function applyDivergenceRules(
     paperIds,
     sides: (raw.sides || [])
       .filter((s) => s.paperId && validPaperIds.has(s.paperId))
-      .map((s) => ({
-        paperId: s.paperId as string,
-        claim: s.claim || '',
-        quote: s.quote || undefined,
-        page: typeof s.page === 'number' ? s.page : undefined,
-      })),
+      .map((s) => {
+        const paperId = s.paperId as string;
+        const claim = s.claim || '';
+        const rawQuote = (s.quote || '').trim();
+        if (!rawQuote) {
+          return { paperId, claim, quote: undefined };
+        }
+        const paper = papers.find((p) => p.id === paperId);
+        // 分歧引文同样必须过定位校验：页码一律来自定位结果，绝不采用模型自称的页码
+        if (!paper || !paper.rawText) {
+          const note = '尚未取回该论文全文，无法做定位校验；这里展示的是模型给出的引文片段，按「待核查」对待。';
+          const ev: Evidence = {
+            paperId,
+            quote: rawQuote.slice(0, 500),
+            locator: 'none',
+            verified: false,
+            verifyNote: note,
+          };
+          return { paperId, claim, quote: rawQuote, quoteEvidence: ev, quoteNote: note };
+        }
+        const ev = buildEvidence(paper, { quote: rawQuote });
+        if (!ev) return { paperId, claim, quote: undefined };
+        return {
+          paperId,
+          claim,
+          // 定位成功时用原文切片（而不是模型给的字符串），失败时保留原字符串供人工核对
+          quote: ev.verified ? ev.quote : rawQuote,
+          page: ev.verified ? ev.page : undefined,
+          quoteEvidence: ev,
+          quoteNote: ev.verified ? undefined : (ev.verifyNote ?? '该引文未能在论文全文中定位。'),
+        };
+      }),
     claimType,
     commonScope,
     conditionDifferences: conditionDifferences.length ? conditionDifferences : undefined,

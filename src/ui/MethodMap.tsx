@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import type { Evidence, Method, Paper, Relation, RelationEvidenceState } from '../core/types';
 import { buildMethodProfile, relationExplanation, relationSentence, shortContribution, type MethodProfile } from '../core/grouping';
 import { Status } from './common';
@@ -51,6 +51,33 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onCompar
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const [hoverEdge, setHoverEdge] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
+  /** 关闭详情后要把键盘焦点还给原来那个节点/连线（键盘用户不会掉到页面顶部） */
+  const lastFocus = useRef<SVGGElement | null>(null);
+  const nodeRefs = useRef<Record<string, SVGGElement | null>>({});
+  const edgeRefs = useRef<Record<string, SVGGElement | null>>({});
+  const closeDetail = () => {
+    const back = lastFocus.current;
+    setSelectedNode(null);
+    setSelectedEdge(null);
+    if (back) window.setTimeout(() => back.focus(), 0);
+  };
+  const selectEdge = (id: string, cur: string | null) => {
+    lastFocus.current = edgeRefs.current[id];
+    setSelectedEdge(cur === id ? null : id);
+    setSelectedNode(null);
+  };
+  const selectNode = (id: string, cur: boolean) => {
+    lastFocus.current = nodeRefs.current[id];
+    setSelectedNode(cur ? null : id);
+    setSelectedEdge(null);
+  };
+  /** Enter / Space 激活（SVG 元素默认不可用键盘触发点击） */
+  const keyActivate = (run: () => void) => (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+      e.preventDefault();
+      run();
+    }
+  };
 
   const paperById = useMemo(() => new Map(papers.map((p) => [p.id, p])), [papers]);
   const profiles = useMemo(
@@ -136,6 +163,19 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onCompar
     ? visibleRelations.filter((r) => r.fromMethodId === selectedNode || r.toMethodId === selectedNode)
     : [];
 
+  /**
+   * 「比较实验表现」的对端：只用**真实关系的另一端**。
+   * 旧代码写死 `methods[0]`，会把一个毫不相干的方法当成对照（甚至可能是它自己）。
+   * 没有明确对端时不猜，交给用户去「联系与区别」自己选。
+   */
+  const compareTarget = (() => {
+    if (!selectedNode) return '';
+    const rel = relatedRelations[0];
+    if (!rel) return '';
+    const other = rel.fromMethodId === selectedNode ? rel.toMethodId : rel.fromMethodId;
+    return other && other !== selectedNode ? other : '';
+  })();
+
   if (!methods.length) {
     return <div className="card">这组论文还没有方法分析结果，无法绘制地图。</div>;
   }
@@ -143,7 +183,17 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onCompar
   return (
     <div className="mapwork">
       <div className="mapstage">
-        <svg viewBox={`0 0 ${width} ${height}`} width={width * zoom} height={height * zoom} role="img" aria-label="方法地图">
+        <div className="mapcanvas">
+        <svg
+          className="mapsvg"
+          viewBox={`0 0 ${width} ${height}`}
+          width={width * zoom}
+          height={height * zoom}
+          /* 放大时才允许超出容器（走画布滚动）；默认按容器宽度等比缩放，不裁切也不留大片空白 */
+          style={zoom > 1 ? { maxWidth: 'none' } : undefined}
+          role="group"
+          aria-label="方法地图：按 Tab 逐个选中节点与连线，Enter 打开详情"
+        >
           <defs>
             {(Object.keys(EDGE_STYLE) as RelationEvidenceState[]).map((s) => (
               <marker key={s} id={`mm-arrow-${s}`} markerWidth="9" markerHeight="7" refX="7" refY="3.5" orient="auto">
@@ -180,7 +230,8 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onCompar
             const isHover = hoverEdge === r.id;
             const showLabel = isSel || isHover;
             const incident = activeNodeIds ? activeNodeIds.has(r.fromMethodId) && activeNodeIds.has(r.toMethodId) : false;
-            const opacity = selectedEdge || selectedNode ? (isSel || incident ? 1 : 0.13) : 1;
+            // 未选中仍要可读：不再用 0.13 这种近似消失的透明度
+            const opacity = selectedEdge || selectedNode ? (isSel || incident ? 1 : 0.5) : 1;
             const verb =
               r.type === 'extends' ? '基于' : r.type === 'improves' ? '改进' : r.type === 'combines' ? '组合' : '相近';
             const label =
@@ -192,12 +243,16 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onCompar
             return (
               <g
                 key={r.id}
-                className="medge"
-                tabIndex={0}
-                onClick={() => {
-                  setSelectedEdge(isSel ? null : r.id);
-                  setSelectedNode(null);
+                ref={(el) => {
+                  edgeRefs.current[r.id] = el;
                 }}
+                className="medge"
+                role="button"
+                tabIndex={0}
+                aria-label={`${label}（${EDGE_STYLE[r.evidenceState].label}）`}
+                aria-pressed={isSel}
+                onClick={() => selectEdge(r.id, selectedEdge)}
+                onKeyDown={keyActivate(() => selectEdge(r.id, selectedEdge))}
                 onMouseEnter={() => setHoverEdge(r.id)}
                 onMouseLeave={() => setHoverEdge(null)}
                 onFocus={() => setHoverEdge(r.id)}
@@ -244,13 +299,18 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onCompar
             return (
               <g
                 key={p.method.id}
-                className={`mnode${sel ? ' sel' : near ? ' near' : ''}`}
-                tabIndex={0}
-                opacity={activeNodeIds && !activeNodeIds.has(p.method.id) ? 0.28 : 1}
-                onClick={() => {
-                  setSelectedNode(sel ? null : p.method.id);
-                  setSelectedEdge(null);
+                ref={(el) => {
+                  nodeRefs.current[p.method.id] = el;
                 }}
+                className={`mnode${sel ? ' sel' : near ? ' near' : ''}`}
+                role="button"
+                tabIndex={0}
+                aria-label={`${p.profile.shortName}${p.paper?.year ? ` · ${p.paper.year}` : ''}：${short}`}
+                aria-pressed={sel}
+                /* 未选中仍要可读：不再用 0.28 这种近似消失的透明度 */
+                opacity={activeNodeIds && !activeNodeIds.has(p.method.id) ? 0.62 : 1}
+                onClick={() => selectNode(p.method.id, sel)}
+                onKeyDown={keyActivate(() => selectNode(p.method.id, sel))}
               >
                 <title>{`${p.profile.shortName}：${short}`}</title>
                 <rect x={p.x - NODE_W / 2} y={p.y - NODE_H / 2} width={NODE_W} height={NODE_H} rx={12} fill="var(--bg)" stroke="var(--line-2)" strokeWidth={1.3} />
@@ -271,54 +331,60 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onCompar
             );
           })}
         </svg>
+        </div>
+
+        {/* 图例与缩放固定在画布列上（不随画布滚动，也不会压到详情列） */}
+        <div className="mapoverlay">
+          <div className="maplegend">
+            {(Object.keys(EDGE_STYLE) as RelationEvidenceState[]).map((s) => (
+              <span key={s} className="k">
+                <svg width="26" height="7" aria-hidden="true">
+                  <line x1="1" y1="3.5" x2="25" y2="3.5" stroke={EDGE_STYLE[s].color} strokeWidth={EDGE_STYLE[s].width} strokeDasharray={EDGE_STYLE[s].dash} />
+                </svg>
+                {EDGE_STYLE[s].label}
+              </span>
+            ))}
+          </div>
+
+          <div className="mapzoom">
+            <button className="z" onClick={() => setZoom((z) => Math.max(0.7, +(z - 0.15).toFixed(2)))} aria-label="缩小">
+              −
+            </button>
+            <span className="pct" aria-live="polite">{Math.round(zoom * 100)}%</span>
+            <button className="z" onClick={() => setZoom((z) => Math.min(1.8, +(z + 0.15).toFixed(2)))} aria-label="放大">
+              ＋
+            </button>
+            <button
+              className="z"
+              onClick={() => {
+                setZoom(1);
+                closeDetail();
+              }}
+              title="恢复视图"
+              aria-label="恢复视图"
+            >
+              ⟳
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* 一句轻提示（选中后消失） */}
       {!selectedNode && !selectedEdge && (
-        <div className="maphint">点击一个方法看它做了什么；点击连线看两个方法的联系。</div>
+        <div className="maphint">点击一个方法看它做了什么；点击连线看两个方法的联系。键盘：Tab 选中，Enter 打开。</div>
       )}
 
-      {/* 图例（简短一行） */}
-      <div className="maplegend">
-        {(Object.keys(EDGE_STYLE) as RelationEvidenceState[]).map((s) => (
-          <span key={s} className="k">
-            <svg width="26" height="7" aria-hidden="true">
-              <line x1="1" y1="3.5" x2="25" y2="3.5" stroke={EDGE_STYLE[s].color} strokeWidth={EDGE_STYLE[s].width} strokeDasharray={EDGE_STYLE[s].dash} />
-            </svg>
-            {EDGE_STYLE[s].label}
-          </span>
-        ))}
-      </div>
-
-      {/* 缩放控件 */}
-      <div className="mapzoom">
-        <button className="z" onClick={() => setZoom((z) => Math.max(0.7, +(z - 0.15).toFixed(2)))} aria-label="缩小">
-          −
-        </button>
-        <span className="pct">{Math.round(zoom * 100)}%</span>
-        <button className="z" onClick={() => setZoom((z) => Math.min(1.8, +(z + 0.15).toFixed(2)))} aria-label="放大">
-          ＋
-        </button>
-        <button
-          className="z"
-          onClick={() => {
-            setZoom(1);
-            setSelectedNode(null);
-            setSelectedEdge(null);
-          }}
-          title="恢复视图"
-        >
-          ⟳
-        </button>
-      </div>
-
       {/* 详情浮层：桌面右侧 / 窄屏底部；点开即在可见区域 */}
-      <aside className={`mapdetail${selectedRelation || nodeDetail ? ' open' : ''}`} aria-hidden={!(selectedRelation || nodeDetail)} aria-label="方法联系与方法详情">
+      <aside
+        className={`mapdetail${selectedRelation || nodeDetail ? ' open' : ''}`}
+        aria-hidden={!(selectedRelation || nodeDetail)}
+        aria-label="方法联系与方法详情"
+      >
       {selectedRelation ? (
         <>
           <div className="dh">
             <h3>方法联系</h3>
-            <button className="x" onClick={() => setSelectedEdge(null)} aria-label="关闭">
+            <button className="x" onClick={closeDetail} aria-label="关闭方法联系详情">
               ✕
             </button>
           </div>
@@ -359,7 +425,7 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onCompar
                 {nodeDetail.paper?.year ?? ''}
               </span>
             </h3>
-            <button className="x" onClick={() => setSelectedNode(null)} aria-label="关闭">
+            <button className="x" onClick={closeDetail} aria-label="关闭方法详情">
               ✕
             </button>
           </div>
@@ -438,6 +504,7 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onCompar
             </div>
           </details>
 
+          {/* 动作放在折叠之外：入口要能直接点到，不该藏在「查看核心做法」里 */}
           <div className="acts">
             {relatedRelations[0] && (
               <button className="btn ghost sm" onClick={() => setSelectedEdge(relatedRelations[0].id)}>
@@ -446,10 +513,18 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onCompar
             )}
             <button
               className="btn ghost sm"
-              onClick={() => onCompareExperiments(methods[0]?.id ?? '', nodeDetail.method.id)}
+              onClick={() => {
+                if (compareTarget) onCompareExperiments(selectedNode!, compareTarget);
+                else onCompareExperiments('', '');
+              }}
               disabled={methods.length < 2}
+              title={
+                compareTarget
+                  ? '与有明确关系的那一端比较实验表现（次级入口，不是评分）'
+                  : '这个节点没有明确的对端：去「联系与区别」自己选两个方法'
+              }
             >
-              比较实验表现（次级）
+              {compareTarget ? '比较实验表现（与有关系的那一端）' : '去选择对照后比较实验表现'}
             </button>
           </div>
             </div>

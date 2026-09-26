@@ -196,6 +196,78 @@ export async function chat(opts: CallOptions, onTrace?: (t: CallTrace) => void):
   throw lastErr instanceof Error ? lastErr : new ModelError('模型调用失败。', 'network');
 }
 
+/* ============================ 结构校验 ============================ */
+/**
+ * 「解析出 JSON」不等于「拿到了可用的结果」。
+ * 模型完全可能返回一个合法 JSON 但缺字段/数组类型不对（例如把 steps 写成字符串），
+ * 这类结果如果照单全收，界面会显示「完成」，而实际上什么都没产出。
+ * 因此每个解析点都必须过结构校验：**结构错误、关键数组缺失或非法 = 明确失败**。
+ */
+
+export function requireObject(value: unknown, what: string): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    const got = value === null ? 'null' : Array.isArray(value) ? '数组' : typeof value;
+    throw new ModelError(
+      `模型返回的${what}不是 JSON 对象（实际是 ${got}），已按失败处理，不显示为完成。`,
+      'format',
+      JSON.stringify(value)?.slice(0, 200),
+    );
+  }
+  return value as Record<string, unknown>;
+}
+
+/** 解析并校验顶层是对象 */
+export function parseJsonObject(text: string, what: string): Record<string, unknown> {
+  return requireObject(parseJsonLoose<unknown>(text), what);
+}
+
+/** 关键数组字段：必须存在且是数组（空数组是合法的） */
+export function requireArrayField(obj: Record<string, unknown>, key: string, what: string): unknown[] {
+  const v = obj[key];
+  if (!Array.isArray(v)) {
+    const got = v === undefined ? '缺失' : Array.isArray(v) ? '数组' : typeof v;
+    throw new ModelError(
+      `模型返回的${what}里，关键数组字段「${key}」${got}，已按失败处理（不把不完整结果当成成功）。`,
+      'format',
+      JSON.stringify(obj).slice(0, 200),
+    );
+  }
+  return v;
+}
+
+/** 非关键数组字段：缺失可以接受，但出现时必须真的是数组 */
+export function optionalArrayField(obj: Record<string, unknown>, key: string, what: string): unknown[] | undefined {
+  const v = obj[key];
+  if (v === undefined || v === null) return undefined;
+  if (!Array.isArray(v)) {
+    throw new ModelError(
+      `模型返回的${what}里，字段「${key}」不是数组（实际是 ${typeof v}），已按失败处理。`,
+      'format',
+      JSON.stringify(v).slice(0, 200),
+    );
+  }
+  return v;
+}
+
+/** 字符串字段：必须存在、是字符串且非空 */
+export function requireStringField(item: unknown, key: string, what: string): string {
+  const rec = requireObject(item, what);
+  const v = rec[key];
+  if (typeof v !== 'string' || !v.trim()) {
+    throw new ModelError(
+      `模型返回的${what}缺少必需字段「${key}」（或不是非空字符串），已按失败处理。`,
+      'format',
+      JSON.stringify(item).slice(0, 200),
+    );
+  }
+  return v.trim();
+}
+
+/** 每个元素都必须是对象（数组里混进字符串/null 一律视为结构错误） */
+export function requireArrayOfObjects(values: unknown[], what: string): Record<string, unknown>[] {
+  return values.map((v, i) => requireObject(v, `${what}的第 ${i + 1} 项`));
+}
+
 /** 从模型返回文本中稳健地解析 JSON（容忍 ```json 包裹与前后解释文字） */
 export function parseJsonLoose<T>(text: string): T {
   let s = text.trim();

@@ -297,3 +297,21 @@ details.fold .fold-body p:last-child { margin-bottom: 0; }
   .verdict { padding: var(--space-4); }
   .verdict .num-big { font-size: var(--fs-xl); }
 }
+
+/* =========================================================================
+   SVG 交互元素（方法地图 / 方法关系图）：桌面键盘可达
+   role="button" 的元素必须能看出焦点在哪；聚焦时不透明，不受"未选中淡化"影响。
+   ========================================================================= */
+svg [role="button"] { outline: none; }
+svg [role="button"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* 方法关系图：连线 */
+.grel:focus-visible path { stroke-width: 3.6; opacity: 1; }
+.grel:focus-visible text { opacity: 1; }
+.grel:focus-visible { cursor: pointer; }
+
+/* 方法关系图：节点 */
+.gnode:focus-visible rect { stroke: var(--accent); stroke-width: 2.8; }

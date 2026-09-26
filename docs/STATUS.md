@@ -1,11 +1,15 @@
 # 开发状态（状态文件，随开发推进更新）
 
-最后更新：2026-09-24（视觉重构二：两列首页 + 论文目录 + 左右两栏方法提取 + 并列详情地图 + 分组实验记录）
+最后更新：2026-09-26（第七轮 证据链与模型层加固 + 第八轮 桌面端 UI 修复）
 当前阶段：**正式领域已确定并落地为真实案例**（图像分类中 CNN 与视觉 Transformer 的方法演进与实验比较，5 篇真实论文，23 条实验记录）。
 
-> 表述更正：先前「未完成项已全部补完」的说法不准确。**浏览器实时抽取**当时未验证（本轮已补做，30/30 通过）；
-> 推荐正确性、证据绑定、关系候选检索当时未审计（本轮审计出 4 处缺陷并修复）。
+> 表述更正：先前「未完成项已全部补完」的说法不准确。**浏览器实时抽取**当时未验证（已补做，30/30 通过）；
+> 推荐正确性、证据绑定、关系候选检索当时未审计（已审计出 4 处缺陷并修复）。
 > 仍未验证项见本文末尾与 `docs/ROUND5-AUDIT.md` §7。
+>
+> **2026-09-26 补充更正**：第七轮修复了 4 个**真实存在的缺陷**（视觉案例全文目录取错、分歧引文完全没做定位校验、
+> App 里手写 `verified: true`、关系去重按无向键合并掉 A→B 或 B→A），并新增 4 条代码层硬约束（见 §二十九）。
+> 第八轮把研究地图的详情改成**并列列**并补齐 SVG 键盘可达（见 §三十）。
 
 | 项目 | 结论 |
 | --- | --- |
@@ -13,7 +17,8 @@
 | 细分领域 | **已确定**：图像分类（CNN 与视觉 Transformer）；旧 NLP 5 篇保留为独立回归样例 |
 | 在线入口 | https://ce6edc09351c490baf62e9a4c1993ce2.app.workbuddy.host |
 | 本地入口 | `cd researchpilot && npm run dev` → http://127.0.0.1:5173 |
-| 截止时间 | 9 月 26 日 23:59（剩余约 10 天） |
+| 截止时间 | **2026-09-26 23:59（今天）**；可多次提交，评委只看最后一次 |
+| 线上版本 | 线上入口当前仍是**上一次部署**的产物；本轮改动需重新部署后线上才一致（部署前请先核对 `build.json` 指纹） |
 | 模型接口 | **2026-09-17 15:12 起恢复可用**（此前 402 余额不足）；预置语料已用 v3 全量重跑 |
 | 规则版本 | `RULES_VERSION = r3.0.0`（可比性 / 关系可信度 / 条件范围 / 分歧复核） |
 | 提示词版本 | `PROMPT_VERSION = v3.0.0`（**预置语料已按 v3 全量重新生成**，与程序版本一致，不再标为过期） |
@@ -758,3 +763,76 @@ Swin 三条 1K-only 记录的预训练字段缺失；浏览器端实时抽取尚
 
 **新增判别断言**：首屏「一个节点出发 ≥3 条路径」且线宽三档；论文集合「三个区域词 + 不是放射状」；
 阅读路线「01–05 编号 + 每个点最多 2 段相接 + 只有一条带箭头路径」。旧样式（heropreview/heroTrack/heroNode/famlist/reledges/routelist）已整段删除。
+
+## 二十九、2026-09-26 证据链与模型层加固（第七轮）
+
+用户指定的修复批次（重点文件：`cache.ts` / `evidence.ts` / `model/client.ts` / `model/analyze.ts` /
+`divergenceRules.ts` / `reanalysis.ts` / `compare.ts` / `comparability.ts` / `grouping.ts` / `App.tsx`）。
+本轮**修掉 4 个真实存在的缺陷**（都有复现或测试证据），而不是只做结构整理：
+
+| # | 缺陷 | 证据 | 修复 |
+| --- | --- | --- | --- |
+| 1 | 视觉案例取不到论文全文 | 视觉 5 篇全文只在 `public/samples-vision/text/`，`samples/text/` 下**不存在**；旧代码走默认 base | 新增 `corpusBaseOfPaper(corpusId)`，两处 `loadPaperText()` 显式传 base；`.build/verify-scope.mjs` 新增 S0b 断言「原文依据能展开真实上下文」 |
+| 2 | 分歧引文完全没做定位校验 | `divergenceRules` 把模型字符串直接透传成 `sides[].quote` | 每个 side 过 `buildEvidence()`：定位成功才用原文切片 + 真实页码；失败/无全文 → `verified=false`、不填页码、带原因 |
+| 3 | App 里手写 `verified: true` | `src/App.tsx` 的地图问题证据曾自己包装模型字符串 | 删除，改为转发规则模块算好的 `quoteEvidence`（自己给自己发核验证书是不允许的） |
+| 4 | A→B 与 B→A 被合并成一条 | 去重键是 `[from,to].sort()`（无向） | 改成有向键 `from->to`；证据搜索范围收窄到关系两端；`candidate` 不再被映射成 `inferred` |
+
+**新增的 4 条代码层硬约束**（写在代码注释与本文档，供后续改动遵守）：
+
+1. `src/core/evidence.ts` 的 `buildEvidence()` 是**所有引文（字段 / 关系 / 分歧）的唯一校验入口**，App 与 UI 不得自己构造 `verified: true`；
+2. 人工修正统一走新增的 `src/core/effective.ts`（`effectiveField` / `withEffectiveMethods`）：修正值状态一律降为「待人工核对」，
+   AI 原值与原证据保留；家族判断 / 比较 / 可比性 / 路线 / 地图 / 导出 / 模型 prompt 都先过这一层
+   （`conditionOf` 里 datasets / metrics 有修正时人工值优先）；
+3. 模型 JSON 必须过 `parseJsonObject` / `requireArrayField` / `requireReadingSteps` 结构校验：
+   **关键数组缺失或类型错 = 明确失败**，不显示「完成」；
+4. 全文目录按 `corpusBaseOfPaper(corpusId)` 选择；`loadPaperText` 默认 base 是 `./samples/`，调用方必须显式传。
+
+**其余同批次改动**：关系分析前按语料集批量补齐全文并显示加载状态；缓存加载时按当前规则重校验关系
+（`revalidateCachedRelations`，规则版本变化 → 降级「待核查」并写明原因；实测现役两套缓存 0 降级）；
+实时生成的阅读路线落盘（刷新仍在、按语料集隔离）；Graph / Decision / Divergence 接入**真实 busy + 停止等待 + 请求版本保护**
+（旧请求返回一律丢弃，不覆盖新案例 / 新论文 / 人工修正后的状态）；usage 记录真实 `CallTrace`
+（不再写死 0，也不再把「已配置」当成「已连通」）。
+
+| 检查 | 结果 |
+| --- | --- |
+| `npm run typecheck` | 0 error |
+| `npm test` | **280/280**（新增第 26 组回归 35 条） |
+| `npm run build` | 成功（指纹 `2dddb18ee1`） |
+| `npm run e2e` | **75/75** |
+| `.build/verify-scope.mjs` | **25/25**（新增视觉全文 S0b） |
+| `.build/verify-desktop.mjs` | **83/83** |
+
+## 三十、2026-09-26 桌面端 UI 修复（第八轮）
+
+重点：研究地图画布与详情、方法提取页论文集合、方法关系页主标、比较实验表现入口、SVG 键盘可达。
+
+- **画布与详情并列**（桌面规则只写在 `@media (min-width: 901px)`，窄屏一字未动）：`.mapwork` 高度 `clamp(440px, 56vh, 560px)`
+  （1280 实测 448 / 1440 实测 504）；`.mapdetail` 未选中时 `width:0`（不留空白）、`.open` 时 `width:var(--panel-w)`；
+  实测两者矩形不相交（**不覆盖画布**）。滚动挪到 `.mapcanvas`，图例与缩放放进 `.mapoverlay`。
+- **未选中元素保持可读**：节点透明度 `0.28 → 0.62`，连线 `0.13 → 0.5`（不再近似消失）。
+- **首屏状态行**直接显示 `关系 N 条 · 当前显示 M 条` + `隐藏 K 条：<逐项原因>`；
+  折叠区只剩「数据来源与统计（模型来源 · 缓存说明 · 字段统计）」。
+  口径：**总数 ≠ 当前显示数是设计如此**（默认隐藏「关系不明确 / 待核查」），
+  断言写成「显示数 = 画布真实连线数」且「隐藏数 = 总数 − 显示数」。
+- **筛选与集合操作拆成两个独立入口**：筛选只放三个复选；集合操作放添加论文 / 重新加载案例 / 更换案例。
+- **方法提取页**：删除 `papers.slice(-3)` 这处**静默业务截断**，改用与全局一致的当前分析范围；
+  总数 / 完成数 / 待处理数 / 自动选择同一集合；实测 5 篇全在且 ResNet 与 ViT 都能打开。
+- **方法关系页主标**：`ResNet · 2015 / ViT · 2020 / DeiT · 2020 / Swin · 2021 / ConvNeXt · 2022`，
+  完整标题放第二行 + `title` + `aria-label`（原来的 methodName 是长串，直接当主标必被截断成不可识别）。
+- **「比较实验表现」入口**：删掉写死的 `methods[0]` → 有关系用关系另一端、没有对端就要求用户自己选，并禁止同一 methodId 自比；
+  新增 `pickComparableExperimentPair()`，**只有同口径才并排数字**，否则只讲原因、不摆数字。
+- **SVG 键盘可达**（`MethodMap` 与 `Graph` 都覆盖）：`role="button"` + `aria-label` + Enter/Space + `:focus-visible` 焦点环；
+  **关闭详情后把焦点还给原节点 / 连线**。
+- **推荐对照**改为「最多 3 条，可展开全部」+「显示其余 N 对 / 只看前 3 对」，不再静默截断。
+
+| 检查 | 结果 |
+| --- | --- |
+| `npm run typecheck` | 0 error |
+| `npm test` | **286/286** |
+| `npm run build` | 成功（指纹 `7e55301671`） |
+| `npm run e2e` | **77/77**（新增 2 条） |
+| `.build/verify-desktop-ui.mjs` | **44/44**（1280×800 + 1440×900 × 5 页，截图在 `docs/desktop-ui/`） |
+| `.build/verify-scope.mjs` / `.build/verify-desktop.mjs` / `.build/check-mobile-map.mjs` | 25/25 · 83/83 · 3/3 |
+
+**已知未修（如实列出）**：390px 下 `.mapdetail` 抽屉底边会超出视口约 55px（移动端规则缺 `position: fixed`）——
+本轮按要求「不动手机布局」未改，`.build/check-mobile-map.mjs` 会打印实测数值。

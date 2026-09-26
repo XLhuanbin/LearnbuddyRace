@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import type { Evidence, Method, Paper, Relation, RelationEvidenceState, RelationType } from '../core/types';
+import { effectiveField, effectiveFieldValue } from '../core/effective';
+import { buildMethodProfile } from '../core/grouping';
 import { RELATION_LABELS, RELATION_STATE_DESC, RELATION_STATE_LABELS } from '../core/types';
 import { Status, Banner, Tag } from './common';
 
@@ -13,7 +15,11 @@ interface Node {
   id: string;
   method: Method;
   paper?: Paper;
+  /** 旧字段：保留为完整标题（放在第二行与 title，不再当主标） */
   label: string;
+  /** 稳定短名（ResNet / ViT …）与年份：主标就用这个，避免长标题被截断成不可识别 */
+  shortName: string;
+  year?: number;
   x: number;
   y: number;
 }
@@ -44,11 +50,15 @@ function layout(methods: Method[], papers: Paper[], width: number): { nodes: Nod
     list.forEach((m, ri) => {
       const y = 80 + ri * 104;
       height = Math.max(height, y + 90);
+      const paper = paperById.get(m.paperId);
       nodes.push({
         id: m.id,
         method: m,
-        paper: paperById.get(m.paperId),
-        label: m.fields.methodName.value || paperById.get(m.paperId)?.title || m.paperId,
+        paper,
+        label: paper?.title ?? m.paperId,
+        // 主标用稳定短名 + 年份；完整标题放第二行与 title，不做字符截断
+        shortName: buildMethodProfile(m, paper, papers).shortName,
+        year: paper?.year,
         x,
         y,
       });
@@ -66,6 +76,7 @@ export function GraphView({
   methods,
   relations,
   onGenerate,
+  onCancel,
   onOpenEvidence,
   busy,
   onDeleteRelation,
@@ -76,6 +87,8 @@ export function GraphView({
   methods: Method[];
   relations: Relation[];
   onGenerate: () => void;
+  /** 停止等待（只停止本地等待，不保证服务端已停止计算） */
+  onCancel?: () => void;
   onOpenEvidence: (e: Evidence, label: string, paper?: Paper) => void;
   busy: boolean;
   onDeleteRelation: (id: string) => void;
@@ -101,6 +114,11 @@ export function GraphView({
   });
 
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
+  /** 键盘焦点还原：关闭详情后回到原来那条关系/节点上 */
+  const lastFocus = React.useRef<SVGGElement | null>(null);
+  const edgeRefs = React.useRef<Record<string, SVGGElement | null>>({});
+  const nodeRefs = React.useRef<Record<string, SVGGElement | null>>({});
+  const nameOfId = (id: string) => nodeById.get(id)?.shortName ?? id;
   const count = (s: RelationEvidenceState) => relations.filter((r) => r.evidenceState === s).length;
   const activeRel = relations.find((r) => r.id === active);
 
@@ -128,7 +146,7 @@ export function GraphView({
         <div className="methodsum">
           {methods.map((m) => {
             const paper = papers.find((p) => p.id === m.paperId);
-            const core = m.fields.coreIdea;
+            const core = effectiveField(m, 'coreIdea');
             return (
               <div className="msumitem" key={m.id}>
                 <div className="who">{paper?.title?.split(/[:：]/)[0]?.slice(0, 18) ?? m.paperId}</div>
@@ -159,6 +177,11 @@ export function GraphView({
           <button className="btn primary" disabled={busy || methods.length < 2} onClick={onGenerate}>
             {busy ? '分析中…' : relations.length ? '重新分析关系' : '分析方法关系'}
           </button>
+          {busy && onCancel && (
+            <button className="btn ghost" onClick={onCancel}>
+              停止等待
+            </button>
+          )}
           <button className="btn" disabled={methods.length < 2} onClick={() => setAdding((v) => !v)}>
             人工添加关系
           </button>
@@ -288,7 +311,29 @@ export function GraphView({
               const midY = (y1 + y2) / 2;
               const isActive = active === r.id;
               return (
-                <g key={r.id} style={{ cursor: 'pointer' }} onClick={() => setActive(isActive ? null : r.id)}>
+                <g
+                  key={r.id}
+                  ref={(el) => {
+                    edgeRefs.current[r.id] = el;
+                  }}
+                  className="grel"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${nameOfId(r.fromMethodId)} → ${nameOfId(r.toMethodId)}：${RELATION_LABELS[r.type]}（${RELATION_STATE_LABELS[r.evidenceState]}）`}
+                  aria-pressed={isActive}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => {
+                    lastFocus.current = edgeRefs.current[r.id];
+                    setActive(isActive ? null : r.id);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+                      e.preventDefault();
+                      lastFocus.current = edgeRefs.current[r.id];
+                      setActive(isActive ? null : r.id);
+                    }
+                  }}
+                >
                   <path
                     d={`M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`}
                     fill="none"
@@ -307,10 +352,19 @@ export function GraphView({
             })}
 
             {nodes.map((n) => {
-              const missing = !n.method.fields.methodName.value;
+              const missing = !effectiveFieldValue(n.method, 'methodName');
               const isEndpoint = activeRel && (activeRel.fromMethodId === n.id || activeRel.toMethodId === n.id);
               return (
-                <g key={n.id}>
+                <g
+                  key={n.id}
+                  ref={(el) => {
+                    nodeRefs.current[n.id] = el;
+                  }}
+                  className="gnode"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${n.shortName}${n.year ? ` · ${n.year}` : ''}：${n.label}`}
+                >
                   <rect
                     x={n.x - 70}
                     y={n.y - 30}
@@ -327,15 +381,33 @@ export function GraphView({
                         fontSize: 11.5,
                         lineHeight: 1.35,
                         color: 'var(--fg)',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 3,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
                         textAlign: 'center',
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        gap: 2,
                       } as React.CSSProperties}
                       title={n.label}
                     >
-                      {n.label}
+                      {/* 第一行：稳定短名 · 年份（可识别） */}
+                      <div style={{ fontWeight: 650, fontSize: 12 }}>
+                        {n.shortName}
+                        {n.year ? ` · ${n.year}` : ''}
+                      </div>
+                      {/* 第二行：完整标题（两行截断 + 悬停看全，不再用固定字符数硬切） */}
+                      <div
+                        style={{
+                          fontSize: 10.5,
+                          color: 'var(--fg-3)',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        } as React.CSSProperties}
+                      >
+                        {n.label}
+                      </div>
                     </div>
                   </foreignObject>
                 </g>
@@ -378,8 +450,11 @@ export function GraphView({
             <button
               className="btn ghost sm"
               onClick={() => {
+                // 关闭详情后把键盘焦点还给原来那条连线
+                const back = lastFocus.current;
                 setActive(null);
                 setEditing(false);
+                if (back) window.setTimeout(() => back.focus(), 0);
               }}
             >
               关闭

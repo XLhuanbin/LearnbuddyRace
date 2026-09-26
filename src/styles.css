@@ -312,7 +312,7 @@ h3 { font-size: var(--fs-section); }
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 11.5px;
+  font-size: var(--fs-meta);
   padding: 2px 9px;
   border-radius: 999px;
   border: 1px solid var(--line-2);

@@ -17,11 +17,27 @@
 .mapstage {
   position: absolute;
   inset: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+/* 画布滚动在 .mapcanvas 上（图例/缩放固定在 .mapoverlay，不随画布滚动跑掉） */
+.mapcanvas {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: auto;
   display: flex;
   align-items: center;
   justify-content: center;
 }
+.mapoverlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.mapoverlay .maplegend,
+.mapoverlay .mapzoom { pointer-events: auto; }
 .mapstage svg { display: block; }
 
 /* 画布内的轻提示（只在未选中时出现） */
@@ -30,9 +46,10 @@
   left: 50%;
   transform: translateX(-50%);
   bottom: 13px;
-  font-size: 12px;
+  /* 这句是操作说明（含键盘用法），不是元数据 → 用 --fs-aux，不用 12px */
+  font-size: var(--fs-aux);
   color: var(--fg-3);
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
   padding: 4px 10px;
   border-radius: 999px;
   pointer-events: none;
@@ -86,14 +103,25 @@
 .mnode { cursor: pointer; }
 .mnode rect { transition: stroke .12s ease, stroke-width .12s ease; }
 .mnode:hover rect { stroke: var(--accent); }
-.mnode:focus-visible rect { stroke: var(--accent); stroke-width: 2; }
 .mnode.sel rect { stroke: var(--accent); stroke-width: 2.2; }
 .mnode.near rect { stroke: var(--accent-line); }
+
+/* 桌面键盘可达：聚焦时必须有清晰可见的焦点环（两层：外轮廓 + 加粗描边） */
+.mnode:focus-visible,
+.medge:focus-visible { outline: none; }
+.mnode:focus-visible rect,
+.mnode:focus-visible .focusring {
+  stroke: var(--accent);
+  stroke-width: 2.6;
+}
+.mnode:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 /* 连线 */
 .medge { cursor: pointer; }
 .medge path.line { transition: stroke-width .12s ease, opacity .12s ease; }
 .medge:hover path.line { stroke-width: 3; }
+.medge:focus-visible path.line { stroke-width: 3.6; opacity: 1; }
+.medge:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* 详情浮层：桌面右侧 / 窄屏底部 */
 .mapdetail {
@@ -453,4 +481,69 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .mapdetail { transition: none; }
+}
+
+/* =========================================================================
+   桌面端画布（≥901px）：画布与详情**并列**，详情不再覆盖画布；
+   画布高度固定在 440–560px，节点与连线是主要内容。
+   窄屏（≤900px）行为完全不变（仍走上面的底部抽屉规则），因此这里只写在 min-width 里。
+   ========================================================================= */
+@media (min-width: 901px) {
+  .mapwork {
+    height: clamp(440px, 56vh, 560px);
+    min-height: 440px;
+    max-height: 560px;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+  }
+  /* 画布列：占满剩余宽度并可滚动；详情列展开时画布自动变窄而不是被盖住 */
+  .mapstage {
+    position: relative;
+    inset: auto;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .mapcanvas { padding: 14px; }
+  /* 默认按容器宽度等比缩放，不裁切、不留大片空白；放大（zoom>1）时交给内联 max-width:none 走滚动 */
+  .mapstage svg.mapsvg { max-width: 100%; height: auto; }
+
+  /* 详情：并列的独立一列。未选中时整列收起（宽度 0），不留空白 */
+  .mapdetail {
+    position: static;
+    flex: 0 0 auto;
+    width: 0;
+    max-height: none;
+    padding: 0;
+    border: none;
+    border-left: 1px solid transparent;
+    border-radius: 0;
+    box-shadow: none;
+    opacity: 0;
+    transform: none;
+    overflow: hidden;
+    pointer-events: none;
+    transition: width 240ms var(--ease), opacity 200ms var(--ease), padding 240ms var(--ease),
+      border-color 200ms var(--ease);
+  }
+  .mapdetail.open {
+    width: var(--panel-w);
+    padding: 16px 16px 14px;
+    border-left-color: var(--line);
+    opacity: 1;
+    overflow-y: auto;
+    pointer-events: auto;
+  }
+  /* 底部提示居中于画布列（不含详情列） */
+  .maphint { left: calc(50% - var(--panel-w) / 2); }
+}
+
+/* 弹层小节标题（筛选 / 集合操作） */
+.pophead {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--fg-3);
+  letter-spacing: .02em;
+  margin-bottom: 8px;
 }

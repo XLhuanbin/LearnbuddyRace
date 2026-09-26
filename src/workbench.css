@@ -815,7 +815,8 @@ details.fold:not([open]) > .fold-body { display: none; }
 .exrow .bar { display: block; height: 10px; background: var(--bg-3); border-radius: 5px; overflow: hidden; }
 .exrow .bar i { display: block; height: 100%; min-width: 2px; background: var(--accent-line); border-radius: 5px; }
 .exrow .val { font-family: var(--mono); font-size: var(--fs-aux); color: var(--fg); text-align: right; }
-.exnote { margin: 10px 0 0; font-size: var(--fs-meta); color: var(--fg-3); }
+/* 这条说明承载关键解释（条长含义 / 不同条件不自动代表可比），按字号规则不能用 12px 元数据字号 */
+.exnote { margin: 10px 0 0; font-size: var(--fs-aux); color: var(--fg-3); }
 .compared { margin-top: 12px; }
 @media (max-width: 700px) {
   .exrow { grid-template-columns: 96px minmax(0, 1fr) 78px; gap: 8px; }
@@ -850,7 +851,8 @@ details.fold:not([open]) > .fold-body { display: none; }
 }
 @keyframes rgDraw { from { transform: scaleX(0); opacity: 0; } to { transform: scaleX(1); opacity: 1; } }
 @keyframes rgDrawV { from { transform: scaleY(0); opacity: 0; } to { transform: scaleY(1); opacity: 1; } }
-.rgnote { margin: 6px 0 0; font-size: var(--fs-meta); color: var(--fg-3); }
+/* 同上：这条承载「箭头只表示阅读顺序」的关键解释，不能用 12px 元数据字号 */
+.rgnote { margin: 6px 0 0; font-size: var(--fs-aux); color: var(--fg-3); }
 @media (max-width: 700px) {
   .routegraph { flex-direction: column; align-items: stretch; overflow-x: visible; }
   .rgarrow { width: 1px; height: 22px; align-self: center; transform-origin: top center; animation-name: rgDrawV; }

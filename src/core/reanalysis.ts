@@ -48,6 +48,38 @@ export function describeDependents(paperTitle: string): { item: string; action: 
   ];
 }
 
+/**
+ * 人工修正字段后需要重算/复核的下游。
+ *
+ * 与「重新分析」的区别：这里**不重新调用模型**，但人工修正改变了分析所依据的有效值，
+ * 因此关系、阅读路线、比较与分歧都必须进入「待重算 / 需复核」状态，不能继续显示旧结论。
+ * 同时说明：人工修正值不是原文核验结果。
+ */
+export function describeOverrideDependents(
+  paperTitle: string,
+  fieldLabels: string[],
+): { item: string; action: string }[] {
+  const fields = fieldLabels.join('、') || '字段';
+  return [
+    {
+      item: '方法关系图',
+      action: `关系判定用的是人工修正后的有效值（${fields}），需要重新分析关系才能作为当前结论`,
+    },
+    {
+      item: '方法决策（推荐与阅读顺序）',
+      action: '推荐依据的人工修正值已变化，需要重新生成',
+    },
+    {
+      item: '跨论文比较 / 分歧',
+      action: '可比性与条件差异由程序按当前有效值实时重算；请复核受影响的论文对',
+    },
+    {
+      item: `论文：${paperTitle}`,
+      action: `人工修正（${fields}）已保存，AI 原值与原证据仍保留在修正记录中；修正值不是原文核验结果`,
+    },
+  ];
+}
+
 /** 取消/失败时的界面文案（明确边界，避免夸大成「已终止服务端计算」） */
 export const CANCEL_NOTICE =
   '已停止等待：本次调用未完成，原结果保持不变。停止等待只是不再等待响应，不代表服务端已停止计算或不再计费。';

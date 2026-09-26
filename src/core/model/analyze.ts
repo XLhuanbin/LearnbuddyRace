@@ -38,7 +38,16 @@ import { applyDivergenceRules, buildCheckedPairs } from '../divergenceRules';
 import { buildRelationHints } from '../relationCandidates';
 import { findWeightsAvailability } from '../inferenceReadiness';
 import { validateMethod, validateRelation } from '../validate';
-import { chat, parseJsonLoose, type CallTrace } from './client';
+import {
+  ModelError,
+  chat,
+  optionalArrayField,
+  parseJsonObject,
+  requireArrayField,
+  requireArrayOfObjects,
+  type CallTrace,
+} from './client';
+import { withEffectiveMethods } from '../effective';
 import {
   PROMPT_VERSION,
   decisionSystemPrompt,
@@ -141,14 +150,22 @@ export async function extractMethod(
     onTrace,
   );
 
-  const raw = parseJsonLoose<{
-    paperTitle?: string;
-    fields?: Record<string, RawField>;
-    conditions?: Record<string, RawCondition>;
-  } & Record<string, unknown>>(text);
+  const raw = parseJsonObject(text, '字段抽取结果') as { paperTitle?: string } & Record<string, unknown>;
+
+  // 顶层 fields 出现时必须是对象（写成数组/字符串说明模型没按结构返回，按失败处理）
+  if (raw.fields !== undefined && (typeof raw.fields !== 'object' || raw.fields === null || Array.isArray(raw.fields))) {
+    throw new ModelError('模型返回的字段抽取结果里，fields 不是对象，已按失败处理。', 'format', JSON.stringify(raw.fields)?.slice(0, 200));
+  }
+  // 顶层 conditions 出现时必须是对象
+  if (raw.conditions !== undefined && (typeof raw.conditions !== 'object' || raw.conditions === null || Array.isArray(raw.conditions))) {
+    throw new ModelError('模型返回的字段抽取结果里，conditions 不是对象，已按失败处理。', 'format', JSON.stringify(raw.conditions)?.slice(0, 200));
+  }
 
   // 兼容 v1（字段直接在顶层）与 v2（字段在 fields 下）
   const rawFields: Record<string, RawField> = (raw.fields as Record<string, RawField>) ?? (raw as unknown as Record<string, RawField>);
+  if (!rawFields || typeof rawFields !== 'object' || Array.isArray(rawFields)) {
+    throw new ModelError('模型返回的字段抽取结果里没有可用的字段对象，已按失败处理。', 'format');
+  }
   const rawConditions = (raw.conditions as Record<string, RawCondition>) ?? {};
 
   const rawTitle = (raw.paperTitle || '').toString().trim();
@@ -383,6 +400,8 @@ export async function inferRelations(
 ): Promise<{ relations: Relation[]; issues: ValidationIssue[] }> {
   const empty: { relations: Relation[]; issues: ValidationIssue[] } = { relations: [], issues: [] };
   if (methods.length < 2) return empty;
+  // 关系判定与送给模型的材料都必须使用人工修正后的有效字段值
+  methods = withEffectiveMethods(methods);
 
   const paperById = new Map(papers.map((p) => [p.id, p]));
   const materials = methods.map((m) => {
@@ -426,32 +445,61 @@ export async function inferRelations(
     onTrace,
   );
 
-  const parsed = parseJsonLoose<{ relations?: RawRelation[] }>(text);
+  const parsed = parseJsonObject(text, '关系分析结果');
+  const rawRelations = requireArrayOfObjects(
+    requireArrayField(parsed, 'relations', '关系分析结果'),
+    '关系分析结果.relations',
+  ) as unknown as RawRelation[];
+  return assembleRelationsFromModel(rawRelations, papers, methods);
+}
+
+/**
+ * 把模型给出的原始关系数组装配成 Relation（纯函数，便于回归测试）。
+ *
+ * 三条不可妥协的规则：
+ * 1. **有向**去重：A→B 与 B→A 是两条不同的关系，不能按无向键合并掉一条；
+ * 2. **candidate 保持 candidate**：不把「待核查」升级成「系统推断」；
+ * 3. **证据只在关系两端的论文里定位**：定位失败 → verified=false、不填页码（模型自称的页码一律不采信）。
+ */
+export function assembleRelationsFromModel(
+  rawRelations: RawRelation[],
+  papers: Paper[],
+  methods: Method[],
+): { relations: Relation[]; issues: ValidationIssue[] } {
+  const paperById = new Map(papers.map((p) => [p.id, p]));
   const validIds = new Set(methods.map((m) => m.id));
   const out: Relation[] = [];
   const issues: ValidationIssue[] = [];
+  /** 有向去重键：A→B 与 B→A 是两条不同的关系，不能按无向键合并掉一条 */
   const seen = new Set<string>();
 
-  (parsed.relations || []).forEach((r, i) => {
+  rawRelations.forEach((r, i) => {
     const from = r.from || '';
     const to = r.to || '';
     if (!validIds.has(from) || !validIds.has(to) || from === to) return;
-    const key = [from, to].sort().join('->');
+    const key = `${from}->${to}`;
     if (seen.has(key)) return;
     seen.add(key);
 
     const type = (RELATION_TYPES as string[]).includes(r.type || '') ? (r.type as RelationType) : 'unclear';
     const stateRaw = (r.evidenceState || r.assertedBy || '').toLowerCase();
+    /**
+     * candidate 必须保持 candidate：不能把「待核查」映射成「系统推断」——
+     * 那等于凭空给模型的不确定结论升级了可信度。
+     */
     const evidenceState: RelationEvidenceState =
-      stateRaw === 'explicit' ? 'explicit' : stateRaw === 'inferred' || stateRaw === 'candidate' ? 'inferred' : 'candidate';
+      stateRaw === 'explicit' ? 'explicit' : stateRaw === 'inferred' ? 'inferred' : 'candidate';
 
     const fromMethod = methods.find((m) => m.id === from)!;
     const toMethod = methods.find((m) => m.id === to)!;
     const fromPaper = paperById.get(fromMethod.paperId);
     const toPaper = paperById.get(toMethod.paperId);
+    /** 证据只能来自这条关系两端的论文 */
+    const endpointPaperIds = new Set([fromMethod.paperId, toMethod.paperId]);
 
-    // 「A 基于 B」通常写在 A 的论文里 ⇒ 先查 to 方，再查 from 方，最后兜底
-    const searchOrder: Paper[] = [toPaper, fromPaper, ...papers].filter(Boolean) as Paper[];
+    // 「A 基于 B」通常写在 A 的论文里 ⇒ 先查 to 方，再查 from 方。
+    // 不再兜底到 collection 里的其它论文：用第三篇论文的句子认证 A→B 是无效证据。
+    const searchOrder: Paper[] = [toPaper, fromPaper].filter(Boolean) as Paper[];
     const rawQuotes = [r.quote, ...(r.quotes ?? [])]
       .filter((q): q is string => typeof q === 'string')
       .map((q) => q.trim())
@@ -472,7 +520,7 @@ export async function inferRelations(
           break;
         }
       }
-      if (hit) located.push(hit);
+      if (hit && endpointPaperIds.has(hit.paperId)) located.push(hit);
       else if (!unlocated) unlocated = buildEvidence(toPaper ?? fromPaper!, { quote: q });
     }
 
@@ -514,6 +562,31 @@ export async function inferRelations(
 
 /* ============================ 方法决策 ============================ */
 
+export type RawReadingStep = {
+  methodId?: string;
+  paperId?: string;
+  focus?: string;
+  reason?: string;
+  basis?: string;
+  gap?: string;
+};
+
+/**
+ * 阅读顺序的结构校验（steps / readingOrder 二选一，但必须存在且至少一步）。
+ * 「0 步」不是成功结果：过去会显示「完成：阅读顺序 0 步」，等于把空结果当成功。
+ */
+export function requireReadingSteps(obj: Record<string, unknown>): RawReadingStep[] {
+  const value = optionalArrayField(obj, 'readingOrder', '阅读路线结果') ?? requireArrayField(obj, 'steps', '阅读路线结果');
+  const steps = requireArrayOfObjects(value, '阅读路线结果.steps') as unknown as RawReadingStep[];
+  if (!steps.length) {
+    throw new ModelError(
+      '模型返回的阅读路线里没有任何步骤（steps 为空数组），已按失败处理：不把「0 步」当作成功结果。',
+      'format',
+    );
+  }
+  return steps;
+}
+
 export async function generateDecision(
   papers: Paper[],
   methods: Method[],
@@ -521,6 +594,8 @@ export async function generateDecision(
   cfg: RunConfig,
   onTrace?: (t: CallTrace) => void,
 ): Promise<ReadingPlan> {
+  // 阅读路线必须以人工修正后的有效值为依据（否则用户改了字段、推荐却按旧值给）
+  methods = withEffectiveMethods(methods);
   const paperById = new Map(papers.map((p) => [p.id, p]));
   const materials = methods.map((m) => {
     const p = paperById.get(m.paperId);
@@ -565,21 +640,32 @@ export async function generateDecision(
     onTrace,
   );
 
-  const parsed = parseJsonLoose<{
-    candidates?: {
-      methodId?: string;
-      fit?: string;
-      targetStage?: string;
-      reasons?: { text?: string; basis?: string; evidenceRef?: { kind?: string; key?: string } }[];
-      applicability?: string;
-      missing?: string[];
-      computeReported?: boolean;
-    }[];
-    readingOrder?: { methodId?: string; paperId?: string; focus?: string; reason?: string; basis?: string; gap?: string }[];
-    steps?: { paperId?: string; focus?: string; reason?: string; basis?: string; gap?: string }[];
-    conditionSensitivity?: string;
-    notes?: string;
-  }>(text);
+  type RawCandidate = {
+    methodId?: string;
+    fit?: string;
+    targetStage?: string;
+    reasons?: { text?: string; basis?: string; evidenceRef?: { kind?: string; key?: string } }[];
+    applicability?: string;
+    missing?: string[];
+    computeReported?: boolean;
+  };
+  type RawStep = RawReadingStep;
+
+  const parsedObj = parseJsonObject(text, '阅读路线结果');
+  /** candidates 是这次结果的核心：缺失或不是数组 = 明确失败，不能显示「完成，候选 0 个」 */
+  const rawCandidates = requireArrayOfObjects(
+    requireArrayField(parsedObj, 'candidates', '阅读路线结果'),
+    '阅读路线结果.candidates',
+  ) as unknown as RawCandidate[];
+  /** 阅读顺序：接受 readingOrder 或 steps，但必须存在、是数组且至少一步 */
+  const rawOrder = requireReadingSteps(parsedObj);
+  const parsed = {
+    candidates: rawCandidates,
+    readingOrder: rawOrder,
+    steps: rawOrder,
+    conditionSensitivity: typeof parsedObj.conditionSensitivity === 'string' ? parsedObj.conditionSensitivity : undefined,
+    notes: typeof parsedObj.notes === 'string' ? parsedObj.notes : undefined,
+  };
 
   const methodById = new Map(methods.map((m) => [m.id, m]));
   const methodByPaper = new Map(methods.map((m) => [m.paperId, m]));
@@ -938,6 +1024,8 @@ export async function findDivergences(
   cfg: RunConfig,
   onTrace?: (t: CallTrace) => void,
 ): Promise<DivergenceReport> {
+  // 分歧分析同样以人工修正后的有效值为依据
+  methods = withEffectiveMethods(methods);
   const paperById = new Map(papers.map((p) => [p.id, p]));
   const report = compareConditions(papers, methods);
 
@@ -1015,24 +1103,29 @@ export async function findDivergences(
     onTrace,
   );
 
-  const parsed = parseJsonLoose<{
-    findings?: {
-      kind?: string;
-      topic?: string;
-      paperIds?: string[];
-      sides?: { paperId?: string; claim?: string; quote?: string; page?: number }[];
-      claimType?: string;
-      commonScope?: string;
-      conditionDifferences?: { dimension?: string; label?: string; detail?: string }[];
-      explanation?: string;
-      nextAction?: string;
-      comparabilityLevel?: string;
-    }[];
-  }>(text);
+  type RawFinding = {
+    kind?: string;
+    topic?: string;
+    paperIds?: string[];
+    sides?: { paperId?: string; claim?: string; quote?: string; page?: number }[];
+    claimType?: string;
+    commonScope?: string;
+    conditionDifferences?: { dimension?: string; label?: string; detail?: string }[];
+    explanation?: string;
+    nextAction?: string;
+    comparabilityLevel?: string;
+  };
+
+  const parsedObj = parseJsonObject(text, '分歧分析结果');
+  /** findings 缺失或不是数组 = 明确失败（「没找到 JSON 数组」不等于「没有分歧」） */
+  const rawFindings = requireArrayOfObjects(
+    requireArrayField(parsedObj, 'findings', '分歧分析结果'),
+    '分歧分析结果.findings',
+  ) as unknown as RawFinding[];
 
   const findings: DivergenceFinding[] = [];
 
-  for (const [i, f] of (parsed.findings || []).entries()) {
+  for (const [i, f] of rawFindings.entries()) {
     // 规则复核统一在 divergenceRules.applyDivergenceRules 中实现，
     // 与 scripts/revalidate.mjs 的离线重算共用同一套判定，保证比较页/分歧页/缓存三者一致。
     findings.push(applyDivergenceRules(papers, methods, f, i));
@@ -1088,7 +1181,9 @@ function toStr(v: unknown, max = 300): string | undefined {
  *    否则标记待核查（不补猜），并在比较时按「信息不足」处理。
  */
 export function parseExperimentRecords(paper: Paper, parsed: Record<string, unknown>): ExperimentRecord[] {
-  const rawList = Array.isArray(parsed.experiments) ? (parsed.experiments as Record<string, unknown>[]) : [];
+  // experiments 出现时必须是数组（写成字符串/对象说明模型没按结构返回 → 按失败处理）；
+  // 整个键缺失时才允许 0 条，并在下方如实反映。
+  const rawList = (optionalArrayField(parsed, 'experiments', '实验记录') ?? []) as Record<string, unknown>[];
   const out: ExperimentRecord[] = [];
 
   for (const [idx, item] of rawList.slice(0, 8).entries()) {

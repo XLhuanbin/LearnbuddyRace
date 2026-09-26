@@ -41,12 +41,40 @@ async function tx<T>(store: StoreName, mode: IDBTransactionMode, fn: (s: IDBObje
   });
 }
 
+/**
+ * 在同一事务里批量写同一个 store。
+ *
+ * 用途：关系「按范围原子替换」时先整批写新关系，再整批删旧关系。
+ * 任一条写入失败 → 事务 abort → 整批回滚，不会留下半套数据（原数据仍然是原样）。
+ */
+async function txBatch(store: StoreName, ops: { kind: 'put' | 'delete'; value?: { id: string }; key?: string }[]): Promise<void> {
+  if (!ops.length) return;
+  const db = await openDb();
+  return new Promise<void>((resolve, reject) => {
+    const t = db.transaction(store, 'readwrite');
+    const os = t.objectStore(store);
+    for (const op of ops) {
+      if (op.kind === 'put' && op.value) os.put(op.value);
+      else if (op.kind === 'delete' && op.key) os.delete(op.key);
+    }
+    t.oncomplete = () => resolve();
+    t.onerror = () => reject(t.error);
+    t.onabort = () => reject(t.error ?? new Error('事务被中断'));
+  });
+}
+
 export const db = {
   put: <T extends { id: string }>(store: StoreName, value: T) => tx<IDBValidKey>(store, 'readwrite', (s) => s.put(value)),
   get: <T>(store: StoreName, id: string) => tx<T | undefined>(store, 'readonly', (s) => s.get(id)),
   delete: (store: StoreName, id: string) => tx<undefined>(store, 'readwrite', (s) => s.delete(id)),
   all: <T>(store: StoreName) => tx<T[]>(store, 'readonly', (s) => s.getAll()),
   clear: (store: StoreName) => tx<undefined>(store, 'readwrite', (s) => s.clear()),
+  /** 批量写入（单事务，失败整批回滚） */
+  putMany: <T extends { id: string }>(store: StoreName, values: T[]) =>
+    txBatch(store, values.map((value) => ({ kind: 'put' as const, value }))),
+  /** 批量删除（单事务，失败整批回滚） */
+  deleteMany: (store: StoreName, keys: string[]) =>
+    txBatch(store, keys.map((key) => ({ kind: 'delete' as const, key }))),
 };
 
 export const repo = {
@@ -56,10 +84,18 @@ export const repo = {
     return rows.sort((a, b) => a.createdAt - b.createdAt);
   },
   savePaper: (p: Paper) => db.put('papers', p),
+  /** 批量删论文（单事务）：语料集幂等替换时移除被替换掉的旧论文 */
+  deletePapers: (ids: string[]) => db.deleteMany('papers', ids),
   listMethods: () => db.all<Method>('methods'),
   saveMethod: (m: Method) => db.put('methods', m),
+  /** 批量删方法（单事务）：移除论文时连同该论文的全部方法一起删 */
+  deleteMethods: (ids: string[]) => db.deleteMany('methods', ids),
   listRelations: () => db.all<Relation>('relations'),
   saveRelation: (r: Relation) => db.put('relations', r),
+  /** 批量写关系（单事务）：用于「按范围原子替换」，整批失败则全部回滚 */
+  saveRelations: (rs: Relation[]) => db.putMany('relations', rs),
+  /** 批量删关系（单事务）：只删被替换掉的旧关系 */
+  deleteRelations: (ids: string[]) => db.deleteMany('relations', ids),
   clearRelations: () => db.clear('relations'),
   listPlans: () => db.all<ReadingPlan>('plans'),
   savePlan: (p: ReadingPlan & { id: string }) => db.put('plans', p),

@@ -253,3 +253,28 @@ export function suggestComparablePairs(experiments: ExperimentRecord[]): { a: Ex
 /** 任务标签过滤：分类比较只看 classification */
 export const classificationOnly = (list: ExperimentRecord[]): ExperimentRecord[] =>
   list.filter((e) => e.taskTag === ('classification' as TaskTag));
+
+/**
+ * 在**两个方法各自的实验记录之间**挑一对「同口径」的来比较。
+ *
+ * 为什么需要：联系与区别页原先固定取各自的第一条分类实验（`exps[0][0]`），
+ * 那两条很可能数据集/指标都不同 —— 结果就是界面上并排摆两个不可比的数字。
+ * 这里优先返回可直接比较 / 有条件可比较的对；实在没有时才退回「不是硬阻断」的那一对，
+ * 但调用方必须按返回的 `cmp.level` 决定要不要展示数字（不可比就不展示）。
+ */
+export function pickComparableExperimentPair(
+  expsA: ExperimentRecord[],
+  expsB: ExperimentRecord[],
+): { a: ExperimentRecord; b: ExperimentRecord; cmp: ExperimentComparison } | null {
+  let fallback: { a: ExperimentRecord; b: ExperimentRecord; cmp: ExperimentComparison } | null = null;
+  for (const a of classificationOnly(expsA)) {
+    for (const b of classificationOnly(expsB)) {
+      const cmp = compareExperiments(a, b);
+      if (cmp.level === 'directly_comparable' || cmp.level === 'comparable_with_conditions') {
+        return { a, b, cmp };
+      }
+      if (!fallback && cmp.level !== 'not_comparable') fallback = { a, b, cmp };
+    }
+  }
+  return fallback;
+}

@@ -125,7 +125,7 @@ export function LibraryView({
   onCancel: (paperId: string) => void;
   onRemove: (paperId: string) => void;
   /** 撤销移除：把论文与已有分析结果写回本机 */
-  onRestore: (paper: Paper, method?: Method) => void;
+  onRestore: (paper: Paper, method?: Method, methods?: Method[], relations?: Relation[]) => void;
   onOverride: (paperId: string, field: FieldKey, value: string) => void;
   onOpenEvidence: (e: Evidence, label: string, paper?: Paper) => void;
   onLoadSample: () => void;
@@ -156,7 +156,13 @@ export function LibraryView({
   const [confirmReanalyze, setConfirmReanalyze] = useState<Record<string, boolean>>({});
   /** 移除的两步确认与撤销 */
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
-  const [removed, setRemoved] = useState<{ paper: Paper; method?: Method } | null>(null);
+  const [removed, setRemoved] = useState<{
+    paper: Paper;
+    method?: Method;
+    /** 撤销时要一起写回的方法与关联关系（移除时会把它们从本机删掉） */
+    methods?: Method[];
+    relations?: Relation[];
+  } | null>(null);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteTitle, setPasteTitle] = useState('');
   const [pasteText, setPasteText] = useState('');
@@ -215,7 +221,7 @@ export function LibraryView({
             <span className="metaline">
               <span>{visiblePapers.length} 篇论文 · {scope.meta.label}</span>
               <span className="sep">·</span>
-              <span>{visiblePapers.some((x) => x.cached) ? '演示案例' : modelReady ? '实时分析' : '演示案例'}</span>
+              <span>{visiblePapers.some((x) => x.cached) || !modelReady ? '缓存案例' : '实时分析'}</span>
             </span>
             {loading && <Status kind="info">正在加载…</Status>}
           </>
@@ -466,7 +472,15 @@ export function LibraryView({
                         className="btn danger sm"
                         onClick={() => {
                           setConfirmRemove(null);
-                          setRemoved({ paper: p, method: m });
+                          // 先记下要一起删掉的东西，撤销时才能原样写回（关系不能丢）
+                          const goneMethods = methods.filter((x) => x.paperId === p.id);
+                          const goneIds = new Set(goneMethods.map((x) => x.id));
+                          setRemoved({
+                            paper: p,
+                            method: m,
+                            methods: goneMethods,
+                            relations: relations.filter((r) => goneIds.has(r.fromMethodId) || goneIds.has(r.toMethodId)),
+                          });
                           onRemove(p.id);
                         }}
                       >
@@ -653,12 +667,12 @@ export function LibraryView({
           {removed && (
             <div className="undobar" role="status">
               <span style={{ flex: '1 1 240px' }}>
-                已移除《{removed.paper.title.slice(0, 40)}》。本机数据已删除，可一键恢复（不会重新调用模型）。
+                已移除《{removed.paper.title.slice(0, 40)}》。本机数据与关联关系已删除，可一键恢复（不会重新调用模型）。
               </span>
               <button
                 className="btn sm"
                 onClick={() => {
-                  onRestore(removed.paper, removed.method);
+                  onRestore(removed.paper, removed.method, removed.methods, removed.relations);
                   setRemoved(null);
                 }}
               >

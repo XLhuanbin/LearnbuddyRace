@@ -8,8 +8,16 @@
  */
 
 import type { Method, Paper, Relation, FieldKey } from './types';
-import { FIELD_STATUS_TEXT, METHOD_FIELD_LABELS, RELATION_LABELS, RELATION_STATE_LABELS } from './types';
-import { compareConditions, LEVEL_LABELS, type ComparabilityReport } from './comparability';
+import {
+  CONDITION_DIMENSIONS,
+  CONDITION_LABELS,
+  FIELD_STATUS_TEXT,
+  METHOD_FIELD_LABELS,
+  RELATION_LABELS,
+  RELATION_STATE_LABELS,
+} from './types';
+import { compareConditions, conditionOf, LEVEL_LABELS, type ComparabilityReport } from './comparability';
+import { withEffectiveMethods } from './effective';
 
 export interface CompareCell {
   field: FieldKey;
@@ -70,7 +78,9 @@ function cellOf(field: FieldKey, m: Method): CompareCell {
   };
 }
 
-export function buildComparison(methods: Method[], papers: Paper[]): CompareResult {
+export function buildComparison(methodsIn: Method[], papers: Paper[]): CompareResult {
+  // 比较表读人工修正后的有效值（AI 原值仍保留在 overrides 里，可对照）
+  const methods = withEffectiveMethods(methodsIn);
   const rows: CompareRow[] = COMPARE_FIELDS.map((field) => ({
     field,
     label: METHOD_FIELD_LABELS[field],
@@ -95,7 +105,7 @@ export function buildComparison(methods: Method[], papers: Paper[]): CompareResu
 
 /** 导出为 Markdown（依据交接文档 §4 P0-5） */
 export function toMarkdown(
-  methods: Method[],
+  methodsIn: Method[],
   papers: Paper[],
   relations: {
     fromPaperTitle: string;
@@ -106,6 +116,8 @@ export function toMarkdown(
     rationale?: string;
   }[],
 ): string {
+  // 导出同样只写人工修正后的有效值（AI 原值与修正记录保留在本机数据里）
+  const methods = withEffectiveMethods(methodsIn);
   const paperById = new Map(papers.map((p) => [p.id, p]));
   const lines: string[] = [];
   lines.push('# 论文方法对比（ResearchPilot 导出）');
@@ -144,20 +156,38 @@ export function toMarkdown(
         lines.push(`- **${label}**：${r?.note?.includes('未报告') ? '论文未报告' : '未提取到'}`);
         return;
       }
-      const tag = r.status === 'verified' ? `可核验，p.${r.evidence?.page ?? '?'}` : FIELD_STATUS_TEXT[r.status];
+      const tag = r.userCorrected
+        ? '人工修正，不是原文核验结果'
+        : r.status === 'verified'
+          ? `可核验，p.${r.evidence?.page ?? '?'}`
+          : FIELD_STATUS_TEXT[r.status];
       lines.push(`- **${label}**：${r.value}（${tag}）`);
+      const ov = m.overrides?.find((o) => o.field === f);
+      if (r.userCorrected && ov) {
+        lines.push(`  - 人工修正：原 AI 值「${ov.previousValue ?? '（空）'}」→ 现值「${ov.newValue}」（修正值按待人工核对对待）`);
+      }
       if (r.evidence?.verified && r.evidence.quote) {
-        lines.push(`  > ${r.evidence.quote.replace(/\s+/g, ' ').slice(0, 300)}`);
+        lines.push(
+          `  > ${r.userCorrected ? '（AI 原始引文，仅供对照）' : ''}${r.evidence.quote.replace(/\s+/g, ' ').slice(0, 300)}`,
+        );
       }
     });
     if (m.conditions) {
       lines.push('');
       lines.push('  实验条件：');
-      for (const [dim, c] of Object.entries(m.conditions)) {
+      // 逐维度取「有效条件」：人工修正过的数据集/指标不会被 conditions 里的旧值盖住
+      for (const dim of CONDITION_DIMENSIONS) {
+        const c = conditionOf(m, dim);
+        const statusText =
+          c.status === 'verified'
+            ? `可核验 p.${c.evidence?.page ?? '?'}`
+            : c.status === 'unverified'
+              ? '待人工核对'
+              : c.status === 'not_reported'
+                ? '论文未报告'
+                : '无法确认';
         lines.push(
-          `  - ${dim}：${c.values.join('、') || (c.status === 'not_reported' ? '论文未报告' : '无法确认')}（${
-            c.status === 'verified' ? `可核验 p.${c.evidence?.page ?? '?'}` : c.status
-          }）`,
+          `  - ${CONDITION_LABELS[dim]}：${c.values.join('、') || (c.status === 'not_reported' ? '论文未报告' : '无法确认')}（${statusText}）`,
         );
       }
     }

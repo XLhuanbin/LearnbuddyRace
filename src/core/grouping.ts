@@ -14,6 +14,7 @@
  */
 
 import type { Evidence, Method, Paper, Relation, RelationType } from './types';
+import { withEffectiveFields } from './effective';
 
 export type FamilyConfidence = 'evidence' | 'inferred' | 'pending';
 
@@ -145,6 +146,8 @@ export function stripReferenceMentions(text: string): string {
  * 因此「提到 CNN 教师」「以 ResNet 为起点」「引入 Swin 的设计」都不会改变本方法的家族。
  */
 export function classifyFamily(method: Method): FamilyVerdict {
+  // 家族判断读人工修正后的有效值（用户把方法名改对了，家族判断就要跟着变）
+  method = withEffectiveFields(method);
   const name = method.fields.methodName?.value ?? '';
   const clause = firstClause(method.fields.coreIdea?.value ?? '');
 
@@ -220,6 +223,7 @@ const STRATEGY_RULES: { id: string; name: string; re: RegExp }[] = [
 ];
 
 export function classifyStrategies(method: Method): StrategyTag[] {
+  method = withEffectiveFields(method);
   const name = method.fields.methodName?.value ?? '';
   const idea = method.fields.coreIdea?.value ?? '';
   const out: StrategyTag[] = [];
@@ -259,6 +263,7 @@ const shortNameOf = (paper: Paper | undefined, method: Method, allPapers: Paper[
 };
 
 export function buildMethodProfile(method: Method, paper: Paper | undefined, allPapers: Paper[]): MethodProfile {
+  method = withEffectiveFields(method);
   const f = method.fields;
   const idea = f.coreIdea?.value ?? '';
   const clause = firstClause(idea);
@@ -351,7 +356,8 @@ export function buildMethodOverview(
   entries: { paper?: Paper; method?: Method }[],
   relations: Relation[] = [],
 ): MethodOverview {
-  const valid = entries.filter((e) => e.method);
+  // 概览统计与分组同样以人工修正后的有效值为准
+  const valid = entries.filter((e) => e.method).map((e) => ({ ...e, method: withEffectiveFields(e.method!) }));
 
   const groups = new Map<string, MethodGroup>();
   const ungrouped: MethodOverview['ungrouped'] = [];

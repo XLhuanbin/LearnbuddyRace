@@ -18,6 +18,7 @@ export function DivergenceView({
   report,
   busy,
   onGenerate,
+  onCancel,
   onUseSample,
   staleNotes,
 }: {
@@ -26,6 +27,8 @@ export function DivergenceView({
   report?: DivergenceReport;
   busy: boolean;
   onGenerate: () => void;
+  /** 停止等待（只停止本地等待） */
+  onCancel?: () => void;
   onUseSample: () => void;
   staleNotes?: string[];
 }) {
@@ -72,7 +75,12 @@ export function DivergenceView({
       lines.push(`- 可比性（程序按论文对计算）：${LEVEL_LABELS[f.comparabilityLevel]}`);
       f.sides.forEach((s) => {
         lines.push(`- 立场（${paperById.get(s.paperId)?.title ?? s.paperId}）：${s.claim}`);
-        if (s.quote) lines.push(`  > ${s.quote}`);
+        if (s.quote) {
+          const mark = s.quoteEvidence?.verified
+            ? `（原文已定位${s.page ? `：p.${s.page}` : ''}）`
+            : '（待核查：该引文未通过全文定位校验）';
+          lines.push(`  > ${s.quote}${mark}`);
+        }
       });
       if (f.conditionDifferences?.length) {
         lines.push(`- 条件差异：${f.conditionDifferences.map((d) => `${d.label}：${d.detail}`).join('；')}`);
@@ -102,6 +110,11 @@ export function DivergenceView({
           <button className="btn primary" disabled={busy} onClick={onGenerate}>
             {busy ? '分析中…' : report ? '重新分析' : '分析待调查问题'}
           </button>
+          {busy && onCancel && (
+            <button className="btn ghost" onClick={onCancel}>
+              停止等待
+            </button>
+          )}
           <button className="btn" disabled={busy} onClick={onUseSample}>
             查看预置示例结果
           </button>
@@ -172,7 +185,14 @@ export function DivergenceView({
                             {s.quote && (
                               <div className="ev-quote" style={{ marginTop: 6, fontSize: 12.5 }}>
                                 {s.quote}
-                                {s.page ? `　（p.${s.page}）` : ''}
+                                {/* 页码只在定位校验通过时才有；模型自称的页码一律不展示 */}
+                                {s.quoteEvidence?.verified ? `　（原文已定位${s.page ? `：p.${s.page}` : ''}）` : ''}
+                              </div>
+                            )}
+                            {s.quote && !s.quoteEvidence?.verified && (
+                              <div className="small" style={{ marginTop: 4, color: 'var(--pending)' }}>
+                                <Tag kind="pending">待核查</Tag>{' '}
+                                {s.quoteNote || '该引文未能在论文全文中定位，不能作为已核验证据。'}
                               </div>
                             )}
                           </td>

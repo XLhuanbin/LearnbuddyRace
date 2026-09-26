@@ -141,6 +141,8 @@ export interface MethodFieldResult {
   note?: string;
   /** 模型自称的页码：只作为待校验提示，不直接当作真页码展示 */
   claimedPage?: number;
+  /** 该值是人工修正后的有效值（不是原文核验结果；见 core/effective.ts） */
+  userCorrected?: boolean;
 }
 
 /* ============================ 实验条件（不可比检测的依据） ============================ */
@@ -609,8 +611,22 @@ export interface DivergenceFinding {
   topic: string;
   /** 涉及论文 */
   paperIds: string[];
-  /** 双方证据 */
-  sides: { paperId: string; claim: string; quote?: string; page?: number }[];
+  /**
+   * 双方证据。
+   * quote 必须经过 buildEvidence()/locateQuote() 定位校验：
+   * - 定位成功：quoteEvidence.verified = true，page 来自真实定位结果；
+   * - 定位失败（含「尚未取回全文」）：verified = false，**不填页码**，界面按「待核查」展示。
+   */
+  sides: {
+    paperId: string;
+    claim: string;
+    quote?: string;
+    page?: number;
+    /** 定位校验结果（唯一来源，界面不得自行包装成 verified） */
+    quoteEvidence?: Evidence;
+    /** 未通过定位时的说明（模型改写 / 尚未取回全文等） */
+    quoteNote?: string;
+  }[];
   /** 主张类型：数值结果 / 定性主张 */
   claimType?: 'numeric' | 'qualitative';
   /** 双方主张的共同对象/范围（同一任务、同一数据集版本与划分、同一方法属性等） */

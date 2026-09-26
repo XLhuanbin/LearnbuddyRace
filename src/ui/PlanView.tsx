@@ -29,6 +29,7 @@ export function DecisionView({
   methods,
   plan,
   busy,
+  onCancel,
   modelReady,
   onGenerate,
   onUseSample,
@@ -41,6 +42,8 @@ export function DecisionView({
   methods: Method[];
   plan?: ReadingPlan;
   busy: boolean;
+  /** 停止等待（只停止本地等待，不保证服务端已停止计算） */
+  onCancel?: () => void;
   /** 未配置模型时只能看示例路线：入口与结果都必须这么叫 */
   modelReady: boolean;
   onGenerate: (p: UserProfile) => void;
@@ -116,16 +119,23 @@ export function DecisionView({
           </>
         }
         actions={
-          <button
-            className="btn primary"
-            disabled={busy || methods.length === 0}
-            onClick={() => {
-              setLastProfile(profile);
-              onGenerate(profile);
-            }}
-          >
-            {busy ? '生成中…' : modelReady ? (plan && !plan.cached ? '重新生成个性化路线' : '生成个性化路线') : '查看示例路线'}
-          </button>
+          <>
+            <button
+              className="btn primary"
+              disabled={busy || methods.length === 0}
+              onClick={() => {
+                setLastProfile(profile);
+                onGenerate(profile);
+              }}
+            >
+              {busy ? '生成中…' : modelReady ? (plan && !plan.cached ? '重新生成个性化路线' : '生成个性化路线') : '查看示例路线'}
+            </button>
+            {busy && onCancel && (
+              <button className="btn ghost" disabled={!modelReady} onClick={onCancel}>
+                停止等待
+              </button>
+            )}
+          </>
         }
       />
 

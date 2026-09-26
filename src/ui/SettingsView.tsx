@@ -461,7 +461,10 @@ export function StatusView({
 export function capabilitiesList(env: {
   hasBackend: boolean;
   deployStatic: boolean;
+  /** 本机**连接测试真的成功过**才算已连通 */
   modelReachable: boolean;
+  /** 配置填写完整（这只说明「已配置」，不等于「已连通」） */
+  modelConfigured?: boolean;
 }): CapabilityRow[] {
   return [
     {
@@ -473,8 +476,10 @@ export function capabilitiesList(env: {
       item: '模型调用（真实）',
       status: env.modelReachable ? 'verified' : 'limited',
       detail: env.modelReachable
-        ? '已用 OpenAI 兼容接口跑通真实抽取，单篇耗时约 3~4 秒，单次输入约 2.5 万字符。'
-        : '需要使用者自行填写接口。环境的默认模型网关在本机网络下不可达，未做任何兜底伪装。',
+        ? '本机连接测试已通过：接口可达，可做实时抽取与关系 / 路线 / 分歧分析。'
+        : env.modelConfigured
+          ? '接口信息已填写完整，但**尚未在本机通过连接测试**：填写完整只能说明「已配置」，不能说明接口可达。请到「设置」里点一次连接测试。'
+          : '需要使用者自行填写接口。环境的默认模型网关在本机网络下不可达，未做任何兜底伪装。',
     },
     {
       item: '原文证据定位',

@@ -178,6 +178,22 @@ async function goMore(cdp, cardText) {
   return ok;
 }
 
+/**
+ * 展开论文集合页的「管理论文与案例」折叠区。
+ * 工具栏（加载示例 / 切换语料）、语料隔离说明、模型配置说明现在都收在这个默认收起的 details 里，
+ * 收起状态下它们在 DOM 中有节点、但不在 innerText 里 —— 需要断言这些内容时必须先真正展开。
+ */
+async function openLibManage(cdp) {
+  const ok = await cdp.evaluate(`(() => {
+  const d = document.querySelector('.main-inner details.libmanage');
+  if (!d) return false;
+  d.open = true;
+  return true;
+})()`);
+  await sleep(500);
+  return ok;
+}
+
 async function main() {
   const chrome = CHROME_CANDIDATES.find((p) => existsSync(p));
   if (!chrome) {
@@ -309,12 +325,26 @@ async function main() {
   const mapOnly = await cdp.evaluate(`(document.querySelector('.main-inner') || document.body).innerText`);
   check('从论文集合可以进入研究地图', /研究地图/.test(mapOnly));
   check('研究地图首屏只有标题、一句解释、一个继续阅读路线链接', /研究地图 · 视觉方法演进案例/.test(mapOnly) && /继续阅读路线/.test(mapOnly) && !/方法地图/.test(mapOnly) && !/联系与区别/.test(mapOnly));
-  const optsOpened = await cdp.evaluate(`(() => { const b=[...document.querySelectorAll('button')].find((x)=>x.textContent.includes('选项')); if (b) b.click(); return true; })()`);
-  await sleep(600);
-  const optsText = await cdp.evaluate(`(document.querySelector('.mapopts .pop') || document.body).innerText`);
-  check('领域概览与统计收进「选项」弹层（不占首屏）', optsOpened && /数据来源与统计/.test(optsText));
-  await cdp.evaluate(`(() => { const b=[...document.querySelectorAll('button')].find((x)=>x.textContent.includes('选项')); if (b) b.click(); })()`);
-  await sleep(400);
+  // 本轮改版：「数据来源与统计」移到页头折叠区；关系状态行直接可见；筛选与集合操作拆成两个入口
+  const optsOpened = await cdp.evaluate(
+    `(() => { const d=document.querySelector('.maphead-meta details.fold'); if(!d) return false; d.open=true; return true; })()`,
+  );
+  await sleep(500);
+  const headText = await cdp.evaluate(`(document.querySelector('.maphead-meta') || document.body).innerText`);
+  check('领域概览与统计收进页头「数据来源与统计」折叠区（不占首屏）', optsOpened && /数据来源与统计/.test(headText));
+  check(
+    '首屏关系状态行直接显示「关系总数 · 当前显示数」',
+    /关系\s*\d+\s*条\s*·\s*当前显示\s*\d+\s*条/.test(headText),
+    headText.slice(0, 90).replace(/\n/g, ' '),
+  );
+  check(
+    '筛选与集合操作是两个独立入口（不再混在一个「选项」里）',
+    await cdp.evaluate(
+      `[...document.querySelectorAll('.maphead-links button')].some(b=>/筛选/.test(b.textContent)) && [...document.querySelectorAll('.maphead-links button')].some(b=>/集合操作/.test(b.textContent))`,
+    ),
+  );
+  await cdp.evaluate(`(() => { const d=document.querySelector('.maphead-meta details.fold'); if(d) d.open=false; return true; })()`);
+  await sleep(300);
   const laneNames = await cdp.evaluate(`[...document.querySelectorAll('svg text')].map((t)=>t.textContent).join('|')`);
   const svgTexts = await cdp.evaluate(`[...document.querySelectorAll('svg text')].map((t) => t.textContent)`);
   const laneHeaders = (svgTexts || []).filter((t) => /(CNN|架构|混合|待确认)/.test(t) && t.length < 24).join('|');
@@ -334,11 +364,37 @@ async function main() {
 })()`);
   await sleep(800);
   const nodeDetail = await cdp.evaluate(`(document.querySelector('.mapdetail') || document.body).innerText`);
-  check('点击节点第一层给出「一句话贡献 / 核心做法 / 与相关方法的联系」',
-    /一句话贡献/.test(nodeDetail) && /核心做法/.test(nodeDetail) && /与相关方法的联系/.test(nodeDetail));
+  // 注意：不能用 innerText 判「核心做法」，因为折叠区的 summary 文案就是「查看核心做法 · 局限 · 原文依据」；
+  // 这里按「分区标题」判定：首层只应有「一句话贡献」，核心做法 / 与相关方法的联系必须在折叠区内。
+  const nodeFirstLayer = await cdp.evaluate(`
+(() => {
+  const d = document.querySelector('.mapdetail');
+  if (!d) return null;
+  const sects = [...d.querySelectorAll('.sect')];
+  return {
+    firstLayer: sects.filter((s) => !s.closest('details.fold')).map((s) => s.textContent.trim()),
+    foldedSects: sects.filter((s) => !!s.closest('details.fold')).map((s) => s.textContent.trim()),
+    foldCount: d.querySelectorAll('details.fold').length,
+  };
+})()`);
+  check('节点详情第一层只给「一句话贡献」（核心做法 / 联系默认收进折叠区，不铺首层）',
+    !!nodeFirstLayer &&
+      nodeFirstLayer.firstLayer.includes('一句话贡献') &&
+      !nodeFirstLayer.firstLayer.includes('核心做法') &&
+      !nodeFirstLayer.firstLayer.includes('与相关方法的联系') &&
+      nodeFirstLayer.foldedSects.includes('核心做法') &&
+      nodeFirstLayer.foldedSects.includes('与相关方法的联系'),
+    JSON.stringify(nodeFirstLayer));
   check('节点详情包含方法家族（技术策略在深入解释里）',
     /Transformer 架构|卷积网络（CNN）/.test(nodeDetail));
   check('原文依据默认折叠（按需展开）', await cdp.evaluate(`!document.querySelector('.mapdetail details.fold[open]')`));
+  await cdp.evaluate(`(() => { const d = document.querySelector('.mapdetail details.fold'); if (d) d.open = true; })()`);
+  await sleep(400);
+  const nodeDetailOpen = await cdp.evaluate(`(document.querySelector('.mapdetail') || document.body).innerText`);
+  check('展开折叠区后给出「核心做法」与「与相关方法的联系」',
+    /核心做法/.test(nodeDetailOpen) && /与相关方法的联系/.test(nodeDetailOpen));
+  await cdp.evaluate(`(() => { const d = document.querySelector('.mapdetail details.fold'); if (d) d.open = false; })()`);
+  await sleep(300);
   const edgeClicked = await cdp.evaluate(`
 (() => {
   const p = [...document.querySelectorAll('svg path')].find((x) => x.getAttribute('marker-end'));
@@ -371,6 +427,7 @@ async function main() {
 })()`);
   check('可以切换到开发回归样例语料集', switched);
   await sleep(1500);
+  check('「管理论文与案例」折叠区可以展开（工具栏与说明都在里面）', await openLibManage(cdp));
   check('切换后提示两套语料不混合', await cdp.evaluate(TEXT('不会混在一起')));
   const loadClicked = await cdp.evaluate(`
 (() => {
@@ -393,17 +450,40 @@ async function main() {
   console.log('=== E2 论文集合（案例概览 + 论文列表） ===');
   await goMore(cdp, '论文集合');
   await sleep(1200);
+  await openLibManage(cdp);
   const libText = await cdp.evaluate(`(document.querySelector('.main-inner') || document.body).innerText`);
   check('论文列表含 BERT', await cdp.evaluate(TEXT('BERT')));
   check('标注为缓存案例而非实时', await cdp.evaluate(TEXT('缓存案例')));
   check('展开区展示实验条件表', await cdp.evaluate(TEXT('实验条件')));
   check('加载按钮完成态可用（不重复点击也不禁用）', /重新加载演示案例|加载演示案例/.test(libText));
+  // 行结构：第一行 = 真实标题 + 一个主要操作；第二行 = 年份 · 方法名 + 一句话摘要；默认行不再带方法族标签
+  const rowShape = await cdp.evaluate(`
+(() => {
+  const row = document.querySelector('.main-inner .lrows .lrow');
+  if (!row) return null;
+  const q = (sel) => row.querySelector(sel);
+  const txt = (el) => (el && el.textContent ? el.textContent.trim() : '');
+  const fam = /^(卷积网络（CNN）|Transformer 架构|混合（卷积 \\+ 注意力）|待确认)$/;
+  return {
+    title: txt(q('.lrow-r1 .paper-title')),
+    r1btns: [...row.querySelectorAll('.lrow-r1 button')].map((b) => b.textContent.trim()),
+    meta: txt(q('.lrow-r2 .lrow-meta-inline')),
+    role: txt(q('.lrow-r2 .lrow-role')),
+    famChip: [...row.querySelectorAll('.lrow-r1 span, .lrow-r2 span')].some((s) => fam.test(s.textContent.trim())),
+  };
+})()`);
   check(
-    '卡片顺序：标题 → 方法标签 → 链条作用 → 分析状态 → 一个主要操作',
-    /一句话作用/.test(libText) && /在研究链条里/.test(libText) && /分析完成|尚未提取方法字段|已解析文本/.test(libText) && /查看论文/.test(libText),
+    '行结构：真实标题 → 年份 · 方法名 + 一句话摘要 → 一个主要操作「查看详情」（默认行不含方法族标签）',
+    !!rowShape &&
+      rowShape.title.length > 15 &&
+      rowShape.r1btns.includes('查看详情') &&
+      rowShape.meta.includes('·') &&
+      rowShape.role.length > 0 &&
+      !rowShape.famChip,
+    JSON.stringify(rowShape).slice(0, 220),
   );
 
-  await cdp.click('查看论文');
+  await cdp.click('查看详情');
   await sleep(1200);
   const fieldPanel = await cdp.evaluate(`(document.querySelector('.main-inner') || document.body).innerText`);
   check(
@@ -522,6 +602,7 @@ fetch([...document.scripts].find((s) => /app.*\\.js/.test(s.src)).src).then((r) 
   console.log('');
   console.log('=== E12b 语料集切换与隔离（正式视觉案例） ===');
   await sleep(800);
+  await openLibManage(cdp);
   const libText2 = await cdp.evaluate(`(document.querySelector('.main-inner') || document.body).innerText`);
   check('标注两套语料不混合生成关系与推荐', /不会混在一起|各自独立计算/.test(libText2));
 
@@ -547,9 +628,9 @@ fetch([...document.scripts].find((s) => /app.*\\.js/.test(s.src)).src).then((r) 
   console.log('=== E14 重新分析入口（不触发真实调用） ===');
   await goMore(cdp, '论文集合');
   await sleep(1200);
-  await cdp.click('查看论文');
+  await cdp.click('查看详情');
   await sleep(1000);
-  // 重新分析现在收在「更多操作」里，先展开再点
+  // 重新分析现在收在「更多操作」里，它只在详情展开后才渲染：先展开详情，再展开「更多操作」
   await cdp.evaluate(`(() => {
   const d = [...document.querySelectorAll('.main-inner details.moreprop')].find((x) => /更多操作/.test(x.textContent));
   if (d) d.open = true;
@@ -578,7 +659,10 @@ fetch([...document.scripts].find((s) => /app.*\\.js/.test(s.src)).src).then((r) 
   await cdp.send('Page.reload', {});
   await sleep(4000);
   check('刷新后论文仍在（本地持久化）', await cdp.waitFor(`document.querySelectorAll('.paper-title').length >= 5`, 25000, '刷新恢复'));
+  // 模型配置说明与语料来源同在「管理论文与案例」折叠区里，先展开再断言
+  await openLibManage(cdp);
   check('刷新后模型设置仍为未配置（密钥不会被写入产物）', await cdp.evaluate(TEXT('未配置模型')));
+  check('刷新后仍如实标明结果来自缓存案例', await cdp.evaluate(TEXT('缓存案例')));
 
   console.log('');
   console.log('=== E11 窄屏（390×844）布局 ===');

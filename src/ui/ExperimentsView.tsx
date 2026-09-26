@@ -79,6 +79,8 @@ export function ExperimentsView({
   const [query, setQuery] = useState('');
   const [showOthers, setShowOthers] = useState(false);
   const [autoPicked, setAutoPicked] = useState(false);
+  /** 推荐对照默认只展示 3 条，但要能明确展开其余，不做静默隐藏 */
+  const [showAllSuggestions, setShowAllSuggestions] = useState(false);
   /** 每个方法组是否展开显示全部记录 */
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
@@ -87,8 +89,11 @@ export function ExperimentsView({
   }, [focusPaper]);
 
   const paperById = useMemo(() => new Map(papers.map((p) => [p.id, p])), [papers]);
-  /** 只用当前语料集的方法与实验记录（不混入其它语料集） */
-  const scopedMethods = useMemo(() => [...scope.presetMethods, ...scope.ownMethods], [scope]);
+  /**
+   * 只用**当前分析范围**的方法与实验记录：案例模式 = 当前案例预置；我上传模式 = 我上传的论文。
+   * 不把案例与用户上传的论文叠在一起统计（否则两边会互相进入对方的可比性结论）。
+   */
+  const scopedMethods = useMemo(() => scope.methods, [scope]);
   const all = useMemo(() => scopedMethods.flatMap((m) => m.experiments ?? []), [scopedMethods]);
   const classification = all.filter((e) => e.taskTag === 'classification');
   const others = all.filter((e) => e.taskTag !== 'classification');
@@ -132,9 +137,10 @@ export function ExperimentsView({
   })();
 
 
-  const suggestions = useMemo(() => {
+  /** 全部可比对候选（不截断）；截断只发生在展示层，而且用户能一键展开 */
+  const allSuggestions = useMemo(() => {
     const good = suggestComparablePairs(classification);
-    if (good.length) return good.slice(0, 3);
+    if (good.length) return good;
     const scored: { a: ExperimentRecord; b: ExperimentRecord; cmp: ReturnType<typeof compareExperiments> }[] = [];
     for (let i = 0; i < classification.length; i++) {
       for (let j = i + 1; j < classification.length; j++) {
@@ -146,10 +152,11 @@ export function ExperimentsView({
         scored.push({ a, b, cmp: c });
       }
     }
-    return scored
-      .sort((x, y) => x.cmp.unknowns.length - y.cmp.unknowns.length || x.cmp.differences.length - y.cmp.differences.length)
-      .slice(0, 3);
+    return scored.sort(
+      (x, y) => x.cmp.unknowns.length - y.cmp.unknowns.length || x.cmp.differences.length - y.cmp.differences.length,
+    );
   }, [classification]);
+  const suggestions = showAllSuggestions ? allSuggestions : allSuggestions.slice(0, 3);
 
   /** 口径不同的典型例子（错误率 vs 准确率）——用于演示「不能直接比较」 */
   const crossMetric = useMemo(() => {
@@ -196,7 +203,7 @@ export function ExperimentsView({
 
   /* ---------------- 空状态：分清「没有语料」与「有论文但无实验记录」 ---------------- */
   if (!all.length) {
-    const hasPapers = scope.paperCount > 0;
+    const hasPapers = scope.papers.length > 0;
     return (
       <div>
         <Crumb trail={[{ label: '研究地图', on: () => onGo?.('graph') }, { label: '实验可比性' }]} />
@@ -205,8 +212,10 @@ export function ExperimentsView({
           sub="实验比较以「一条实验记录」为单位：某个模型变体 + 一套训练与评估条件。这一页只回答一件事——两个结果能不能直接放在一起比。"
           badges={
             <>
-              <Status kind={scope.paperCount ? 'ok' : 'info'}>当前语料集：{scope.meta.label}</Status>
-              <Status kind={scope.paperCount ? 'ok' : 'info'}>{scope.paperCount} 篇论文</Status>
+              <Status kind={scope.papers.length ? 'ok' : 'info'}>
+                {scope.mode === 'own' ? '当前集合：我上传的论文' : `当前语料集：${scope.meta.label}`}
+              </Status>
+              <Status kind={scope.papers.length ? 'ok' : 'info'}>{scope.papers.length} 篇论文</Status>
               <Status kind="pending">0 条实验记录</Status>
               {loading && <Status kind="info">正在加载…</Status>}
             </>
@@ -256,7 +265,9 @@ export function ExperimentsView({
         }
         badges={
           <>
-            <Status kind={scope.key === 'vision' ? 'ok' : 'cached'}>当前语料集：{scope.meta.label}</Status>
+            <Status kind={scope.key === 'vision' ? 'ok' : 'cached'}>
+              {scope.mode === 'own' ? '当前集合：我上传的论文' : `当前语料集：${scope.meta.label}`}
+            </Status>
             <Status kind="info">{classification.length} 条分类实验</Status>
             <Status kind={picked.length === 2 ? 'ok' : 'info'}>已选 {picked.length} / 2 条记录</Status>
             {others.length > 0 && <Status kind="cached">非分类 {others.length} 条（不参与分类比较）</Status>}
@@ -554,8 +565,10 @@ export function ExperimentsView({
       {(suggestions.length > 0 || crossMetric) && (
         <div className="lite" style={{ padding: '10px 14px' }}>
           <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <strong style={{ fontSize: 13.5 }}>推荐对照</strong>
-            <span className="small dim">（程序按条件差异挑出，不是排名）</span>
+            <strong style={{ fontSize: 13.5 }}>推荐对照（最多 3 条，可展开全部）</strong>
+            <span className="small dim">
+              （程序按条件差异挑出，不是排名；共 {allSuggestions.length} 对可直接对照）
+            </span>
             {crossMetric && (
               <button
                 className="chip"
@@ -575,6 +588,16 @@ export function ExperimentsView({
                 {labelOf(s.a)} ↔ {labelOf(s.b)}（{EXPERIMENT_LEVEL_LABELS[s.cmp.level].replace('信息不足，不能直接比较', '信息不足')}）
               </button>
             ))}
+            {!showAllSuggestions && allSuggestions.length > 3 && (
+              <button className="btn ghost sm" onClick={() => setShowAllSuggestions(true)}>
+                显示其余 {allSuggestions.length - 3} 对
+              </button>
+            )}
+            {showAllSuggestions && allSuggestions.length > 3 && (
+              <button className="btn ghost sm" onClick={() => setShowAllSuggestions(false)}>
+                只看前 3 对
+              </button>
+            )}
           </div>
         </div>
       )}

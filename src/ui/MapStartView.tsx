@@ -8,6 +8,8 @@ interface Props {
   plan?: ReadingPlan;
   modelReady: boolean;
   busy: boolean;
+  /** 停止等待（只停止本地等待） */
+  onCancel?: () => void;
   onGenerate: (profile: UserProfile) => void;
   onOpenEvidence: (ev: Evidence) => void;
   /** 有证据支持的少量待调查问题（可空） */
@@ -24,7 +26,7 @@ const isTrainingGoal = (goal: string) => /复现|微调|训练/.test(goal);
  * 首次只问「当前基础」与「想解决的问题」；只有复现/微调/训练才继续问时间与算力。
  * 单纯阅读不会被预训练算力门槛阻断。
  */
-export function MapStartView({ papers, methods, plan, modelReady, busy, onGenerate, onOpenEvidence, questions }: Props) {
+export function MapStartView({ papers, methods, plan, modelReady, busy, onCancel, onGenerate, onOpenEvidence, questions }: Props) {
   const [background, setBackground] = useState(BACKGROUNDS[0]);
   const [goal, setGoal] = useState(GOALS[0]);
   const [time, setTime] = useState('');
@@ -104,6 +106,11 @@ export function MapStartView({ papers, methods, plan, modelReady, busy, onGenera
           >
             {busy ? '正在生成…' : ctaLabel}
           </button>
+          {busy && onCancel && (
+            <button className="btn ghost" onClick={onCancel}>
+              停止等待
+            </button>
+          )}
           {!modelReady && (
             <span className="small dim">
               未配置模型：这里只能看案例自带的<strong>示例路线</strong>，你上面选的条件不会生效（配置模型后才会按条件生成）。

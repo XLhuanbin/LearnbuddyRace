@@ -8,6 +8,7 @@
 import type {
   ConditionDimension,
   ConditionValue,
+  CorpusId,
   DivergenceReport,
   ExperimentConditions,
   FieldKey,
@@ -18,6 +19,7 @@ import type {
 } from './types';
 import { CONDITION_DIMENSIONS, METHOD_FIELD_LABELS } from './types';
 import { RULES_VERSION, type StalenessReport } from './rules';
+import { validateRelation } from './validate';
 
 export const FIELD_KEYS_ORDER: FieldKey[] = [
   'researchTask',
@@ -312,4 +314,67 @@ export function hydratePaper(meta: CachedPaperMeta | Paper, text?: CachedPaperTe
 
 export function fieldLabel(k: FieldKey): string {
   return METHOD_FIELD_LABELS[k];
+}
+
+/* ============================ 全文目录与缓存关系重校验 ============================ */
+
+/**
+ * 论文全文所在的语料目录。
+ *
+ * 视觉案例的全文在 `samples-vision/text/`，**不在** `samples/text/` ——
+ * 早先一律用默认的 `./samples/`，于是视觉案例的论文永远取不到全文，
+ * 表现是：证据打不开、关系分析缺少 rawText 却仍显示「可分析」。
+ */
+export function corpusBaseOfPaper(corpusId?: CorpusId): string {
+  return corpusId === 'vision-classification' ? './samples-vision/' : './samples/';
+}
+
+/**
+ * 缓存加载时按**当前规则**重新校验关系。
+ *
+ * 为什么必须做：缓存里的 evidenceState 是生成缓存那一刻的判定结论。
+ * 规则版本变了以后，旧结论不能继续冒充当前的「原文明示 / 系统推断」。
+ *
+ * 行为：
+ * 1. 每条关系都重跑一次当前的关系证据判定（validateRelation）；
+ * 2. 规则版本与当前不一致时，仍未重新判定的 explicit / inferred 一律降级为「待核查」，
+ *    并记录降级原因（不删除数据，只降可信度）。
+ */
+export function revalidateCachedRelations(
+  relations: Relation[],
+  methods: Method[],
+  papers: Paper[],
+  opts: { cachedRulesVersion?: string; rulesVersionChanged: boolean },
+): { relations: Relation[]; downgraded: number; notes: string[] } {
+  const notes: string[] = [];
+  let downgraded = 0;
+
+  const out = relations.map((r) => {
+    const { relation } = validateRelation(r, methods, papers);
+    let next = relation;
+    if (opts.rulesVersionChanged && (next.evidenceState === 'explicit' || next.evidenceState === 'inferred')) {
+      const from = next.evidenceState;
+      next = {
+        ...next,
+        evidenceState: 'candidate',
+        stateAdjusted: [
+          ...(next.stateAdjusted ?? []),
+          {
+            from,
+            to: 'candidate',
+            reason: `缓存生成时的规则版本为 ${opts.cachedRulesVersion ?? '未知'}，当前为 ${RULES_VERSION}；未按新规则重新判定前，旧结论不作为当前结论。`,
+          },
+        ],
+      };
+    }
+    if (next.evidenceState !== r.evidenceState) downgraded += 1;
+    return next;
+  });
+
+  if (opts.rulesVersionChanged) {
+    notes.push(
+      `关系判定规则已从 ${opts.cachedRulesVersion ?? '未知'} 变为 ${RULES_VERSION}：${relations.length} 条缓存关系已按「待核查」处理，需要重新分析关系后才能作为当前结论。`,
+    );
+  }
+  return { relations: out, downgraded, notes };
 }

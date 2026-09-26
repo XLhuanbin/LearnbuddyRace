@@ -20,25 +20,33 @@ import {
   generateDecision,
   inferRelations,
 } from './core/model/analyze';
-import { chat } from './core/model/client';
+import { chat, type CallTrace } from './core/model/client';
 import {
   assessCorpusStaleness,
+  corpusBaseOfPaper,
   loadCorpusIndex,
   loadPaperText,
   hydratePaper,
   migrateMethod,
   migrateRelation,
+  revalidateCachedRelations,
   FIELD_KEYS_ORDER,
 } from './core/cache';
 import { RULES_VERSION } from './core/rules';
 import { validateMethod } from './core/validate';
+import { effectiveField, overriddenFieldLabels } from './core/effective';
 import { PROMPT_VERSION } from './core/model/prompts';
 import {
   CORPUS_META,
+  asScopedSnapshot,
+  collectPaperRemoval,
   legacyCorpusPatches,
+  readScopedSnapshot,
+  replaceRelationsInScope,
   scopeCorpus,
   scopeRelations,
   type CorpusKey,
+  type ScopeMode,
 } from './core/corpus';
 import { LibraryView, type JobState } from './ui/Library';
 import { CompareView } from './ui/Compare';
@@ -48,13 +56,18 @@ import { DivergenceView } from './ui/Divergence';
 import { ExperimentsView } from './ui/ExperimentsView';
 import { HomeView } from './ui/HomeView';
 import { LandingView } from './ui/LandingView';
-import { MapView, type ScopeMode } from './ui/MapView';
+import { MapView } from './ui/MapView';
 import { AppBrandBar } from './ui/mapChrome';
 import { UploadFlowView } from './ui/UploadFlowView';
 import { MoreView } from './ui/MoreView';
 import { SettingsView, StatusView, capabilitiesList, MODEL_ERROR_HINT } from './ui/SettingsView';
 import { EvidencePopover, Banner } from './ui/common';
-import { describeDependents, describeJobOutcome, mergeReanalysisResult } from './core/reanalysis';
+import {
+  describeDependents,
+  describeJobOutcome,
+  describeOverrideDependents,
+  mergeReanalysisResult,
+} from './core/reanalysis';
 
 type Tab =
   | 'landing'
@@ -70,6 +83,9 @@ type Tab =
   | 'divergence'
   | 'settings'
   | 'status';
+
+/** 三类由模型生成的分析任务（各自有 busy / 取消 / 请求版本保护） */
+type TaskKind = 'relations' | 'plan' | 'divergence';
 
 const EMPTY_CONFIG: ModelConfig = { baseUrl: '', apiKey: '', model: '' };
 
@@ -116,15 +132,36 @@ export default function App() {
   });
 
   const corpusIdOf = (k: CorpusKey) => CORPUS_META[k].id;
-  /** 当前语料范围：导航、论文库、实验比较、方法关系的所有计数都必须用它 */
-  const scope = useMemo(() => scopeCorpus(papers, methods, corpus), [papers, methods, corpus]);
+  /**
+   * 当前集合模式：'case' 只看当前案例的预置数据，'own' 只看我自己上传的论文。
+   * 它是**当前分析范围的一部分**——关系、比较、阅读路线、分歧、统计、导出全都跟着它走。
+   */
+  const [mapMode, setMapMode] = useState<ScopeMode>('case');
+  const scope = useMemo(() => scopeCorpus(papers, methods, corpus, mapMode), [papers, methods, corpus, mapMode]);
   const scopedRelations = useMemo(() => scopeRelations(relations, scope), [relations, scope]);
-  const experimentsCount = scope.experimentCount;
+  /** 当前语料集身份（用于分析产物的归属校验） */
+  const currentCorpusId = CORPUS_META[corpus].id;
   const [jobs, setJobs] = useState<Record<string, JobState>>({});
   /** 正在进行中的抽取调用的取消句柄（只停止本地等待） */
   const cancelHandles = useRef<Record<string, AbortController>>({});
-  /** 重新分析成功后，需要重新生成的下游结果（关系/决策）；比较页按当前数据实时重算 */
-  const [pendingDependents, setPendingDependents] = useState<{ paperId: string; at: number }[]>([]);
+  /** 重新分析/人工修正后，需要重新生成的下游结果（关系/决策）；比较页按当前数据实时重算 */
+  const [pendingDependents, setPendingDependents] = useState<
+    { paperId: string; at: number; reason?: 'reanalyze' | 'override'; fields?: string[] }[]
+  >([]);
+  /**
+   * 三类模型任务的真实运行状态（过去一律传 busy={false}，按钮点了没有任何反馈，也无法停止）。
+   * 另有：按语料批量取回全文的加载状态 —— 关系分析前必须先补齐全文，不能静默成功。
+   */
+  const [relationBusy, setRelationBusy] = useState(false);
+  const [planBusy, setPlanBusy] = useState(false);
+  const [divergenceBusy, setDivergenceBusy] = useState(false);
+  const [hydratingScope, setHydratingScope] = useState(false);
+  const taskHandles = useRef<Record<TaskKind, AbortController | null>>({ relations: null, plan: null, divergence: null });
+  /**
+   * 请求版本号：旧请求返回时不能覆盖新案例 / 新论文 / 人工修正后的状态。
+   * 每次发起任务自增；语料切换、论文变化、人工修正时也自增，使在途结果直接作废。
+   */
+  const requestSeq = useRef<Record<TaskKind, number>>({ relations: 0, plan: 0, divergence: 0 });
   const [config, setConfig] = useState<ModelConfig>(EMPTY_CONFIG);
   const [usage, setUsage] = useState<UsageRecord[]>([]);
   const [logLines, setLogLines] = useState<string[]>([]);
@@ -134,8 +171,6 @@ export default function App() {
   const [testResult, setTestResult] = useState<{ ok: boolean; text: string } | undefined>();
   const [testing, setTesting] = useState(false);
   const [, setTick] = useState(0);
-  /** 研究地图当前显示的集合（案例 / 我上传的论文）；由左侧研究工作区导航控制 */
-  const [mapMode, setMapMode] = useState<ScopeMode>('case');
   /** 品牌栏使用衬线字体：字体就绪前不显示，避免加载时字体跳变 */
   const [fontsReady, setFontsReady] = useState(false);
 
@@ -173,6 +208,51 @@ export default function App() {
 
   const modelReady = !!(config.baseUrl && config.apiKey && config.model);
 
+  /**
+   * 任务版本保护：
+   * - `begin` 自增版本号并登记取消句柄，返回 `isLatest()`；
+   * - 结果回来时若 `isLatest()` 为 false（期间又发起了新任务，或语料/论文/人工修正变化使版本作废），
+   *   一律丢弃结果，**不允许覆盖当前状态**；
+   * - `invalidateAll` 在语料切换、论文增删、人工修正时调用。
+   */
+  const beginTask = useCallback((kind: TaskKind) => {
+    const seq = ++requestSeq.current[kind];
+    taskHandles.current[kind]?.abort();
+    const controller = new AbortController();
+    taskHandles.current[kind] = controller;
+    return { seq, signal: controller.signal, isLatest: () => requestSeq.current[kind] === seq };
+  }, []);
+  const endTask = useCallback((kind: TaskKind) => {
+    taskHandles.current[kind] = null;
+  }, []);
+  const cancelTask = useCallback((kind: TaskKind, label: string) => {
+    const h = taskHandles.current[kind];
+    taskHandles.current[kind] = null;
+    requestSeq.current[kind] += 1;
+    h?.abort();
+    logRef.current(`已请求停止等待：${label}（本次调用未完成，原结果保持不变；不代表服务端已停止计算或不再计费）`);
+  }, []);
+  /** 语料集/论文/人工修正发生变化时，让在途的模型任务结果失效 */
+  const invalidateTasks = useCallback(() => {
+    for (const k of ['relations', 'plan', 'divergence'] as const) requestSeq.current[k] += 1;
+  }, []);
+
+  /** 记录一次模型任务的真实调用轨迹，用于 usage 证据（不再写死 0） */
+  const traceRecorder = useCallback(() => {
+    const acc = { ms: 0, promptChars: 0, completionChars: 0, attempts: 0, calls: 0, error: '' };
+    return {
+      onTrace: (t: CallTrace) => {
+        acc.calls += 1;
+        acc.attempts = Math.max(acc.attempts, t.attempt ?? 1);
+        acc.ms += t.ms ?? 0;
+        acc.promptChars += t.promptChars ?? 0;
+        acc.completionChars += t.completionChars ?? 0;
+        if (t.error) acc.error = t.error;
+      },
+      totals: () => acc,
+    };
+  }, []);
+
   /* ---------- 初始化：恢复设置与已保存数据 ---------- */
   useEffect(() => {
     (async () => {
@@ -204,13 +284,15 @@ export default function App() {
       setRelations(rs.map(migrateRelation));
       const u = await loadMeta<UsageRecord[]>('usage');
       if (u) setUsage(u);
-      const cm = await loadMeta<typeof corpusMeta>('corpusMeta');
+      // 分析产物（语料元信息 / 分歧 / 路线 / 示例条件）必须带语料集身份：
+      // 只有明确记录且与当前语料集一致才恢复，否则刷新后会显示上一个案例的结论。
+      const cm = readScopedSnapshot<typeof corpusMeta>(await loadMeta('corpusMeta'), currentCorpusId);
       if (cm) setCorpusMeta(cm);
-      const dv = await loadMeta<DivergenceReport>('divergence');
+      const dv = readScopedSnapshot<DivergenceReport>(await loadMeta('divergence'), currentCorpusId);
       if (dv) setDivergence(dv);
-      const pl = await loadMeta<ReadingPlan>('decision');
+      const pl = readScopedSnapshot<ReadingPlan>(await loadMeta('decision'), currentCorpusId);
       if (pl) setPlan(pl);
-      const sp = await loadMeta<UserProfile>('demoProfile');
+      const sp = readScopedSnapshot<UserProfile>(await loadMeta('demoProfile'), currentCorpusId);
       if (sp) setSampleProfile(sp);
     })();
   }, []);
@@ -222,15 +304,27 @@ export default function App() {
 
   /* ---------- 导入 ---------- */
   const importFiles = async (files: FileList) => {
+    /**
+     * 本轮批次的哈希去重集合：开始时装入已在本机的哈希，每导入一个就加进去。
+     * 不能用 `papers` 闭包判断重复 —— setState 是异步的，一次选多个文件时闭包里的
+     * papers 始终是旧的，同一个文件（或内容相同的两个文件）会被重复导入。
+     */
+    const seenHashes = new Set<string>(papers.map((p) => p.contentHash).filter(Boolean) as string[]);
+    const titleByHash = new Map<string, string>(
+      papers.filter((p) => p.contentHash).map((p) => [p.contentHash as string, p.title]),
+    );
     for (const file of Array.from(files)) {
       log(`导入文件：${file.name}（${(file.size / 1024 / 1024).toFixed(1)} MB）`);
       try {
         const hash = await hashFile(file);
-        const dup = papers.find((p) => p.contentHash === hash);
-        if (dup) {
-          log(`  跳过：与已导入的「${dup.title}」内容相同（按内容哈希去重，不重复消耗模型额度）`);
+        if (seenHashes.has(hash)) {
+          log(
+            `  跳过：与已导入的「${titleByHash.get(hash) ?? file.name}」内容相同（按内容哈希去重，不重复消耗模型额度）`,
+          );
           continue;
         }
+        seenHashes.add(hash);
+        titleByHash.set(hash, file.name);
         // 重新读取一遍字节用于解析（File.arrayBuffer 可重复调用）
         const outcome = await parsePdfFile(file, {
           contentHash: hash,
@@ -256,6 +350,8 @@ export default function App() {
       }
     }
     setTick((t) => t + 1);
+    // 论文集合变了：在途分析结果不再对应当前数据
+    invalidateTasks();
   };
 
   const importPaste = async (title: string, text: string) => {
@@ -263,29 +359,61 @@ export default function App() {
     paper.titleFrom = 'heuristic';
     await repo.savePaper(paper);
     setPapers((p) => [...p, paper]);
+    invalidateTasks();
     log(`粘贴导入：${paper.title}（${paper.charCount} 字符）`);
   };
 
+  /**
+   * 移除论文：论文本体 + **该论文的全部方法** + 这些方法参与的全部关系。
+   *
+   * 不再假设方法 ID 是 `m_${paperId}`（历史数据与重新分析后的 ID 不一定长这样），
+   * 否则会留下「论文没了、方法和关系还挂着」的悬挂数据。
+   * 先写库、再改内存状态；写库失败就从本机重新读一遍，避免界面与存储不一致。
+   */
   const removePaper = async (id: string) => {
-    await repo.delete('papers', id);
-    await repo.delete('methods', `m_${id}`);
-    setPapers((p) => p.filter((x) => x.id !== id));
-    setMethods((ms) => ms.filter((m) => m.paperId !== id));
+    const next = collectPaperRemoval(papers, methods, relations, id);
+    try {
+      await repo.deleteRelations(next.removedRelations.map((r) => r.id));
+      await repo.deleteMethods(next.removedMethods.map((m) => m.id));
+      await repo.delete('papers', id);
+    } catch (e) {
+      log(`移除失败：${(e as Error).message}（已重新读取本机数据，未做任何丢失性操作）`);
+      setPapers(await repo.listPapers());
+      setMethods((await repo.listMethods()).map(migrateMethod));
+      setRelations((await repo.listRelations()).map(migrateRelation));
+      return;
+    }
+    setPapers(next.papers);
+    setMethods(next.methods);
+    setRelations(next.relations);
     setSelected((s) => s.filter((x) => x !== id));
-    log(`移除论文 ${id}`);
+    // 论文集合变了：在途分析结果不再对应当前数据
+    invalidateTasks();
+    log(
+      `移除论文 ${id}：同时删除该论文的 ${next.removedMethods.length} 条方法分析、` +
+        `${next.removedRelations.length} 条关联关系（不留悬挂关系）`,
+    );
   };
 
-  /** 撤销移除：把论文与已有分析结果写回本机（用户数据一律不丢） */
-  const restorePaper = async (paper: Paper, method?: Method) => {
+  /** 撤销移除：把论文、方法分析与关联关系一起写回本机（用户数据一律不丢，不重新调用模型） */
+  const restorePaper = async (paper: Paper, method?: Method, allMethods?: Method[], relationsToRestore?: Relation[]) => {
+    const methodsBack = allMethods && allMethods.length ? allMethods : method ? [method] : [];
     await repo.savePaper(paper);
     setPapers((p) => (p.some((x) => x.id === paper.id) ? p : [...p, paper]));
-    if (method) {
-      await repo.saveMethod(method);
-      setMethods((ms) =>
-        ms.some((m) => m.id === method.id) ? ms : [...ms.filter((m) => m.paperId !== paper.id), method],
-      );
+    for (const m of methodsBack) await repo.saveMethod(m);
+    for (const r of relationsToRestore ?? []) await repo.saveRelation(r);
+    if (methodsBack.length) {
+      const backIds = new Set(methodsBack.map((m) => m.id));
+      setMethods((ms) => [...ms.filter((m) => !backIds.has(m.id)), ...methodsBack]);
     }
-    log(`已撤销移除：${paper.title.slice(0, 30)}（论文与已有分析结果都已写回本机，不会重新调用模型）`);
+    if (relationsToRestore?.length) {
+      const backRelIds = new Set(relationsToRestore.map((r) => r.id));
+      setRelations((rs) => [...rs.filter((r) => !backRelIds.has(r.id)), ...relationsToRestore]);
+    }
+    log(
+      `已撤销移除：${paper.title.slice(0, 30)}（论文、${methodsBack.length} 条方法分析、` +
+        `${relationsToRestore?.length ?? 0} 条关联关系都已写回本机，不会重新调用模型）`,
+    );
   };
 
   /* ---------- 加载预置样例语料（明确标注为缓存） ---------- */
@@ -317,9 +445,33 @@ export default function App() {
     }
     setLoadResult(undefined);
     setExpFocus(null);
+    /**
+     * 上一个案例的分析产物（阅读路线 / 分歧 / 过期提示 / 语料元信息 / 待复核队列 / 已勾选论文）
+     * 必须一起下线：它们属于**那个案例**，留在界面上会被误读成当前案例的结论。
+     * 本机存档带语料集身份（asScopedSnapshot），因此切换后刷新也不会把旧案例的结果读回来。
+     */
+    setDivergence(undefined);
+    setPlan(undefined);
+    setSampleProfile(undefined);
+    setStaleNotes([]);
+    setCorpusMeta(undefined);
+    setPendingDependents([]);
+    setSelected([]);
+    setMapMode('case');
+    // 在途的模型任务属于上一个案例：让它们的结果作废，并停止本地等待
+    invalidateTasks();
+    for (const k of ['relations', 'plan', 'divergence'] as const) {
+      taskHandles.current[k]?.abort();
+      taskHandles.current[k] = null;
+    }
+    setRelationBusy(false);
+    setPlanBusy(false);
+    setDivergenceBusy(false);
+    // 本机存档**不覆盖**：它们各自带着 corpusId，只有当前语料集一致时才会被读回来，
+    // 因此既不会串到别的案例，也不会因为切换而丢掉自己那份个性化结果。
     log(
       `已切换到「${CORPUS_META[next].label}」：上一套语料（${CORPUS_META[corpus].label}）的 ${outPapers.length} 篇论文与 ${outMethods.length} 条方法分析已移除（不做叠加），` +
-        '两套语料各自独立计算关系与推荐。',
+        '两套语料各自独立计算关系与推荐；上一个案例的阅读路线、分歧与过期提示已一起清理，不会被带过来。',
     );
   };
 
@@ -345,24 +497,45 @@ export default function App() {
       const corpusId = cfg.id;
       const hyd = index.papers.map((m) => ({ ...hydratePaper(m), corpusId, cached: true as const }));
       const cachedMethods = index.methods.map((m) => ({ ...m, cached: true, corpusId }));
-      const cachedRelations = index.relations.map(
+      const cachedRelationsRaw = index.relations.map(
         (r) => ({ ...migrateRelation(r), cached: true } as Relation & { cached: boolean }),
       );
+      /**
+       * 缓存里的 evidenceState 是生成缓存那一刻的结论，规则版本变化后不能继续冒充当前结论。
+       * 这里按**当前规则**重新跑一遍关系证据判定；规则版本不一致时降级为「待核查」。
+       */
+      const relCheck = revalidateCachedRelations(cachedRelationsRaw, cachedMethods, hyd, {
+        cachedRulesVersion: index.rulesVersion,
+        rulesVersionChanged: !!index.rulesVersion && index.rulesVersion !== RULES_VERSION,
+      });
+      const cachedRelations = relCheck.relations;
 
-      // 幂等：先移除该语料集已有记录（IndexedDB + 状态），再写入索引内容
+      // 幂等替换该语料集已有记录：**先写新的、再删被替换掉的旧的**，
+      // 中途失败时旧数据仍在（原约定「失败时保留已有数据」）。
       const prevScopePaperIds = papers.filter((x) => x.corpusId === corpusId).map((x) => x.id);
       const prevScopeMethodIds = methods.filter((x) => x.corpusId === corpusId).map((x) => x.id);
-      for (const id of prevScopePaperIds) await repo.delete('papers', id);
-      for (const id of prevScopeMethodIds) await repo.delete('methods', id);
       for (const x of hyd) await repo.savePaper(x);
       for (const m of cachedMethods) await repo.saveMethod(m);
-      // 关系整体替换：关系只属于当前语料集，不做跨语料合并
-      await repo.clearRelations();
-      for (const r of cachedRelations) await repo.saveRelation(r);
+      const newPaperIds = new Set(hyd.map((x) => x.id));
+      const newMethodIds = new Set(cachedMethods.map((m) => m.id));
+      await repo.deletePapers(prevScopePaperIds.filter((id) => !newPaperIds.has(id)));
+      await repo.deleteMethods(prevScopeMethodIds.filter((id) => !newMethodIds.has(id)));
+      /**
+       * 关系按范围**原子替换**：只替换「两端都属于本次加载语料的方法」的关系。
+       * 之前这里调的是 repo.clearRelations()（整库清空），会把其它案例的关系、
+       * 用户上传论文的关系以及人工添加/修正过的关系一起删掉。
+       * 批量写/删各在一个事务里，整批失败就整批回滚 —— 原关系保持不变。
+       */
+      const loadedMethodIds = new Set<string>(cachedMethods.map((m) => m.id));
+      const incomingIds = new Set(cachedRelations.map((r) => r.id));
+      const relSwap = replaceRelationsInScope(relations, cachedRelations, loadedMethodIds);
+      await repo.saveRelations(cachedRelations);
+      await repo.deleteRelations(relSwap.drop.filter((r) => !incomingIds.has(r.id)).map((r) => r.id));
 
       setPapers((prev) => [...prev.filter((x) => x.corpusId !== corpusId), ...hyd]);
       setMethods((prev) => [...prev.filter((x) => x.corpusId !== corpusId), ...cachedMethods]);
-      setRelations(cachedRelations);
+      setRelations(relSwap.next);
+      setMapMode('case');
       setCorpusMeta(index.meta);
 
       const inputsSignature = index.papers.map((x) => x.id).sort().join(',');
@@ -376,28 +549,39 @@ export default function App() {
         PROMPT_VERSION,
         inputsSignature,
       );
-      const notes = [...staleness.notes];
+      const notes = [...staleness.notes, ...relCheck.notes];
       if (formatMismatch) notes.push(formatMismatch);
       setStaleNotes(notes);
       if (staleness.stale) log('过期提示：' + staleness.notes.join(' / '));
+      if (relCheck.downgraded) {
+        log(`关系重校验：${relCheck.downgraded} 条缓存关系未能通过当前规则判定，已降级为「待核查」（不删除数据，只降可信度）。`);
+      }
 
+      // 分析产物一律带语料集身份存档：切到别的案例后，刷新不会把本案例的结论读成当前案例的
       if (index.divergences) {
-        setDivergence({ ...index.divergences, cached: true });
-        await saveMeta('divergence', index.divergences);
+        const cachedDiv = { ...index.divergences, cached: true };
+        setDivergence(cachedDiv);
+        await saveMeta('divergence', asScopedSnapshot(corpusId, cachedDiv));
       } else {
         setDivergence(undefined);
+        await saveMeta('divergence', asScopedSnapshot(corpusId, null));
       }
       if (index.decisionSample) {
-        setPlan({ ...index.decisionSample, cached: true });
-        await saveMeta('decision', index.decisionSample);
+        const cachedPlan = { ...index.decisionSample, cached: true };
+        setPlan(cachedPlan);
+        await saveMeta('decision', asScopedSnapshot(corpusId, cachedPlan));
       } else {
         setPlan(undefined);
+        await saveMeta('decision', asScopedSnapshot(corpusId, null));
       }
       if (index.demoProfile) {
         setSampleProfile(index.demoProfile);
-        await saveMeta('demoProfile', index.demoProfile);
+        await saveMeta('demoProfile', asScopedSnapshot(corpusId, index.demoProfile));
+      } else {
+        setSampleProfile(undefined);
+        await saveMeta('demoProfile', asScopedSnapshot(corpusId, null));
       }
-      await saveMeta('corpusMeta', index.meta);
+      await saveMeta('corpusMeta', asScopedSnapshot(corpusId, index.meta));
 
       const experiments = cachedMethods.reduce((a, m) => a + (m.experiments?.length ?? 0), 0);
       setLoadResult({
@@ -461,7 +645,8 @@ export default function App() {
     let full = paper;
     if (!full.rawText) {
       try {
-        const t = await loadPaperText(full.id);
+        // 全文目录必须按论文归属的语料集选择：视觉案例在 samples-vision/text/，不是 samples/text/
+        const t = await loadPaperText(full.id, corpusBaseOfPaper(full.corpusId));
         full = hydratePaper(full, t);
         setPapers((ps) => ps.map((p) => (p.id === full.id ? full : p)));
         await repo.savePaper(full);
@@ -483,10 +668,12 @@ export default function App() {
     log(`开始抽取：${full.title}`);
 
     const t0 = Date.now();
+    const extractTrace = traceRecorder();
     try {
       const method = await extractMethodWithProgress(full, { ...config, timeoutMs: 180000, maxAttempts: 3, signal: controller.signal }, (ev) => {
         setJobs((j) => ({ ...j, [paperId]: { paperId, stage: ev.stage, message: ev.message, status: 'running', attempts: ev.trace?.attempt ?? 0 } }));
         if (ev.trace) {
+          extractTrace.onTrace(ev.trace);
           log(
             `  模型调用 ${ev.trace.label} 第 ${ev.trace.attempt} 次：${ev.trace.ms}ms，输入 ${ev.trace.promptChars} 字符，输出 ${ev.trace.completionChars} 字符${
               ev.trace.error ? '，错误：' + ev.trace.error : ''
@@ -512,7 +699,8 @@ export default function App() {
       setMethods((ms) => [...ms.filter((m) => m.paperId !== paperId), mergedMethod]);
       if (prev) {
         // 论文结果已更新：下游由模型生成的关系与推荐需要重新生成；比较页按当前数据实时重算
-        setPendingDependents((d) => [...d.filter((x) => x.paperId !== paperId), { paperId, at: Date.now() }]);
+        invalidateTasks();
+        setPendingDependents((d) => [...d.filter((x) => x.paperId !== paperId), { paperId, at: Date.now(), reason: 'reanalyze' }]);
         if (prev?.overrides?.length) {
           log(`  已保留该论文的 ${prev.overrides.length} 条人工修正（重新分析不会覆盖人工修正）`);
         }
@@ -523,13 +711,15 @@ export default function App() {
       log(`  完成：${METHOD_FIELD_LABELS.researchTask}等 ${FIELD_KEYS_ORDER.length} 个字段，证据通过定位校验 ${verified} 个，缺失 ${missing} 个`);
       setJobs((j) => ({ ...j, [paperId]: { paperId, stage: 'done', message: '完成', status: 'done', attempts: 1 } }));
 
+      // usage 记录真实调用轨迹（不再把 prompt/completion 写成 0 或拿论文字符数顶替）
+      const et = extractTrace.totals();
       await appendUsage({
         kind: 'extract',
         paperId,
         model: config.model,
-        ms: Date.now() - t0,
-        promptChars: full.charCount,
-        completionChars: 0,
+        ms: et.ms || Date.now() - t0,
+        promptChars: et.promptChars,
+        completionChars: et.completionChars,
         ok: true,
       });
       await refreshUsage();
@@ -550,13 +740,14 @@ export default function App() {
       }));
       log(outcome.detail + ' 原始错误：' + msg);
 
+      const etFail = extractTrace.totals();
       await appendUsage({
         kind: 'extract',
         paperId,
         model: config.model,
-        ms: Date.now() - t0,
-        promptChars: full.charCount,
-        completionChars: 0,
+        ms: etFail.ms || Date.now() - t0,
+        promptChars: etFail.promptChars,
+        completionChars: etFail.completionChars,
         ok: false,
         error: msg,
       });
@@ -568,16 +759,71 @@ export default function App() {
   const overrideField = async (paperId: string, field: FieldKey, value: string) => {
     const m = methods.find((x) => x.paperId === paperId);
     if (!m) return;
+    // previousValue 记的是**有效值**（可能是上一次人工修正），保证修正记录可回溯
+    const previousEffective = effectiveField(m, field).value;
     const next: Method = {
       ...m,
       overrides: [
         ...m.overrides.filter((o) => o.field !== field),
-        { field, previousValue: m.fields[field].value, newValue: value, at: Date.now() },
+        { field, previousValue: previousEffective, newValue: value, at: Date.now() },
       ],
     };
     await repo.saveMethod(next);
     setMethods((ms) => ms.map((x) => (x.paperId === paperId ? next : x)));
-    log(`人工修正：${METHOD_FIELD_LABELS[field]} 已更新（AI 原值已保留在修正记录中）`);
+    /**
+     * 人工修正会改变下游分析所依据的有效值，且是在途模型任务的「旧输入」：
+     * 1. 让在途任务的结果作废（不覆盖人工修正后的状态）；
+     * 2. 把关系 / 路线 / 比较 / 分歧标为待重算。
+     */
+    invalidateTasks();
+    setPendingDependents((d) => [
+      ...d.filter((x) => x.paperId !== paperId),
+      { paperId, at: Date.now(), reason: 'override', fields: overriddenFieldLabels(next) },
+    ]);
+    log(
+      `人工修正：${METHOD_FIELD_LABELS[field]} 已更新为有效值「${value.slice(0, 40)}」（AI 原值已保留在修正记录中）。` +
+        '该值不是原文核验结果，关系/阅读路线/比较与分歧需要重新生成或复核。',
+    );
+  };
+
+  /** 当前分析范围的人类可读名字（日志与提示里必须写清楚这次分析看的是哪个集合） */
+  const scopeLabel = scope.mode === 'own' ? '我上传的论文' : scope.meta.label;
+
+  /**
+   * 按语料集批量取回当前分析范围的全文。
+   *
+   * 为什么必须做：关系判定只对**有全文**的论文有效，而全文是按需加载的。
+   * 过去直接过滤出有 rawText 的论文 —— 用户没有逐篇点开证据时，可分析集合会悄悄缩水，
+   * 甚至直接中止，界面却没有任何说明。现在先按 corpusId 选对目录补齐全文，并把加载状态显示出来。
+   */
+  const hydrateScopePapers = async (): Promise<{ papers: Paper[]; hydrated: number; failed: string[] }> => {
+    const failed: string[] = [];
+    let hydrated = 0;
+    const missing = scope.papers.filter((p) => !p.rawText);
+    if (!missing.length) return { papers: scope.papers, hydrated: 0, failed };
+    setHydratingScope(true);
+    log(`按语料集取回全文：${missing.length} 篇（目录 ${corpusBaseOfPaper(missing[0].corpusId)}）…`);
+    const byId = new Map(scope.papers.map((p) => [p.id, p]));
+    try {
+      for (const p of missing) {
+        try {
+          const t = await loadPaperText(p.id, corpusBaseOfPaper(p.corpusId));
+          const full = hydratePaper(p, t);
+          byId.set(p.id, full);
+          hydrated += 1;
+          await repo.savePaper(full);
+          setPapers((ps) => ps.map((x) => (x.id === full.id ? full : x)));
+        } catch (e) {
+          failed.push(`${p.title.slice(0, 24)}：${(e as Error).message}`);
+          log(`  全文取回失败：${p.title.slice(0, 30)} —— ${(e as Error).message}`);
+        }
+      }
+    } finally {
+      setHydratingScope(false);
+    }
+    const list = scope.papers.map((p) => byId.get(p.id) ?? p);
+    log(`全文取回完成：成功 ${hydrated} 篇${failed.length ? `，失败 ${failed.length} 篇` : ''}。`);
+    return { papers: list, hydrated, failed };
   };
 
   /* ---------- 关系与路线 ---------- */
@@ -586,35 +832,91 @@ export default function App() {
       log('关系分析中止：未配置模型接口。');
       return;
     }
-    const usable = methods.map((m) => {
-      const p = papers.find((x) => x.id === m.paperId);
-      return p && p.rawText ? { m, p } : undefined;
-    });
-    const ready = usable.filter(Boolean) as { m: Method; p: Paper }[];
-    if (ready.length < 2) {
-      log('关系分析中止：需要至少 2 篇有全文的论文。');
+    if (relationBusy) {
+      log('关系分析已在进行中，已忽略本次点击。');
       return;
     }
-    log(`分析方法关系（${ready.length} 篇）…`);
+    setRelationBusy(true);
+    const task = beginTask('relations');
+    const trace = traceRecorder();
     try {
+      // 先把当前范围的全文补齐（按 corpusId 选目录），再据此决定可分析集合
+      const { papers: scopePapers, failed } = await hydrateScopePapers();
+      if (!task.isLatest()) {
+        log('关系分析：期间集合或数据已变化，本次结果作废（不覆盖当前关系）。');
+        return;
+      }
+      // 只在**当前分析范围**内取材：案例模式 = 当前案例预置；我上传模式 = 我自己上传的论文。
+      // 不把全量 papers / methods 送给模型。
+      const paperById = new Map(scopePapers.map((p) => [p.id, p]));
+      const usable = scope.methods.map((m) => {
+        const p = paperById.get(m.paperId);
+        return p && p.rawText ? { m, p } : undefined;
+      });
+      const ready = usable.filter(Boolean) as { m: Method; p: Paper }[];
+      if (ready.length < 2) {
+        log(
+          `关系分析中止：当前集合「${scopeLabel}」里只有 ${ready.length} 篇有全文的论文（需要至少 2 篇）。` +
+            (failed.length ? `另有 ${failed.length} 篇全文取回失败：${failed.join('；')}` : ''),
+        );
+        return;
+      }
+      log(`分析方法关系（${ready.length} 篇有全文，范围：${scopeLabel}）…`);
       const { relations: rels, issues } = await inferRelations(
         ready.map((x) => x.p),
         ready.map((x) => x.m),
-        { ...config, timeoutMs: 180000 },
-        (t) => log(`  模型调用 ${t.label}：${t.ms}ms${t.error ? '，错误：' + t.error : ''}`),
+        { ...config, timeoutMs: 180000, signal: task.signal },
+        (t) => {
+          trace.onTrace(t);
+          log(`  模型调用 ${t.label}：${t.ms}ms${t.error ? '，错误：' + t.error : ''}`);
+        },
       );
-      await repo.clearRelations();
-      for (const r of rels) await repo.saveRelation(r);
-      setRelations(rels);
+      if (!task.isLatest()) {
+        log('关系分析：结果返回时集合、论文或人工修正已变化，本次结果已丢弃（不覆盖当前关系）。');
+        return;
+      }
+      /**
+       * 按范围原子替换关系（不再 repo.clearRelations 整库清空）：
+       * 只替换两端都属于当前范围的关系，其它案例、用户上传论文、人工添加/修正的关系原样保留。
+       * 写入顺序是「先写新关系、再删被替换掉的旧关系」——中途失败时原关系还在。
+       */
+      const swap = replaceRelationsInScope(relations, rels, scope.scopeMethodIds);
+      const incomingIds = new Set(rels.map((r) => r.id));
+      await repo.saveRelations(rels);
+      await repo.deleteRelations(swap.drop.filter((r) => !incomingIds.has(r.id)).map((r) => r.id));
+      setRelations(swap.next);
       const cnt = (s: string) => rels.filter((r) => r.evidenceState === s).length;
       log(
-        `  完成：${rels.length} 条关系（原文明示 ${cnt('explicit')}，系统推断 ${cnt('inferred')}，待核查 ${cnt('candidate')}）；程序校验问题 ${issues.length} 条`,
+        `  完成：${rels.length} 条关系（原文明示 ${cnt('explicit')}，系统推断 ${cnt('inferred')}，待核查 ${cnt('candidate')}）；程序校验问题 ${issues.length} 条；` +
+          `已保留范围外关系 ${swap.keep.length} 条`,
       );
       for (const i of issues) log(`    · ${i.message}`);
-      await appendUsage({ kind: 'relations', model: config.model, ms: 0, promptChars: 0, completionChars: 0, ok: true });
+      const tot = trace.totals();
+      await appendUsage({
+        kind: 'relations',
+        model: config.model,
+        ms: tot.ms,
+        promptChars: tot.promptChars,
+        completionChars: tot.completionChars,
+        ok: true,
+      });
       await refreshUsage();
     } catch (e) {
-      log(`关系分析失败：${MODEL_ERROR_HINT(e)}`);
+      log(`关系分析失败：${MODEL_ERROR_HINT(e)}（原有关系保持不变）`);
+      const tot = trace.totals();
+      await appendUsage({
+        kind: 'relations',
+        model: config.model,
+        ms: tot.ms,
+        promptChars: tot.promptChars,
+        completionChars: tot.completionChars,
+        ok: false,
+        error: String((e as Error).message).slice(0, 200),
+      });
+      await refreshUsage();
+    } finally {
+      endTask('relations');
+      setRelationBusy(false);
     }
   };
 
@@ -624,23 +926,60 @@ export default function App() {
       log('方法决策中止：未配置模型接口。');
       return;
     }
-    const ready = methods.filter((m) => papers.some((p) => p.id === m.paperId));
+    // 只吃当前分析范围（案例 = 当前案例预置；我上传 = 我上传的论文）
+    const ready = scope.methods.filter((m) => scope.papers.some((p) => p.id === m.paperId));
     if (!ready.length) {
-      log('方法决策中止：没有可用的论文分析结果。');
+      log(`方法决策中止：当前集合「${scopeLabel}」里没有可用的论文分析结果。`);
       return;
     }
-    log(`生成方法决策（条件：${profile.compute || '未填写'} / ${profile.time || '未填写'}）…`);
+    if (planBusy) {
+      log('方法决策已在进行中，已忽略本次点击。');
+      return;
+    }
+    setPlanBusy(true);
+    const task = beginTask('plan');
+    const trace = traceRecorder();
+    log(`生成方法决策（范围：${scopeLabel}；条件：${profile.compute || '未填写'} / ${profile.time || '未填写'}）…`);
     try {
-      const p = await generateDecision(papers, ready, profile, { ...config, timeoutMs: 180000 }, (t) =>
-        log(`  模型调用 ${t.label}：${t.ms}ms${t.error ? '，错误：' + t.error : ''}`),
-      );
+      const p = await generateDecision(scope.papers, ready, profile, { ...config, timeoutMs: 180000, signal: task.signal }, (t) => {
+        trace.onTrace(t);
+        log(`  模型调用 ${t.label}：${t.ms}ms${t.error ? '，错误：' + t.error : ''}`);
+      });
+      if (!task.isLatest()) {
+        log('方法决策：结果返回时集合、论文或人工修正已变化，本次结果已丢弃（不覆盖当前路线）。');
+        return;
+      }
       setPlan(p);
-      log(`  完成：候选 ${p.candidates?.length ?? 0} 个，阅读顺序 ${p.steps.length} 步`);
+      // 实时生成的路线必须落盘，刷新页面仍能看到（并按语料集隔离）
+      await saveMeta('decision', asScopedSnapshot(currentCorpusId, p));
+      log(`  完成：候选 ${p.candidates?.length ?? 0} 个，阅读顺序 ${p.steps.length} 步（已保存到本机，刷新后仍在）`);
       if (p.conditionSensitivity) log(`  条件敏感性：${p.conditionSensitivity}`);
-      await appendUsage({ kind: 'plan', model: config.model, ms: 0, promptChars: 0, completionChars: 0, ok: true });
+      const tot = trace.totals();
+      await appendUsage({
+        kind: 'plan',
+        model: config.model,
+        ms: tot.ms,
+        promptChars: tot.promptChars,
+        completionChars: tot.completionChars,
+        ok: true,
+      });
       await refreshUsage();
     } catch (e) {
       log(`方法决策失败：${MODEL_ERROR_HINT(e)}`);
+      const tot = trace.totals();
+      await appendUsage({
+        kind: 'plan',
+        model: config.model,
+        ms: tot.ms,
+        promptChars: tot.promptChars,
+        completionChars: tot.completionChars,
+        ok: false,
+        error: String((e as Error).message).slice(0, 200),
+      });
+      await refreshUsage();
+    } finally {
+      endTask('plan');
+      setPlanBusy(false);
     }
   };
 
@@ -650,25 +989,60 @@ export default function App() {
       log('分歧分析中止：未配置模型接口。');
       return;
     }
-    const ready = methods.filter((m) => papers.some((p) => p.id === m.paperId));
+    // 只吃当前分析范围（案例 = 当前案例预置；我上传 = 我上传的论文）
+    const ready = scope.methods.filter((m) => scope.papers.some((p) => p.id === m.paperId));
     if (ready.length < 2) {
-      log('分歧分析中止：需要至少 2 篇已完成抽取的论文。');
+      log(`分歧分析中止：当前集合「${scopeLabel}」里需要至少 2 篇已完成抽取的论文。`);
       return;
     }
-    log(`分析跨论文分歧（${ready.length} 篇）…`);
+    if (divergenceBusy) {
+      log('分歧分析已在进行中，已忽略本次点击。');
+      return;
+    }
+    setDivergenceBusy(true);
+    const task = beginTask('divergence');
+    const trace = traceRecorder();
+    log(`分析跨论文分歧（${ready.length} 篇，范围：${scopeLabel}）…`);
     try {
-      const rep = await findDivergences(papers, ready, { ...config, timeoutMs: 180000 }, (t) =>
-        log(`  模型调用 ${t.label}：${t.ms}ms${t.error ? '，错误：' + t.error : ''}`),
-      );
+      const rep = await findDivergences(scope.papers, ready, { ...config, timeoutMs: 180000, signal: task.signal }, (t) => {
+        trace.onTrace(t);
+        log(`  模型调用 ${t.label}：${t.ms}ms${t.error ? '，错误：' + t.error : ''}`);
+      });
+      if (!task.isLatest()) {
+        log('分歧分析：结果返回时集合、论文或人工修正已变化，本次结果已丢弃（不覆盖当前分歧）。');
+        return;
+      }
       setDivergence(rep);
-      await saveMeta('divergence', rep);
+      await saveMeta('divergence', asScopedSnapshot(currentCorpusId, rep));
       for (const f of rep.findings) {
         log(`  · [${DIVERGENCE_LABELS[f.kind]}] ${f.topic}（可比性 ${f.comparabilityLevel}）`);
       }
-      await appendUsage({ kind: 'divergence', model: config.model, ms: 0, promptChars: 0, completionChars: 0, ok: true });
+      const tot = trace.totals();
+      await appendUsage({
+        kind: 'divergence',
+        model: config.model,
+        ms: tot.ms,
+        promptChars: tot.promptChars,
+        completionChars: tot.completionChars,
+        ok: true,
+      });
       await refreshUsage();
     } catch (e) {
       log(`分歧分析失败：${MODEL_ERROR_HINT(e)}`);
+      const tot = trace.totals();
+      await appendUsage({
+        kind: 'divergence',
+        model: config.model,
+        ms: tot.ms,
+        promptChars: tot.promptChars,
+        completionChars: tot.completionChars,
+        ok: false,
+        error: String((e as Error).message).slice(0, 200),
+      });
+      await refreshUsage();
+    } finally {
+      endTask('divergence');
+      setDivergenceBusy(false);
     }
   };
 
@@ -708,7 +1082,7 @@ export default function App() {
     let target = paper ?? papers.find((p) => p.id === e.paperId);
     if (target && !target.rawText) {
       try {
-        const t = await loadPaperText(target.id);
+        const t = await loadPaperText(target.id, corpusBaseOfPaper(target.corpusId));
         target = hydratePaper(target, t);
         setPapers((ps) => ps.map((p) => (p.id === target!.id ? target! : p)));
       } catch (err) {
@@ -719,8 +1093,15 @@ export default function App() {
   };
 
   const capabilities = useMemo(
-    () => capabilitiesList({ hasBackend: false, deployStatic: true, modelReachable: true }),
-    [],
+    () =>
+      capabilitiesList({
+        hasBackend: false,
+        deployStatic: true,
+        // 只有本机连接测试真的成功过才算「已连通」；填写完整只算「已配置」
+        modelReachable: testResult?.ok === true,
+        modelConfigured: modelReady,
+      }),
+    [testResult, modelReady],
   );
 
   return (
@@ -742,10 +1123,24 @@ export default function App() {
           <div className="main-inner">
           {pendingDependents.length > 0 && (
             <Banner kind="warn">
-              <strong>有论文的结果已更新，以下内容需要重新生成或复核：</strong>
+              <strong>
+                {pendingDependents.some((d) => d.reason === 'override')
+                  ? '有论文的字段被人工修正（或结果已更新），以下内容需要重新生成或复核：'
+                  : '有论文的结果已更新，以下内容需要重新生成或复核：'}
+              </strong>
               <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
-                {describeDependents(
-                  pendingDependents.map((d) => papers.find((p) => p.id === d.paperId)?.title?.slice(0, 30) ?? d.paperId).join('、'),
+                {(pendingDependents.some((d) => d.reason === 'override')
+                  ? describeOverrideDependents(
+                      pendingDependents
+                        .map((d) => papers.find((p) => p.id === d.paperId)?.title?.slice(0, 30) ?? d.paperId)
+                        .join('、'),
+                      [...new Set(pendingDependents.flatMap((d) => d.fields ?? []))],
+                    )
+                  : describeDependents(
+                      pendingDependents
+                        .map((d) => papers.find((p) => p.id === d.paperId)?.title?.slice(0, 30) ?? d.paperId)
+                        .join('、'),
+                    )
                 ).map((x, i) => (
                   <li key={i}>
                     <strong>{x.item}</strong>：{x.action}
@@ -771,33 +1166,29 @@ export default function App() {
 
           {tab === 'map' && (
             <MapView
-              papers={scope.presetPapers.concat(scope.ownPapers)}
-              methods={scope.presetMethods.concat(scope.ownMethods)}
+              papers={scope.papers}
+              methods={scope.methods}
               relations={scopedRelations}
               scope={scope}
               corpusLoading={corpusLoading}
               plan={plan}
               questions={(divergence?.findings ?? []).map((f) => {
-                const withQuote = f.sides.find((x) => x.quote && x.paperId);
+                /**
+                 * 这里**只转发**分歧规则模块已经做过的定位校验结果（divergenceRules 里统一走 buildEvidence），
+                 * 不在这里把模型给的字符串包装成 verified —— 那等于自己给自己发核验证书。
+                 * 没有通过定位校验的引文按「待核查」展示（页面上会带说明）。
+                 */
+                const withEvidence = f.sides.find((x) => x.quoteEvidence);
                 return {
                   id: f.id,
                   text: f.topic || f.explanation.slice(0, 60),
                   basis: [f.commonScope ? `共同范围：${f.commonScope}` : '', f.explanation].filter(Boolean).join('　'),
-                  evidence: withQuote
-                    ? [
-                        {
-                          paperId: withQuote.paperId,
-                          quote: withQuote.quote as string,
-                          page: withQuote.page,
-                          locator: 'page',
-                          verified: true,
-                        } as Evidence,
-                      ]
-                    : undefined,
+                  evidence: withEvidence?.quoteEvidence ? [withEvidence.quoteEvidence] : undefined,
                 };
               })}
               modelReady={modelReady}
-              busy={false}
+              busy={planBusy || hydratingScope}
+              onCancelGenerate={() => cancelTask('plan', '生成阅读路线')}
               mode={mapMode}
               onModeChange={setMapMode}
               onGenerate={genDecision}
@@ -814,6 +1205,7 @@ export default function App() {
           {tab === 'upload' && (
             <UploadFlowView
               papers={papers}
+              scope={scope}
               methods={methods}
               jobs={jobs}
               modelReady={modelReady}
@@ -931,9 +1323,9 @@ export default function App() {
 
           {tab === 'compare' && (
             <CompareView
-              papers={papers}
-              methods={methods}
-              relations={relations}
+              papers={scope.papers}
+              methods={scope.methods}
+              relations={scopedRelations}
               selected={selected}
               onSelectedChange={setSelected}
               onToggle={(paperId) =>
@@ -945,12 +1337,13 @@ export default function App() {
 
           {tab === 'graph' && (
             <GraphView
-              papers={scope.presetPapers.concat(scope.ownPapers)}
-              methods={scope.presetMethods.concat(scope.ownMethods)}
+              papers={scope.papers}
+              methods={scope.methods}
               relations={scopedRelations}
               onGenerate={genRelations}
+              onCancel={() => cancelTask('relations', '分析方法关系')}
               onOpenEvidence={openEvidence}
-              busy={false}
+              busy={relationBusy || hydratingScope}
               onDeleteRelation={async (id) => {
                 await repo.delete('relations', id);
                 setRelations((rs) => rs.filter((r) => r.id !== id));
@@ -974,10 +1367,11 @@ export default function App() {
 
           {tab === 'decision' && (
             <DecisionView
-              papers={papers}
-              methods={methods}
+              papers={scope.papers}
+              methods={scope.methods}
               plan={plan}
-              busy={false}
+              busy={planBusy}
+              onCancel={() => cancelTask('plan', '生成阅读路线')}
               modelReady={modelReady}
               onGenerate={genDecision}
               onUseSample={() => {
@@ -996,11 +1390,12 @@ export default function App() {
 
           {tab === 'divergence' && (
             <DivergenceView
-              papers={papers}
-              methods={methods}
+              papers={scope.papers}
+              methods={scope.methods}
               staleNotes={staleNotes}
               report={divergence}
-              busy={false}
+              busy={divergenceBusy}
+              onCancel={() => cancelTask('divergence', '分析待调查问题')}
               onGenerate={genDivergence}
               onUseSample={() => {
                 if (divergence) return;
@@ -1015,16 +1410,16 @@ export default function App() {
 
           {tab === 'status' && (
             <StatusView
-              papers={papers}
-              methods={methods}
+              papers={scope.papers}
+              methods={scope.methods}
               usage={usage}
               capabilities={capabilities}
               corpusMeta={corpusMeta}
               relationCounts={{
-                explicit: relations.filter((r) => r.evidenceState === 'explicit').length,
-                inferred: relations.filter((r) => r.evidenceState === 'inferred').length,
-                candidate: relations.filter((r) => r.evidenceState === 'candidate').length,
-                userEdited: relations.filter((r) => r.userEdited).length,
+                explicit: scopedRelations.filter((r) => r.evidenceState === 'explicit').length,
+                inferred: scopedRelations.filter((r) => r.evidenceState === 'inferred').length,
+                candidate: scopedRelations.filter((r) => r.evidenceState === 'candidate').length,
+                userEdited: scopedRelations.filter((r) => r.userEdited).length,
               }}
             />
           )}

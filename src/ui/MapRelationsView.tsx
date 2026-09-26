@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { Evidence, ExperimentRecord, Method, Paper, Relation } from '../core/types';
+import { effectiveFieldValue } from '../core/effective';
 import { RELATION_LABELS } from '../core/types';
-import { compareExperiments } from '../core/experiments';
+import { pickComparableExperimentPair } from '../core/experiments';
 import { buildMethodProfile, pickExploreRelation, relationExplanation, relationSentence } from '../core/grouping';
 import { Status } from './common';
 
@@ -10,8 +11,9 @@ interface Props {
   methods: Method[];
   relations: Relation[];
   onOpenEvidence: (ev: Evidence) => void;
-  /** 从地图选中两个方法后进入时预置的对照 */
+  /** 从地图选中两个方法后进入时预置的对照；[] = 用户要求自己选（不要替他挑） */
   initialPair?: string[];
+  requireChoice?: boolean;
 }
 
 const STATE_LABEL: Record<string, string> = { explicit: '原文已说明', inferred: '系统推断', candidate: '待核查' };
@@ -28,9 +30,10 @@ const STATE_KIND: Record<string, string> = { explicit: 'ok', inferred: 'info', c
  * 约定：方向以「起点 → 指向」为准，从任一端查看都不会讲反；对称关系不声明方向；
  * 证据状态一律标注，无引文的关系明确写「无引文」；「比较实验表现」是可展开的次级入口，不是评分。
  */
-export function MapRelationsView({ papers, methods, relations, onOpenEvidence, initialPair }: Props) {
+export function MapRelationsView({ papers, methods, relations, onOpenEvidence, initialPair, requireChoice }: Props) {
   const [pair, setPair] = useState<string[]>(initialPair ?? []);
-  const [pairTouched, setPairTouched] = useState(Boolean(initialPair?.length));
+  // requireChoice：从「比较实验表现」进来但没有明确对端 → 保持"用户已动过手"，不自动替他挑一对
+  const [pairTouched, setPairTouched] = useState(Boolean(initialPair?.length) || Boolean(requireChoice));
   const [showExp, setShowExp] = useState(false);
 
   useEffect(() => {
@@ -67,15 +70,20 @@ export function MapRelationsView({ papers, methods, relations, onOpenEvidence, i
     return s;
   }, [relations]);
 
-  const pairMethods = pair.map((id) => methods.find((m) => m.id === id)).filter(Boolean) as Method[];
+  // 去重后再取：同一个 methodId 不允许自我比较
+  const pairMethods = [...new Set(pair)]
+    .map((id) => methods.find((m) => m.id === id))
+    .filter(Boolean) as Method[];
   const cmpExp = useMemo(() => {
-    if (pairMethods.length !== 2) return null;
-    const exps = pairMethods.map((m) => (m.experiments ?? []).filter((e) => e.taskTag === 'classification'));
-    if (!exps[0]?.length || !exps[1]?.length) return null;
-    const a: ExperimentRecord = exps[0][0];
-    const b: ExperimentRecord = exps[1][0];
-    return { a, b, cmp: compareExperiments(a, b) };
+    if (pairMethods.length !== 2 || pairMethods[0].id === pairMethods[1].id) return null;
+    // 在两个方法各自的实验记录里挑「同口径」的一对；挑不到就不给对照
+    return pickComparableExperimentPair(pairMethods[0].experiments ?? [], pairMethods[1].experiments ?? []);
   }, [pairMethods]);
+
+  /** 只有「可直接比较 / 有条件可比较」才展示并排数字；不可比时只讲原因，不摆数字 */
+  const expNumbersAllowed = Boolean(
+    cmpExp && (cmpExp.cmp.level === 'directly_comparable' || cmpExp.cmp.level === 'comparable_with_conditions'),
+  );
 
   /** 两个选中方法之间的关系说明（双向都不颠倒） */
   const pairRelations = useMemo(() => {
@@ -165,8 +173,9 @@ export function MapRelationsView({ papers, methods, relations, onOpenEvidence, i
                     ['主要局限（论文自述）', (id: string) => profileOf.get(id)?.limitations ?? ''],
                     ['方法家族', (id: string) => `${profileOf.get(id)?.family.name ?? '待确认'}${profileOf.get(id)?.family.note ? `（${profileOf.get(id)?.family.note}）` : ''}`],
                     ['技术策略', (id: string) => (profileOf.get(id)?.strategies ?? []).map((s) => s.name).join('、') || '未识别到策略标签'],
-                    ['数据集（已抽取）', (id: string) => methods.find((m) => m.id === id)?.fields.datasets?.value ?? ''],
-                    ['评价指标（已抽取）', (id: string) => methods.find((m) => m.id === id)?.fields.metrics?.value ?? ''],
+                    // 读取人工修正后的有效值（用户改过数据集/指标，这里必须跟着变）
+                    ['数据集（已抽取）', (id: string) => effectiveFieldValue(methods.find((m) => m.id === id), 'datasets')],
+                    ['评价指标（已抽取）', (id: string) => effectiveFieldValue(methods.find((m) => m.id === id), 'metrics')],
                   ] as [string, (id: string) => string][]
                 ).map(([label, get], i) => (
                   <tr key={i}>
@@ -199,37 +208,44 @@ export function MapRelationsView({ papers, methods, relations, onOpenEvidence, i
               </p>
               {cmpExp ? (
                 <>
-                  <div className="row" style={{ gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <span>
-                      <span className="mono" style={{ fontSize: 20 }}>
-                        {cmpExp.a.metricValue}
-                        {cmpExp.a.metricUnit ?? ''}
+                  {expNumbersAllowed ? (
+                    <div className="row" style={{ gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span>
+                        <span className="mono" style={{ fontSize: 20 }}>
+                          {cmpExp.a.metricValue}
+                          {cmpExp.a.metricUnit ?? ''}
+                        </span>
+                        <span className="small dim">
+                          {' '}
+                          {nameOf(pairMethods[0].id)} · {cmpExp.a.metricName}
+                        </span>
                       </span>
-                      <span className="small dim">
-                        {' '}
-                        {nameOf(pairMethods[0].id)} · {cmpExp.a.metricName}
+                      <span className="dim">对比</span>
+                      <span>
+                        <span className="mono" style={{ fontSize: 20 }}>
+                          {cmpExp.b.metricValue}
+                          {cmpExp.b.metricUnit ?? ''}
+                        </span>
+                        <span className="small dim">
+                          {' '}
+                          {nameOf(pairMethods[1].id)} · {cmpExp.b.metricName}
+                        </span>
                       </span>
-                    </span>
-                    <span className="dim">对比</span>
-                    <span>
-                      <span className="mono" style={{ fontSize: 20 }}>
-                        {cmpExp.b.metricValue}
-                        {cmpExp.b.metricUnit ?? ''}
-                      </span>
-                      <span className="small dim">
-                        {' '}
-                        {nameOf(pairMethods[1].id)} · {cmpExp.b.metricName}
-                      </span>
-                    </span>
-                    <Status kind={cmpExp.cmp.blocked.length ? 'bad' : cmpExp.cmp.unknowns.length ? 'pending' : 'info'}>
-                      {cmpExp.cmp.blocked.length ? '不能直接比较' : cmpExp.cmp.unknowns.length ? '仍需确认' : '条件不同'}
-                    </Status>
-                  </div>
+                      <Status kind={cmpExp.cmp.unknowns.length ? 'pending' : 'info'}>
+                        {cmpExp.cmp.unknowns.length ? '仍需确认' : '条件不同'}
+                      </Status>
+                    </div>
+                  ) : (
+                    /* 没有同口径实验：不并排摆两个不可比的数字，只说明为什么不能比 */
+                    <p className="small" style={{ margin: '0 0 4px', color: 'var(--warn)' }}>
+                      这两篇没有能在同一口径下对照的实验记录，因此<strong>不并列数字</strong>——并排两个不可比的值会造成误导。
+                    </p>
+                  )}
                   <ul className="small" style={{ paddingLeft: 18, marginTop: 10 }}>
-                    {cmpExp.cmp.reasons.slice(0, 3).map((r, i) => (
+                    {cmpExp.cmp.reasons.slice(0, 4).map((r, i) => (
                       <li key={i}>{r}</li>
                     ))}
-                    {cmpExp.cmp.unknowns.slice(0, 2).map((u, i) => (
+                    {cmpExp.cmp.unknowns.slice(0, 3).map((u, i) => (
                       <li key={`u${i}`}>「{u.label}」的取值未知，无法确认口径是否一致。</li>
                     ))}
                   </ul>
@@ -237,7 +253,7 @@ export function MapRelationsView({ papers, methods, relations, onOpenEvidence, i
                     {[cmpExp.a, cmpExp.b].map((e, i) =>
                       e.evidence ? (
                         <button key={i} className="btn ghost sm" onClick={() => onOpenEvidence(e.evidence!)}>
-                          查看 {nameOf(pairMethods[i].id)} 的原文（p.{e.evidence.page ?? '?'}）
+                          查看 {nameOf(pairMethods[i].id)} 的原文依据（p.{e.evidence.page ?? '?'}）
                         </button>
                       ) : null,
                     )}
@@ -245,7 +261,7 @@ export function MapRelationsView({ papers, methods, relations, onOpenEvidence, i
                 </>
               ) : (
                 <p className="small dim" style={{ marginBottom: 0 }}>
-                  这两篇在已抽取结果里没有可比对的实验记录（或分属不同任务），因此不做表现比较。
+                  这两篇在已抽取结果里没有可比对的实验记录（或分属不同任务 / 数据集 / 指标），因此不做表现比较，也不摆数字。
                 </p>
               )}
             </div>

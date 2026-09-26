@@ -21,6 +21,7 @@ import type {
 } from './types';
 import { CONDITION_DIMENSIONS, CONDITION_LABELS } from './types';
 import { RULES_VERSION, parseSplitsByDataset } from './rules';
+import { effectiveField, overrideFor, withEffectiveMethods } from './effective';
 
 export type ComparableLevel = 'comparable' | 'limited' | 'not_comparable' | 'unknown';
 
@@ -85,12 +86,35 @@ const EMPTY_CONDITION: ConditionValue = { values: [], status: 'not_extracted' };
 
 export function conditionOf(method: Method | undefined, dim: ConditionDimension): ConditionValue {
   if (!method) return EMPTY_CONDITION;
+
+  /**
+   * 人工修正优先：用户把「数据集 / 评价指标」字段改对了，可比性与条件矩阵必须跟着改。
+   * 否则 conditions 里那份旧的结构化取值会一直盖住人工修正，用户的修改等于没生效。
+   * 注意：人工修正值不是原文核验结果，状态一律记「待人工核对」（不冒充 verified）。
+   */
+  if (dim === 'datasets' || dim === 'metrics') {
+    const ov = overrideFor(method, dim);
+    if (ov) {
+      const eff = effectiveField(method, dim);
+      return {
+        values: (eff.value ?? '')
+          .split(/[,;、]|and/)
+          .map((x) => x.trim())
+          .filter(Boolean),
+        status: eff.value ? 'unverified' : 'not_extracted',
+        evidence: eff.evidence,
+        note: (eff.note ? eff.note + '；' : '') + '该维度按人工修正值计算，不是原文核验结果。',
+        scope: 'paper',
+      };
+    }
+  }
+
   const fromConditions = method.conditions?.[dim];
   if (fromConditions) return fromConditions;
 
-  // 兼容早期缓存：conditions 不存在时退化到 fields 字段
+  // 兼容早期缓存：conditions 不存在时退化到 fields 字段（读人工修正后的有效值）
   if (dim === 'datasets' || dim === 'metrics') {
-    const f = method.fields[dim];
+    const f = effectiveField(method, dim);
     if (f?.value) {
       return {
         values: f.value.split(/[,;、]|\band\b/).map((s) => s.trim()).filter(Boolean),
@@ -198,6 +222,8 @@ function statusText(s: ConditionValue['status']): string {
  * 对一组论文做不可比检测。
  */
 export function compareConditions(papers: Paper[], methods: Method[]): ComparabilityReport {
+  // 可比性判断（含论文对级 comparePair / pairLevel）统一使用人工修正后的有效字段值
+  methods = withEffectiveMethods(methods);
   const titleById = new Map(papers.map((p) => [p.id, p.title]));
   const dimensions: DimensionJudgment[] = [];
 
