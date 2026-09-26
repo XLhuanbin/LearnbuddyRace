@@ -964,4 +964,24 @@ CNN 教师 ≠ CNN 架构；以 X 为起点/借用技巧不改变家族；单篇
 **未通过项（如实记录）**：`.build/verify-map-editorial.mjs` 在 M0 即失败 —— 它假设「首页点体验案例 → 直接进研究地图」，
 而自 2026-09-24 起流程已改为先进入论文集合；它断言的 `.side.research` 侧栏等也不再是当前默认形态。
 该脚本属于更早几轮的历史走查，本轮未改动 landing / 外壳 / 导航，**不是本轮引入的失败**；其覆盖的画布与详情断言已由
-`npm run verify:ui` 替代，后续应显式归档或重写（见 STATUS.md 末尾的待办）。
+`npm run verify:ui` 替代。三套历史走查（visual / polish / map-editorial）的实测状态与过期原因见 §V42。
+
+## V42 历史走查脚本现状（2026-09-26 实测）
+
+2026-09-26 把仍在 `.build/`（本地过程目录，按 `.gitignore` 不随仓库分发）里的旧走查脚本重新跑了一遍，
+**逐条记录真实状态**，避免后续把「脚本过期」误读成「产品回归」：
+
+| 脚本 | 实测结果 | 判定 |
+| --- | --- | --- |
+| `.build/verify-visual.mjs` | **83 通过 / 23 失败** | 失败项是过期断言：例如「1440 下主内容 ≥1000px」，而当前设计值就是 `.main-inner { max-width: 920px }`（`src/styles.css`）；另有「第一层只有方法族」等旧版信息结构断言 |
+| `.build/verify-polish.mjs` | **抛异常**：`TypeError: Cannot read properties of undefined (reading 'includes')` @ line 342 | 脚本读取的 DOM 字段在当前版本已不存在 |
+| `.build/verify-map-editorial.mjs` | **M0 即失败**（`.maphead` 不存在） | 假设「首页点体验案例 → 直接进研究地图」，而自 09-24 起流程已改为先进论文集合；其断言的 `.side.research` 侧栏也已不是默认形态 |
+| `.build/verify-anim.mjs` / `.build/verify-home3.mjs` | 未再运行 | 09-23 / 09-24 轮次的过程脚本；对应结论已记录在 `docs/STATUS.md` |
+
+**这三套脚本的覆盖已被替代**：画布 / 详情并列 / 键盘可达 / 论文集合完整性由
+`scripts/verify-desktop-ui.mjs`（`npm run verify:ui`）覆盖，分析范围与关系生命周期由
+`scripts/verify-scope-flow.mjs` 覆盖，整体交互由 `scripts/e2e-check.mjs` 覆盖。
+
+**结论**：`.build/` 下的旧走查不再作为验收依据；`npm run typecheck / test / build / e2e`
+加四个 `npm run verify:*` 是当前唯一有效的验收套件（本轮全部实测通过）。
+新增验收请放在 `scripts/` 下，否则会出现「文档引用了一个仓库里没有的脚本」。

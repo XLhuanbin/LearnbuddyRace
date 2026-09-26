@@ -840,5 +840,12 @@ Swin 三条 1K-only 记录的预训练字段缺失；浏览器端实时抽取尚
 | `npm run verify:ui` | **44/44**（1280×800 + 1440×900 × 5 页，截图在 `docs/desktop-ui/`） |
 | `npm run verify:scope` / `npm run verify:layout` / `npm run verify:mobile` | 25/25 · 83/83 · 3/3 |
 
-**已知未修（如实列出）**：390px 下 `.mapdetail` 抽屉底边会超出视口约 55px（移动端规则缺 `position: fixed`）——
-本轮按要求「不动手机布局」未改，`npm run verify:mobile` 会打印实测数值。
+**已知未修（如实列出）**：
+
+1. **390px 下 `.mapdetail` 抽屉底边会超出视口约 55px**（移动端规则缺 `position: fixed`）——
+   本轮按要求「不动手机布局」未改，`npm run verify:mobile` 会打印实测数值。
+2. **三套历史走查脚本已过期，不再作为验收依据**（实测状态见 `docs/VERIFICATION.md` §V42）：
+   `verify-visual.mjs` 83 通过 / 23 失败（断言「主内容 ≥1000px」，而设计值是 `.main-inner { max-width: 920px }`）、
+   `verify-polish.mjs` 直接抛异常、`verify-map-editorial.mjs` 在 M0 失败（入口流程与侧栏形态均已变化）。
+   它们都在不随仓库分发的 `.build/` 里；覆盖已由 `npm run e2e` 与四个 `npm run verify:*` 替代。
+   **当前唯一有效的验收套件：`npm run typecheck / test / build / e2e` + `verify:ui|layout|scope|mobile`（本轮全部实测通过）。**
