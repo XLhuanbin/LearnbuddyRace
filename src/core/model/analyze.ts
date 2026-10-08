@@ -35,6 +35,7 @@ import { buildEvidence } from '../evidence';
 import { compareConditions, comparePair, differingDimensions, emptyConditions, LEVEL_LABELS, pairLevel } from '../comparability';
 import { RULES_VERSION, UNCLEAR_NOTE_KEY, assessClaimScope, assessRelationEvidence, looksLikeNegation, looksLikeTitle, normalizeConditions } from '../rules';
 import { applyDivergenceRules, buildCheckedPairs } from '../divergenceRules';
+import type { RawDivergenceFinding } from '../divergenceRules';
 import { buildRelationHints } from '../relationCandidates';
 import { findWeightsAvailability } from '../inferenceReadiness';
 import { validateMethod, validateRelation } from '../validate';
@@ -1241,25 +1242,15 @@ export async function findDivergences(
     onTrace,
   );
 
-  type RawFinding = {
-    kind?: string;
-    topic?: string;
-    paperIds?: string[];
-    sides?: { paperId?: string; claim?: string; quote?: string; page?: number }[];
-    claimType?: string;
-    commonScope?: string;
-    conditionDifferences?: { dimension?: string; label?: string; detail?: string }[];
-    explanation?: string;
-    nextAction?: string;
-    comparabilityLevel?: string;
-  };
+  // 模型返回的分歧结构统一用 divergenceRules 的 RawDivergenceFinding
+  //（此前这里有一份逐字段完全相同的本地副本，容易悄悄漂移）
 
   const parsedObj = parseJsonObject(text, '分歧分析结果');
   /** findings 缺失或不是数组 = 明确失败（「没找到 JSON 数组」不等于「没有分歧」） */
   const rawFindings = requireArrayOfObjects(
     requireArrayField(parsedObj, 'findings', '分歧分析结果'),
     '分歧分析结果.findings',
-  ) as unknown as RawFinding[];
+  ) as unknown as RawDivergenceFinding[];
 
   const findings: DivergenceFinding[] = [];
 

@@ -15,6 +15,7 @@
 
 import type { Paper } from './types';
 import { methodAliases } from './rules';
+import { escapeRe, pageAt } from './text';
 
 export interface RelationCandidate {
   paperId: string;
@@ -68,11 +69,7 @@ function normalizeWithMap(rawText: string): { norm: string; map: number[] } {
   return { norm, map };
 }
 
-export function pageAt(pages: Paper['pages'], pos: number): number | undefined {
-  let found: number | undefined;
-  for (const p of pages) if (pos >= p.offset) found = p.page;
-  return found;
-}
+// pageAt 统一在 text.ts（此前这里有一份行为相同的副本）
 
 /** 论文中最专名的别名（例如从 "BERT (Bidirectional …)" 取 "BERT"） */
 export function primaryAlias(methodName?: string): string {
@@ -81,7 +78,7 @@ export function primaryAlias(methodName?: string): string {
   return [...aliases].sort((a, b) => a.length - b.length)[0];
 }
 
-const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// escapeRe 统一在 text.ts（此前这里与 rules.ts 各有一份相同副本）
 
 /**
  * 在论文全文中检索关系候选句。

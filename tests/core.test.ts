@@ -10,7 +10,7 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs';
-import { locateNear, locateQuote, normalize, pageAt } from '../src/core/text';
+import { escapeRe, locateNear, locateQuote, normalize, pageAt } from '../src/core/text';
 import { assemblePages, guessPdfMeta } from '../src/core/parse/assemble';
 import { RULES_VERSION, looksLikeTitle, normalizeConditions, titleNeedsConfirm } from '../src/core/rules';
 import { buildEvidence } from '../src/core/evidence';
@@ -2693,6 +2693,35 @@ console.log('=== 35. 补三个此前零覆盖的模块：selectExcerpt / locateN
     '非 verified 状态 → 原样返回（不越权改动）',
     normalizeConditions(cond({ downstreamExtraData: { values: ['none'], status: 'not_extracted' } })).downstreamExtraData.status === 'not_extracted',
   );
+}
+
+console.log('=== 36. 重复定义收敛：escapeRe / pageAt 只剩一份实现（行为不变） ===');
+{
+  // 收敛前：rules.ts 与 relationCandidates.ts 各有一份完全相同的 escapeRe；
+  // text.ts 与 relationCandidates.ts 各有一份行为相同的 pageAt；
+  // analyze.ts 还有一份与 divergenceRules.RawDivergenceFinding 逐字段相同的本地类型。
+  // 现统一到 text.ts（叶子模块、零 import）与 divergenceRules.ts。
+  // 这一节把两个运行时可测的公共实现钉住，防止「换了一份实现但行为悄悄变了」。
+
+  // ---- escapeRe：字面量必须能安全嵌进 RegExp ----
+  const special = 'a.b*c(d)';
+  const re = new RegExp(`^${escapeRe(special)}$`);
+  check('escapeRe：含元字符的字符串按字面量匹配', re.test(special) === true, String(re));
+  check('escapeRe：元字符不再被当成通配（"a.b*c(d)" 不匹配 "axbxc(d)"）', re.test('axbxc(d)') === false);
+  check('escapeRe：普通字符串原样返回', escapeRe('ImageNet-1K') === 'ImageNet-1K', escapeRe('ImageNet-1K'));
+  check('escapeRe：空串返回空串', escapeRe('') === '', JSON.stringify(escapeRe('')));
+  check('escapeRe：反斜杠本身也会被转义', new RegExp(`^${escapeRe('a\\b')}$`).test('a\\b') === true, escapeRe('a\\b'));
+
+  // ---- pageAt：偏移落在哪一页 ----
+  const pages = [
+    { page: 1, offset: 0, text: 'p1' },
+    { page: 2, offset: 100, text: 'p2' },
+    { page: 3, offset: 250, text: 'p3' },
+  ];
+  check('pageAt：偏移 0 → 第一页', pageAt(pages, 0) === 1, String(pageAt(pages, 0)));
+  check('pageAt：落在第二页区间 → 2', pageAt(pages, 100) === 2 && pageAt(pages, 249) === 2, `${pageAt(pages, 100)}/${pageAt(pages, 249)}`);
+  check('pageAt：超出最后一页偏移 → 最后一页', pageAt(pages, 99999) === 3, String(pageAt(pages, 99999)));
+  check('pageAt：空页表 → undefined（不猜）', pageAt([], 10) === undefined, String(pageAt([], 10)));
 }
 
 console.log('');

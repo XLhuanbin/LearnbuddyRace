@@ -8,6 +8,7 @@
 
 import type { ConditionDimension, ExperimentConditions, RelationType } from './types';
 import { CONDITION_DIMENSIONS } from './types';
+import { escapeRe } from './text';
 
 /** 规则版本：可比性、关系校验、条件范围、证据支持判定。任何影响结论的改动都要升版本。 */
 export const RULES_VERSION = 'r3.2.0';
@@ -121,7 +122,7 @@ export function isGenericAlias(alias: string): boolean {
   return GENERIC_TERMS.has(alias.trim().toLowerCase());
 }
 
-const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// escapeRe 统一在 text.ts（此前这里与 relationCandidates.ts 各有一份相同副本）
 
 /** 在文本中查找别名（词边界匹配，大小写不敏感），返回实际命中的别名 */
 export function findAliasInText(text: string, aliases: string[]): string | undefined {

@@ -202,6 +202,14 @@ export function guessSection(rawText: string, pos: number): string | undefined {
 }
 
 /** 由 rawText 中的位置反查页码 */
+/**
+ * 转义正则元字符（把字面量安全地嵌进 RegExp）。
+ * 唯一实现放这里：此前 rules.ts 与 relationCandidates.ts 各有一份完全相同的副本。
+ */
+export function escapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export function pageAt(pages: { page: number; offset: number; text: string }[], pos: number): number | undefined {
   let found: number | undefined;
   for (const p of pages) {
