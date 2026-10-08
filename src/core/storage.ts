@@ -17,7 +17,7 @@ let dbPromise: Promise<IDBDatabase> | null = null;
 
 function openDb(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve, reject) => {
+  const p = new Promise<IDBDatabase>((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
@@ -26,9 +26,18 @@ function openDb(): Promise<IDBDatabase> {
       }
     };
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onerror = () => reject(req.error ?? new Error('IndexedDB 打开失败'));
   });
-  return dbPromise;
+  dbPromise = p;
+  /**
+   * 打开失败（隐私模式禁用、配额异常、瞬时故障等）时清掉缓存，让**下一次操作可以重试**，
+   * 而不是让整个会话永久卡在一个已 reject 的 Promise 上 —— 否则「刷新恢复」会彻底失效，
+   * 后续所有读写都直接失败，用户看不到任何保存结果。
+   */
+  p.catch(() => {
+    if (dbPromise === p) dbPromise = null;
+  });
+  return p;
 }
 
 async function tx<T>(store: StoreName, mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest): Promise<T> {
