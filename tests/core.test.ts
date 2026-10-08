@@ -10,9 +10,9 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs';
-import { locateQuote, normalize, pageAt } from '../src/core/text';
+import { locateNear, locateQuote, normalize, pageAt } from '../src/core/text';
 import { assemblePages, guessPdfMeta } from '../src/core/parse/assemble';
-import { RULES_VERSION, looksLikeTitle, titleNeedsConfirm } from '../src/core/rules';
+import { RULES_VERSION, looksLikeTitle, normalizeConditions, titleNeedsConfirm } from '../src/core/rules';
 import { buildEvidence } from '../src/core/evidence';
 import {
   compareConditions,
@@ -28,6 +28,7 @@ import { corpusBaseOfPaper, revalidateCachedRelations } from '../src/core/cache'
 import { applyDivergenceRules } from '../src/core/divergenceRules';
 import { findWeightsAvailability } from '../src/core/inferenceReadiness';
 import { hasThirdPartySubject } from '../src/core/rules';
+import { selectExcerpt } from '../src/core/excerpt';
 import { applyTitleCorrection } from '../src/core/model/analyze';
 import {
   assembleRelationsFromModel,
@@ -2585,6 +2586,113 @@ console.log('=== 34. 实验记录数值缺失：必须保留信息不足，不�
   );
   check('抽取侧：有数值时不出现该问题', !parseIssues('80.0').some((s) => s.includes('未给出指标数值')), JSON.stringify(parseIssues('80.0')));
   check('抽取侧：占位写法「未知」同样标出', parseIssues('未知').some((s) => s.includes('未给出指标数值')), JSON.stringify(parseIssues('未知')));
+}
+
+console.log('=== 35. 补三个此前零覆盖的模块：selectExcerpt / locateNear / normalizeConditions ===');
+{
+  // 这三处都在核心闭环上承重，却在 tests 里 0 覆盖（第一轮审计的 M12 残余）：
+  // selectExcerpt 决定送进模型的 24000 字符里到底有什么（直接影响抽取质量）；
+  // locateNear 决定「表格行列是否已确认」（rowColConfirmed）；normalizeConditions 决定条件适用范围降级。
+  // 本小节只加测试，不改任何源码。
+
+  // ---- selectExcerpt：只截取、不改写 ----
+  const short = 'Abstract\nWe propose FooNet.\n';
+  const rFull = selectExcerpt(short, 24000);
+  check(
+    '无章节标题且未超预算 → 视为全文（excerpted=false，sections=[full]）',
+    rFull.excerpted === false && rFull.usedSections[0] === 'full' && rFull.text === short,
+    `${rFull.excerpted}／${rFull.usedSections.join(',')}`,
+  );
+  check('字符计数如实：totalChars 是原文长度、chars 是送出的长度', rFull.totalChars === short.length && rFull.chars === short.length, `${rFull.chars}/${rFull.totalChars}`);
+
+  const longDoc = [
+    'Abstract',
+    'We propose FooNet, a new architecture based solely on attention.',
+    'x'.repeat(4000),
+    '1 Introduction',
+    'This paper studies FooNet and the motivation behind it.',
+    'y'.repeat(4000),
+    '3 Method',
+    'FooNet stacks residual blocks with normalization layers.',
+    'z'.repeat(4000),
+    '5 Experiments',
+    'We evaluate FooNet on ImageNet-1K with top-1 accuracy.',
+    'w'.repeat(4000),
+    '7 Conclusion',
+    'We conclude that FooNet works well on ImageNet.',
+    'v'.repeat(4000),
+  ].join('\n');
+  const rPart = selectExcerpt(longDoc, 6000);
+  check('超预算 → 只送部分片段（excerpted=true）', rPart.excerpted === true, String(rPart.excerpted));
+  check(
+    '超预算 → 高权重章节优先进入片段（abstract / method / experiments）',
+    ['abstract', 'method', 'experiments'].some((n) => rPart.usedSections.includes(n)),
+    rPart.usedSections.join(','),
+  );
+  check('超预算 → 低权重章节被裁掉（不是把所有章节都塞进去）', rPart.usedSections.length < 5, rPart.usedSections.join(','));
+  check('片段带章节分隔标记（`===== [name] =====`，由 selectExcerpt 自己加，不属于原文）', /^\n===== \[[^\]]+\] =====\n/.test(rPart.text), JSON.stringify(rPart.text.slice(0, 30)));
+  // 断言口径：只把「正文」拿去和原文比 —— 分隔符与拼接用的换行是 selectExcerpt 加的，
+  // 正文必须是原文的连续子串（引用才能回到原文定位）。
+  const bodies = rPart.text
+    .split(/\n===== \[[^\]]+\] =====\n/)
+    .map((x) => x.replace(/^\n+|\n+$/g, ''))
+    .filter((x) => x.length > 0);
+  check(
+    '片段正文逐字来自原文（只截取不改写）',
+    bodies.length > 0 && bodies.every((x) => longDoc.includes(x)),
+    `${bodies.length} 段／越界 ${bodies.filter((x) => !longDoc.includes(x)).length} 段`,
+  );
+  const rMarked = selectExcerpt(short, 24000, [
+    { page: 1, offset: 0 },
+    { page: 2, offset: 20 },
+  ]);
+  check('提供 pages 时在页码边界插入 [[p.N]] 标记', /\[\[p\.2\]\]/.test(rMarked.text), rMarked.text.slice(0, 60));
+
+  // ---- locateNear：表格行列核查的判据 ----
+  const doc = 'We propose FooNet. ' + 'pad '.repeat(1200) + ' Top-1 accuracy is reported on the dev set.';
+  check('引文长度 < 2 → 直接判为找不到', locateNear(doc, 'a', 0).found === false && locateNear(doc, 'a', 0).matchType === 'none');
+  const at = doc.indexOf('Top-1 accuracy');
+  const nearby = locateNear(doc, 'Top-1 accuracy', at + 10);
+  check('逐字命中且在半径内 → strict + near', nearby.found === true && nearby.near === true && nearby.matchType === 'strict', JSON.stringify(nearby));
+  const far = locateNear(doc, 'Top-1 accuracy', 0);
+  check(
+    '命中但远离锚点 → near=false（「表题/行标签必须在引文附近」就靠这条）',
+    far.found === true && far.near === false && (far.distance ?? 0) > 1500,
+    JSON.stringify(far),
+  );
+  check('原文里没有的引文 → found=false', locateNear(doc, '这句话不在原文里', 0).found === false);
+  check('只在空白折叠后才一致 → 走 loose 匹配（不会被误判为逐字一致）', locateNear('We report Top1Accuracy here.', 'Top1 Accuracy', 0).matchType === 'loose');
+
+  // ---- normalizeConditions：局部实验描述不能支撑论文级否定 ----
+  const paper = PAPER('p1', 'P1', 2020, 'We do not use extra data on the dev set. We do not use any additional data in this work.');
+  const mkCond = (over: Partial<ConditionValue>, quote: string) =>
+    cond({
+      downstreamExtraData: { values: ['none'], status: 'verified', evidence: buildEvidence(paper, { quote }), ...over },
+    });
+  const localized = normalizeConditions(mkCond({}, 'We do not use extra data on the dev set.'));
+  const localizedDim = localized.downstreamExtraData;
+  check(
+    '局部实验描述支撑论文级否定 → 降为待人工核对，并限定到具体实验',
+    localizedDim.status === 'unverified' && localizedDim.scope === 'experiment',
+    `${localizedDim.status}／${localizedDim.scope}`,
+  );
+  check('降级说明写明「不作为一致依据」', (localizedDim.note ?? '').includes('不作为「一致」的依据'), localizedDim.note);
+  check(
+    '幂等：对已降级的条件再跑一次不变（抽取与离线重算共用同一个函数）',
+    JSON.stringify(normalizeConditions(localized).downstreamExtraData) === JSON.stringify(localizedDim),
+  );
+  const paperLevel = normalizeConditions(mkCond({}, 'We do not use any additional data in this work.'));
+  check(
+    '论文级否定 → 保持可核验并补上 scope=paper',
+    paperLevel.downstreamExtraData.status === 'verified' && paperLevel.downstreamExtraData.scope === 'paper',
+    `${paperLevel.downstreamExtraData.status}／${paperLevel.downstreamExtraData.scope}`,
+  );
+  const positive = normalizeConditions(mkCond({ values: ['ImageNet-1K'] }, 'We do not use extra data on the dev set.'));
+  check('取值不是否定式 → 不被误降级', positive.downstreamExtraData.status === 'verified', String(positive.downstreamExtraData.status));
+  check(
+    '非 verified 状态 → 原样返回（不越权改动）',
+    normalizeConditions(cond({ downstreamExtraData: { values: ['none'], status: 'not_extracted' } })).downstreamExtraData.status === 'not_extracted',
+  );
 }
 
 console.log('');
