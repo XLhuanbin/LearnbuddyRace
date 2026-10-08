@@ -30,6 +30,11 @@ import { buildEvidence } from './evidence';
  *   「results are reported on the test set when publicly available」（说的是测试集）
  *   「we will release the synthetic datasets」（发布的是数据集，不是模型/权重/代码）
  * 以及任何否定表述（not available / unavailable / 尚未公开）。
+ *
+ * 另外还有一条**局部兜底**（见 ARTIFACT_THEN_REPO / findCompactDeclaration）：
+ * 句子级检索落空时，再找「产物名词 + 冒号 + 仓库链接」的紧凑写法。原因是共用的分句器
+ * 以句点切分并要求候选句 ≥50 字符，`Code: https://github.` 这类被切出来只有 20 字符、
+ * 会被整句丢掉（ConvNeXt 摘要就是这么漏掉的）。
  */
 const AVAIL_WORDS = /\b(available|released?|releasing|open-?sourced?)\b|made [a-z]+ available|make [a-z]+ available|已?(?:发布|开源|公开)|可(?:获取|下载)/i;
 const ARTIFACT = /\b(models?|checkpoints?|weights?|codebase|code|implementations?|libraries|library)\b|模型|权重|检查点|代码|实现|库/i;
@@ -48,6 +53,48 @@ const NEGATION = /\b(?:not|never|un)\s*(?:publicly\s*)?available\b|\bunavailable
  */
 const CONSUME_VERBS =
   /\b(?:use[sd]?|using|employ\w*|adopt\w*|follow\w*|base[ds]?|build[s]?|built|compare[sd]?|comparing|similar|rely|relies|relying|leverage\w*|evaluate[sd]?|adapt\w*|initiali[sz]\w*|warm[- ]?start\w*|borrow\w*|reproduc\w*)\b/i;
+
+/**
+ * 「产物名词 + 冒号 + 仓库链接」的紧凑写法（ConvNeXt 摘要：`Code: https://github.com/facebookresearch/ConvNeXt`）。
+ *
+ * 只认**紧邻**形式：产物名词与链接之间除空格/冒号外不允许有别的内容。这一条限制同时挡掉了
+ * 参考文献里的写法（实测语料里都有）：
+ *   「[80] Ross Wightman. GitHub repository: Pytorch image models. https://github.com/…」
+ *   「[3] GitHub repository: Swin transformer for object detection. https://github.com/…」
+ *   「[2] GitHub repository: Swin transformer. https://github.com/…」
+ * 它们与链接之间都隔着句号等字符；同理 `Code is not available at https://…` 也不会命中
+ *（"is not available at" 破坏了紧邻），因此这里不需要额外的否定判断。
+ *
+ * 刻意**要求冒号**：参考文献条目里偶尔会出现「Pytorch image models https://github.com/…」
+ * 这种省略句点的写法，有冒号能把它们排除在外。代价是 `Code https://…`（无冒号）不会被识别，
+ * 宁可漏报也不误报。
+ *
+ * 这里**故意不加**额外的否定判断：
+ * - 紧邻要求已经挡掉了 `Code is not available at https://…` 这类写法（中间的
+ *   "is not available at" 破坏了紧邻）；
+ * - 反过来，若按窗口做否定检查，「本文没有在 PyPI 上提供。Code: https://github.com/…」
+ *   这种同段里出现无关否定的真声明会被误杀。
+ * 残余风险只剩「同一短语里既否定又给出仓库链接」这种自相矛盾的写法，可忽略。
+ */
+const ARTIFACT_THEN_REPO =
+  /\b(codebase|code|models?|checkpoints?|weights?|implementations?|libraries?)\b\s*[:：]\s*(?:https?:\/\/)?(?:www\.)?(?:github\.com|gitlab\.com|huggingface\.co)(?:\/[^\s"'()\[\]{}<>,;]*)?/i;
+
+/**
+ * 句子级检索落空后的局部兜底：在全文中找「产物名词 + 冒号 + 仓库链接」。
+ *
+ * 为什么不改共用的 sentence splitter（relationCandidates.findSentenceCandidates）：
+ * 它同时服务关系候选抽取，放开长度下限或切分规则会波及其它判定，风险远大于收益。
+ * 兜底结果同样必须过 buildEvidence 的定位校验，定位不到就不算（与其它证据同一套口径）。
+ */
+function findCompactDeclaration(paper: Paper): AvailabilityResult {
+  const re = new RegExp(ARTIFACT_THEN_REPO.source, 'gi');
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(paper.rawText)) !== null) {
+    const evidence = buildEvidence(paper, { quote: m[0].trim() });
+    if (evidence?.verified) return { evidence, found: true };
+  }
+  return { found: false };
+}
 
 function looksLikeAvailability(text: string): boolean {
   if (NEGATION.test(text)) return false;
@@ -110,5 +157,7 @@ export function findWeightsAvailability(paper: Paper): AvailabilityResult {
     const evidence = buildEvidence(paper, { quote: cand.text.slice(0, 300) });
     if (evidence?.verified) return { evidence, found: true };
   }
-  return { found: false };
+  // 句子级没命中，再看紧凑写法（分句器要求候选句 ≥50 字符，短声明会被整句丢掉）。
+  // 顺序上句子级优先：能给出更完整的上下文时不用兜底结果。
+  return findCompactDeclaration(paper);
 }

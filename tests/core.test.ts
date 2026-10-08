@@ -2383,6 +2383,82 @@ console.log('=== 31. validateMethod 对 unclear 的说明：区分「给了引�
   server.close();
 }
 
+console.log('=== 32. A1b：紧凑写法「产物 + 冒号 + 仓库链接」的局部兜底 ===');
+{
+  // 根因：共用的分句器（relationCandidates.findSentenceCandidates）以句点切分、并要求候选句 ≥50 字符，
+  // ConvNeXt 摘要的「Code: https://github.」被切出来只有 20 字符，会被整句丢掉 —— 实测漏报。
+  // 修法是在 findWeightsAvailability 内部做局部兜底，**不动共用分句器**（它同时服务关系候选）。
+  const loadText = (file: string) => JSON.parse(readFileSync(file, 'utf8')) as { rawText: string; pages: Paper['pages'] };
+  const paperOf = (id: string, t: { rawText: string; pages: Paper['pages'] }): Paper => ({ ...PAPER(id, id, 2021, t.rawText), pages: t.pages });
+
+  // ---- 真实语料回归：ConvNeXt（A1b 就是这一篇） ----
+  const cvxFile = 'public/samples-vision/text/p_arxiv_2201.03545.json';
+  if (existsSync(cvxFile)) {
+    const r = findWeightsAvailability(paperOf('p_arxiv_2201.03545', loadText(cvxFile)));
+    check('真实 ConvNeXt 论文能检索到代码发布声明（修复前漏报）', r.found === true, String(r.found));
+    check(
+      'ConvNeXt 的证据句就是摘要里 `Code: …` 那一行',
+      /^Code:\s*https?:\/\/github\.com\/facebookresearch\/ConvNeXt/i.test((r.evidence?.quote ?? '').trim()),
+      (r.evidence?.quote ?? '').slice(0, 90),
+    );
+    check('ConvNeXt 的兜底证据同样带页码（来自全文定位，不是模型自报）', r.evidence?.page === 1, String(r.evidence?.page));
+    check(
+      'ConvNeXt 没有误取参考文献里的仓库链接',
+      !/rwightman|Swin-Transformer|pytorch-image-models/i.test(r.evidence?.quote ?? ''),
+      (r.evidence?.quote ?? '').slice(0, 90),
+    );
+  } else {
+    check('预置视觉语料存在（缺少则该断言无意义）', false, cvxFile);
+  }
+
+  // ---- 真实语料：Swin 有正式发布声明，句子级优先，且不取参考文献里的链接 ----
+  const swinFile = 'public/samples-vision/text/p_arxiv_2103.14030.json';
+  if (existsSync(swinFile)) {
+    const r = findWeightsAvailability(paperOf('p_arxiv_2103.14030', loadText(swinFile)));
+    check('Swin 仍命中正式的发布声明（未被兜底改写）', /publicly available at/i.test(r.evidence?.quote ?? ''), (r.evidence?.quote ?? '').slice(0, 70));
+    check(
+      'Swin 没有误取参考文献里的 mmsegmentation / pytorch-image-models 链接',
+      !/mmsegmentation|rwightman|pytorch-image-models/i.test(r.evidence?.quote ?? ''),
+      (r.evidence?.quote ?? '').slice(0, 70),
+    );
+  }
+
+  // ---- 正向：紧凑写法的其它形态 ----
+  const trueCases: [string, string][] = [
+    ['Code: https://github.com/example/project', 'Code: + github'],
+    ['Weights: https://huggingface.co/example/model', 'Weights: + huggingface'],
+    ['Checkpoints: https://gitlab.com/example/repo', 'Checkpoints: + gitlab'],
+    ['Code and models: https://github.com/example/project', '并列产物 + 冒号'],
+  ];
+  for (const [text, why] of trueCases) {
+    const r = findWeightsAvailability(PAPER('pc', 'Compact', 2021, text));
+    check(`紧凑写法能识别为发布声明：${why}`, r.found === true, text);
+  }
+
+  // ---- 反向：普通链接 / 参考文献条目 / 否定表述 / 无冒号，都不得被误判 ----
+  const falseCases: [string, string][] = [
+    ['[80] Ross Wightman. GitHub repository: Pytorch image models. https://github.com/rwightman/pytorch-image-models, 2019.', '参考文献条目（在真实语料里存在）'],
+    ['[3] GitHub repository: Swin transformer for object detection. https://github.com/SwinTransformer/Swin-Transformer-Object-Detection, 2021.', '参考文献条目（在真实语料里存在）'],
+    ['See the benchmark page https://github.com/example/leaderboard for the full results table.', '普通链接、无产物名词'],
+    ['Details of the evaluation server are described at https://github.com/example/eval-server in the appendix.', '普通链接、无产物名词'],
+    ['Code is not available at https://github.com/example/project.', '否定表述'],
+    ['Code https://github.com/example/project', '无冒号（刻意不识别：宁可漏报也不误报）'],
+  ];
+  for (const [text, why] of falseCases) {
+    const r = findWeightsAvailability(PAPER('pf', 'NotRelease', 2021, text));
+    check(`不得判成「本论文发布产物」：${why}`, r.found === false, r.evidence?.quote?.slice(0, 70) ?? '');
+  }
+
+  // ---- 顺序：同一篇里两种写法都有时，优先给上下文更完整的句子级证据 ----
+  const both = 'The code and models are publicly available at https://github.com/example/project. Code: https://github.com/example/project';
+  const rBoth = findWeightsAvailability(PAPER('po', 'Both', 2021, both));
+  check(
+    '两种写法并存时优先句子级证据（兜底只在句子级落空时才用）',
+    /publicly available at/i.test(rBoth.evidence?.quote ?? '') && !/^Code:/i.test((rBoth.evidence?.quote ?? '').trim()),
+    (rBoth.evidence?.quote ?? '').slice(0, 60),
+  );
+}
+
 console.log('');
 console.log(`结果：通过 ${pass}，失败 ${fail}`);
 
