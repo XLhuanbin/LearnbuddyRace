@@ -291,12 +291,22 @@ async function main() {
   // 导入论文并抽取
   await clickNav('论文集合');
   await sleep(600);
-  const doc = await cdp.send('DOM.getDocument', { depth: -1 });
-  // 页面上可能同时存在多个 file input（不同视图各有一个隐藏输入），只塞第一个可能塞到没接线的那一个。
-  // 对所有 file input 都设置一次文件：接好线的那个会触发导入，其余是无害的 no-op。
-  const probes = await cdp.send('DOM.querySelectorAll', { nodeId: doc.root.nodeId, selector: 'input[type=file]' });
-  for (const nodeId of probes.nodeIds) {
-    await cdp.send('DOM.setFileInputFiles', { nodeId, files: [pdf] });
+  // 精确定位上传控件：上传按钮所在容器内的 file input。
+  // （不要对所有 input[type=file] 都塞文件 —— 页面有多个隐藏输入，那样会一次触发多次导入。）
+  const rUp = await cdp.send('Runtime.evaluate', {
+    expression: `(() => {
+  const btn = [...document.querySelectorAll('button')].find(x=>/上传.*PDF|选择文件|导入 PDF/.test(x.textContent));
+  if (!btn) return null;
+  let el = btn.parentElement;
+  while (el && el.querySelectorAll('input[type=file]').length === 0) el = el.parentElement;
+  return el ? el.querySelector('input[type=file]') : null;
+})()`,
+  });
+  if (rUp.result && rUp.result.objectId) {
+    await cdp.send('DOM.setFileInputFiles', { objectId: rUp.result.objectId, files: [pdf] });
+    console.log('     [上传] 已通过「上传按钮最近容器内的 file input」提交论文');
+  } else {
+    console.log('     [上传] ✗ 未定位到上传控件（后面会因缺少抽取按钮而失败）');
   }
   // 抽取按钮文案随视图/改版变化（论文集合「分析方法字段」、方法提取「开始提取方法字段」、旧「抽取方法字段」）
   const btnReady = await cdp.waitFor(`[...document.querySelectorAll('button')].some((b)=>/抽取方法字段|提取方法字段|分析方法字段|开始提取/.test(b.textContent))`, 90000, '抽取按钮');

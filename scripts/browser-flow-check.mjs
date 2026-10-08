@@ -119,6 +119,24 @@ class Cdp {
       }, 240000);
     });
   }
+  /** 等一个 CDP 事件（例如 Page.fileChooserOpened）；超时返回 undefined */
+  waitEvent(method, timeoutMs = 15000) {
+    return new Promise((resolve) => {
+      const onMsg = (ev) => {
+        const msg = JSON.parse(ev.data);
+        if (msg.method === method) {
+          this.ws.removeEventListener('message', onMsg);
+          clearTimeout(timer);
+          resolve(msg.params);
+        }
+      };
+      const timer = setTimeout(() => {
+        this.ws.removeEventListener('message', onMsg);
+        resolve(undefined);
+      }, timeoutMs);
+      this.ws.addEventListener('message', onMsg);
+    });
+  }
   async evaluate(expression) {
     const r = await this.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
     if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || 'eval error');
@@ -290,6 +308,69 @@ async function main() {
     return false;
   };
 
+  /**
+   * 上传一篇 PDF，**准确定位应用自己打开的那个文件控件**，且只操作一个控件。
+   *
+   * 为什么不用「塞第一个 input[type=file]」或「对所有 input 都塞」：
+   * - 页面上同时存在多个隐藏的文件输入（不同视图各一个），塞第一个可能塞到没接线的那个，表现为「上传了没反应」；
+   * - 对所有 input 都塞会一次触发多次导入（实测会多出论文），因此必须精确定位。
+   * 做法：① 让 CDP 拦截文件选择框，点应用自己的上传按钮，从 Page.fileChooserOpened 事件里
+   *          拿到该控件真实的 backendNodeId；
+   *       ② 拿不到事件时退回「上传按钮所在容器内的 input[type=file]」（只会命中一个）。
+   */
+  const uploadPdf = async () => {
+    const BUTTON_RE = '/上传.*PDF|选择文件|导入 PDF/';
+    // ① 首选：让 CDP 拦截文件选择框，点应用自己的上传按钮，从 Page.fileChooserOpened 事件里拿到真实控件的 backendNodeId
+    await cdp.send('Page.setInterceptFileChooserDialog', { enabled: true });
+    const chooserPromise = cdp.waitEvent('Page.fileChooserOpened', 8000);
+    const clicked = await cdp.evaluate(
+      `(() => { const b=[...document.querySelectorAll('button')].find(x=>${BUTTON_RE}.test(x.textContent)); if(b){b.click();return true;} return false; })()`,
+    );
+    const chooser = clicked ? await chooserPromise : undefined;
+    await cdp.send('Page.setInterceptFileChooserDialog', { enabled: false });
+    if (chooser && chooser.backendNodeId) {
+      await cdp.send('DOM.setFileInputFiles', { backendNodeId: chooser.backendNodeId, files: [pdfPath] });
+      return { via: '文件选择框事件（应用实际打开的那个控件）', count: 1 };
+    }
+    // ② 兜底：从上传按钮往上找「最近的、含 file input 的容器」，只操作那一个控件
+    //（按钮与 input 不一定是同一个 div 的兄弟，所以要往上走，而不是只看父级）
+    const pickExpr = `(() => {
+  const btn = [...document.querySelectorAll('button')].find(x=>${BUTTON_RE}.test(x.textContent));
+  if (!btn) return null;
+  let el = btn.parentElement;
+  while (el && el.querySelectorAll('input[type=file]').length === 0) el = el.parentElement;
+  return el ? el.querySelector('input[type=file]') : null;
+})()`;
+    const r = await cdp.send('Runtime.evaluate', { expression: pickExpr });
+    if (r.result && r.result.objectId) {
+      await cdp.send('DOM.setFileInputFiles', { objectId: r.result.objectId, files: [pdfPath] });
+      return { via: '上传按钮最近容器内的 input（兜底路径，仍只操作一个控件）', count: 1 };
+    }
+    // ③ 最后兜底：对所有 file input 各塞一次（只在精确定位失败时使用），并如实标注
+    const all = await cdp.send('Runtime.evaluate', {
+      expression: `[...document.querySelectorAll('input[type=file]')]`,
+    });
+    if (all.result && all.result.objectId) {
+      const props = await cdp.send('Runtime.getProperties', { objectId: all.result.objectId, ownProperties: true });
+      let n = 0;
+      for (const pr of props.result || []) {
+        if (pr.value && pr.value.objectId) {
+          await cdp.send('DOM.setFileInputFiles', { objectId: pr.value.objectId, files: [pdfPath] });
+          n += 1;
+        }
+      }
+      if (n) return { via: `最后一个兜底：所有 file input（${n} 个，仅精确路径失败时使用）`, count: n };
+    }
+    return { via: '未找到上传控件', count: 0 };
+  };
+
+  /**
+   * 统计运行日志里的模型调用次数：每条真实调用一行「模型调用 …」（重试会追加行），
+   * 因此相邻两次计数的差值能发现「单次分析重复调用模型」。
+   */
+  const modelCallCount = async () =>
+    ((await cdp.evaluate(`(document.querySelector('.log') || {}).textContent || ''`)).match(/模型调用/g) || []).length;
+
   console.log('');
   console.log('=== S1 打开应用并在设置页填入接口（密钥不回显）===');
   await cdp.send('Page.navigate', { url });
@@ -346,22 +427,25 @@ async function main() {
   await clickNav('论文集合');
   check('配置已生效：论文集合不再显示「未配置模型」提示', !(await cdp.evaluate("document.body.innerText.includes('未配置模型')")));
 
-  const doc = await cdp.send('DOM.getDocument', { depth: -1 });
-  // 页面上可能同时存在多个 file input（不同视图各有一个隐藏输入），只塞第一个可能塞到没接线的那一个。
-  // 对所有 file input 都设置一次文件：接好线的那个会触发导入，其余是无害的 no-op。
-  const probes = await cdp.send('DOM.querySelectorAll', { nodeId: doc.root.nodeId, selector: 'input[type=file]' });
-  if (!probes.nodeIds.length) {
-    check('找到文件上传输入框', false, '未找到 input[type=file]');
-  } else {
-    for (const nodeId of probes.nodeIds) {
-      await cdp.send('DOM.setFileInputFiles', { nodeId, files: [pdfPath] });
-    }
-    check(`已通过文件输入框提交论文（${probes.nodeIds.length} 个输入框）`, true);
-  }
-
+  const titlesBefore = await cdp.evaluate(`document.querySelectorAll('.paper-title').length`);
+  const up = await uploadPdf();
+  // check() 只在失败时打印附加信息，这里显式打一行，便于看清走的是哪条定位路径
+  console.log(`     [上传] 控件定位：${up.via}（操作控件数 ${up.count}）`);
+  check(
+    '定位到上传控件并只操作一个控件',
+    up.count >= 1 && !up.via.includes('未找到'),
+    up.via + (up.count > 1 ? `（注意：走了兜底路径，操作了 ${up.count} 个控件）` : ''),
+  );
   // 解析完成的判据用「论文卡出现」而不是某句文案（文案随改版变化，卡出现才是事实）
-  const parsed = await cdp.waitFor(`document.querySelectorAll('.paper-title').length >= 1`, 120000, '论文解析');
+  const parsed = await cdp.waitFor(`document.querySelectorAll('.paper-title').length > ${titlesBefore}`, 120000, '论文解析');
   check('浏览器端解析成功（论文卡已出现）', parsed);
+  await sleep(600);
+  const titlesAfter = await cdp.evaluate(`document.querySelectorAll('.paper-title').length`);
+  check(
+    '一次上传只新增一篇论文（不会因为有隐藏输入而被重复触发）',
+    titlesAfter === titlesBefore + 1,
+    `论文卡 ${titlesBefore} → ${titlesAfter}`,
+  );
 
   console.log('');
   console.log('=== S3 浏览器发起真实模型调用并得到结构化结果 ===');
@@ -374,6 +458,7 @@ async function main() {
     '抽取按钮',
   );
   check('论文卡渲染出「分析/提取方法字段」按钮', btnReady);
+  const callsBeforeExtract = await modelCallCount();
   const clicked = await cdp.evaluate(
     `(() => { const b=[...document.querySelectorAll('button')].find((x) => /抽取方法字段|提取方法字段|分析方法字段|开始提取/.test(x.textContent)); if (!b) return false; b.click(); return true; })()`,
   );
@@ -384,6 +469,12 @@ async function main() {
     '实时抽取完成（出现查看字段/详情入口）',
   );
   check('浏览器端完成真实模型抽取并显示结构化结果', extracted);
+  const callsAfterExtract = await modelCallCount();
+  check(
+    '单次分析只调用一次模型（不发生重复调用 / 重复计费）',
+    callsAfterExtract === callsBeforeExtract + 1,
+    `模型调用 ${callsBeforeExtract} → ${callsAfterExtract}`,
+  );
 
   // 论文默认是折叠的：等「查看字段」出现后点击展开，再断言面板内容
   const expandReady = await cdp.waitFor(
@@ -623,9 +714,8 @@ async function main() {
   // 用一篇没有结果的论文触发实时抽取，从而检验鉴权失败时的错误提示。
   await cdp.evaluate(`(() => { const b=[...document.querySelectorAll('button')].find((x)=>x.textContent.trim()==='移除'); if(b) b.click(); })()`);
   await sleep(900);
-  const doc2 = await cdp.send('DOM.getDocument', { depth: -1 });
-  const probe2 = await cdp.send('DOM.querySelector', { nodeId: doc2.root.nodeId, selector: 'input[type=file]' });
-  if (probe2.nodeId) await cdp.send('DOM.setFileInputFiles', { nodeId: probe2.nodeId, files: [pdfPath] });
+  const up2 = await uploadPdf();
+  check('重新导入同样准确定位到上传控件', up2.count === 1, up2.via);
   await cdp.waitFor(`[...document.querySelectorAll('button')].some((b)=>/抽取方法字段|提取方法字段|分析方法字段|开始提取/.test(b.textContent))`, 90000, '重新导入后的抽取按钮');
   await cdp.evaluate(`(() => { const b=[...document.querySelectorAll('button')].find((x)=>/抽取方法字段|提取方法字段|分析方法字段|开始提取/.test(x.textContent)); if(b) b.click(); })()`);
   // 说明：真实服务对无效凭据的响应在 90 秒观察窗口内没有返回（provider 侧行为，非前端缺陷），
