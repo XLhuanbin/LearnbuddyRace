@@ -3787,7 +3787,33 @@
         "targetStage": "from_scratch",
         "reasons": [
           {
-            "text": "该论文是 ImageNet 分类上残差学习框架的原始工作，直接给出 top-1/top-5 error rate 与 10-crop / single-model 评测协议，是判断「哪些结果可比」的基准锚点之一。",
+            "text": "用户目标是判断 ImageNet 分类结果是否可直接比较，ResNet 是这条演进线里被后续方法（ViT、DeiT、Swin、ConvNeXt）反复引用的基线，读它有助于建立「同一数据集/指标下如何对齐比较」的参照点。",
+            "basis": "paper",
+            "evidenceRef": {
+              "kind": "field",
+              "key": "datasets",
+              "paperId": "p_arxiv_1512.03385",
+              "methodId": "m_p_arxiv_1512.03385"
+            },
+            "evidence": {
+              "paperId": "p_arxiv_1512.03385",
+              "quote": "We evaluate our method on the ImageNet 2012 classifi-\n\ncation dataset [36] that consists of 1000 classes.",
+              "page": 4,
+              "start": 19282,
+              "end": 19387,
+              "section": "4. Experiments",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            },
+            "evidenceLocated": true,
+            "evidenceSupportsReason": true,
+            "evidenceMissing": false,
+            "bindingIssue": "「datasets」在字段与条件中同时存在，已按模型声明的类型绑定到字段条目"
+          },
+          {
+            "text": "论文报告了 ImageNet 分类的 top-1/top-5 error rate 与 10-crop/single-model 两种评测协议，正好对应「结果可比性」问题：不同评测协议下的数字不能直接横向比。",
             "basis": "paper",
             "evidenceRef": {
               "kind": "field",
@@ -3813,34 +3839,7 @@
             "bindingIssue": "「metrics」在字段与条件中同时存在，已按模型声明的类型绑定到字段条目"
           },
           {
-            "text": "论文报告了 CIFAR-10 从头训练（from_scratch 阶段）的算力条目：两块 GPU、mini-batch 128、64k 迭代，这是材料中唯一与用户「小规模微调」之外可对照的同阶段训练证据；但该条目仅覆盖 CIFAR-10，不能外推到 ImageNet 从头训练。",
-            "basis": "paper",
-            "evidenceRef": {
-              "kind": "condition",
-              "key": "computeResources",
-              "paperId": "p_arxiv_1512.03385",
-              "methodId": "m_p_arxiv_1512.03385"
-            },
-            "evidence": {
-              "paperId": "p_arxiv_1512.03385",
-              "quote": "These models are trained with a mini-\n\nbatch size of 128 on two GPUs",
-              "page": 7,
-              "start": 32220,
-              "end": 32288,
-              "section": "method error (%)",
-              "locator": "page+offset",
-              "verified": true,
-              "matchType": "loose",
-              "coverage": 1
-            },
-            "evidenceLocated": true,
-            "evidenceSupportsReason": true,
-            "evidenceMissing": false,
-            "bindingIssue": "模型标注的类型（field）与实际位置（condition）不一致，已按实际位置规范化",
-            "stage": "from_scratch"
-          },
-          {
-            "text": "论文未报告 ImageNet 从头训练的 GPU 数量、显存、并行策略与训练时长，因此用户 4 张 RTX 3090 能否复现 ImageNet 规模训练属于可行性未验证。",
+            "text": "论文给出的算力条目仅覆盖 from_scratch 阶段且只针对 CIFAR-10（两块 GPU、mini-batch 128、64k 迭代），并未报告 ImageNet 从头训练的显存、并行策略与完整训练配置；因此用户 4×RTX 3090 能否复现 ImageNet 训练属于可行性未验证，不能据此判定资源已满足。",
             "basis": "gap",
             "evidenceRef": {
               "kind": "field",
@@ -3851,8 +3850,8 @@
         ],
         "applicability": "ImageNet 分类：从头训练，评估 top-1/top-5 错误率，10-crop testing（Table 3）与 single-model（Table 4）；CIFAR-10：从头训练，weight decay 0.0001、momentum 0.9、BN、无 dropout，mini-batch 128、两块 GPU，初始学习率 0.1 并在 32k/48k 迭代除以 10，64k 迭代终止；测试时单视图。",
         "missing": [
-          "ImageNet 从头训练的 GPU 数量、显存、并行策略与训练时长未报告，无法确认在 4 张 RTX 3090 上的可运行性",
-          "论文未报告算力与训练时长（ImageNet 部分），无法确认可运行性"
+          "论文未报告 ImageNet 从头训练的显存、并行策略与完整训练配置，无法确认在 4×RTX 3090 上的可运行性",
+          "论文未报告 ImageNet 训练时长"
         ],
         "computeReported": true,
         "computeStage": "from_scratch",
@@ -3862,8 +3861,8 @@
         "goalMatch": {
           "level": "recommended",
           "reasons": [
-            "该论文是 ImageNet 分类上残差学习框架的原始工作，直接给出 top-1/top-5 error rate 与 10-crop / single-model 评测协议，是判断「哪些结果可比」的基准锚点之一。",
-            "论文报告了 CIFAR-10 从头训练（from_scratch 阶段）的算力条目：两块 GPU、mini-batch 128、64k 迭代，这是材料中唯一与用户「小规模微调」之外可对照的同阶段训练证据；但该条目仅覆盖 CIFAR-10，不能外推到 ImageNet 从头训练。"
+            "用户目标是判断 ImageNet 分类结果是否可直接比较，ResNet 是这条演进线里被后续方法（ViT、DeiT、Swin、ConvNeXt）反复引用的基线，读它有助于建立「同一数据集/指标下如何对齐比较」的参照点。",
+            "论文报告了 ImageNet 分类的 top-1/top-5 error rate 与 10-crop/single-model 两种评测协议，正好对应「结果可比性」问题：不同评测协议下的数字不能直接横向比。"
           ]
         },
         "execution": [
@@ -3897,7 +3896,7 @@
         "targetStage": "pretrain",
         "reasons": [
           {
-            "text": "ViT 的核心思路是把图像切成 patch 序列送入 Transformer encoder，并明确区分「从头训练」「自监督预训练」「微调」三种设置，正好对应用户要判断的「结果可比性」问题：不同预训练数据规模下的准确率不可直接横向比较。",
+            "text": "ViT 的核心思路是把图像切成 patch 序列后用 Transformer encoder 处理，并强调「大规模预训练 + 下游微调」的范式；理解这一点是判断其 ImageNet 数字能否与 CNN 直接比较的前提。",
             "basis": "paper",
             "evidenceRef": {
               "kind": "field",
@@ -3922,7 +3921,7 @@
             "evidenceMissing": false
           },
           {
-            "text": "论文报告的算力条目全部属于 pretrain 阶段（TPUv3-core-days：ViT-H/14 2.5k、ViT-L/16 0.68k、ViT-L/16 (I21k) 0.23k；ViT-L/16 在 ImageNet-21k 上约 30 天），用户没有大规模预训练资源，因此该阶段不可复现；但该条目可作为「预训练成本量级」的引用证据，用于说明为何 ViT 的 ImageNet 准确率不能与从头训练的 CNN 直接比。",
+            "text": "论文报告的算力条目全部属于 pretrain 阶段（TPUv3-core-days：ViT-H/14 2.5k、ViT-L/16 0.68k 等，以及 ViT-L/16 在 ImageNet-21k 上约 30 天），用户没有大规模预训练资源，因此该阶段不可复现；但用户目标是调研与判断可比性，读论文本身不受此限制。",
             "basis": "paper",
             "evidenceRef": {
               "kind": "condition",
@@ -3949,7 +3948,7 @@
             "stage": "pretrain"
           },
           {
-            "text": "论文自述 ViT 在较小数据集上比 ResNet 更容易过拟合，且自监督预训练 ViT-B/16 在 ImageNet 上 79.9%，仍落后监督预训练 4%，这是判断「可比性」时必须注意的适用边界。",
+            "text": "论文自述 ViT 在较小数据集上比 ResNet 更容易过拟合，且自监督预训练的 ViT-B/16 仍落后监督预训练 4%；这直接关系到「不同预训练数据/监督方式下的准确率不能直接比」。",
             "basis": "paper",
             "evidenceRef": {
               "kind": "field",
@@ -3976,8 +3975,8 @@
         ],
         "applicability": "Table 2 中各模型预训练算力；fine-tuning：预训练后移除预训练预测头，接零初始化 D×K 前馈层，微调至下游任务；few-shot：用正则化最小二乘回归将冻结表示映射到 {-1,1}^K 目标向量。",
         "missing": [
-          "论文未报告微调阶段在单卡/小规模 GPU 上的显存与并行策略，无法确认 4 张 RTX 3090 上微调 ViT 的可行性",
-          "论文未报告 ImageNet 从头训练 ViT 的算力条目，无法确认该阶段可运行性"
+          "论文未报告微调阶段在单机多卡上的显存与并行策略，无法确认 4×RTX 3090 上微调的可运行性",
+          "论文未报告微调阶段的具体训练时长"
         ],
         "computeReported": true,
         "computeStage": "pretrain",
@@ -3987,9 +3986,9 @@
         "goalMatch": {
           "level": "recommended",
           "reasons": [
-            "ViT 的核心思路是把图像切成 patch 序列送入 Transformer encoder，并明确区分「从头训练」「自监督预训练」「微调」三种设置，正好对应用户要判断的「结果可比性」问题：不同预训练数据规模下的准确率不可直接横向比较。",
-            "论文报告的算力条目全部属于 pretrain 阶段（TPUv3-core-days：ViT-H/14 2.5k、ViT-L/16 0.68k、ViT-L/16 (I21k) 0.23k；ViT-L/16 在 ImageNet-21k 上约 30 天），用户没有大规模预训练资源，因此该阶段不可复现；但该条目可作为「预训练成本量级」的引用证据，用于说明为何 ViT 的 ImageNet 准确率不能与从头训练的 CNN 直接比。",
-            "论文自述 ViT 在较小数据集上比 ResNet 更容易过拟合，且自监督预训练 ViT-B/16 在 ImageNet 上 79.9%，仍落后监督预训练 4%，这是判断「可比性」时必须注意的适用边界。"
+            "ViT 的核心思路是把图像切成 patch 序列后用 Transformer encoder 处理，并强调「大规模预训练 + 下游微调」的范式；理解这一点是判断其 ImageNet 数字能否与 CNN 直接比较的前提。",
+            "论文报告的算力条目全部属于 pretrain 阶段（TPUv3-core-days：ViT-H/14 2.5k、ViT-L/16 0.68k 等，以及 ViT-L/16 在 ImageNet-21k 上约 30 天），用户没有大规模预训练资源，因此该阶段不可复现；但用户目标是调研与判断可比性，读论文本身不受此限制。",
+            "论文自述 ViT 在较小数据集上比 ResNet 更容易过拟合，且自监督预训练的 ViT-B/16 仍落后监督预训练 4%；这直接关系到「不同预训练数据/监督方式下的准确率不能直接比」。"
           ]
         },
         "execution": [
@@ -4036,7 +4035,7 @@
         "targetStage": "finetune",
         "reasons": [
           {
-            "text": "DeiT 的核心思路是在 ImageNet 上直接训练无卷积视觉 Transformer，并用强数据增强、正则化与蒸馏 token 实现数据高效训练，是「不依赖大规模外部预训练也能得到可比 ImageNet 准确率」的代表，直接回应用户「哪些结果可比」的问题。",
+            "text": "DeiT 的核心思路是在 ImageNet 上直接训练无卷积视觉 Transformer，并用蒸馏 token 从卷积网络教师学习；它正是「数据高效训练」这一可比性讨论的关键节点。",
             "basis": "paper",
             "evidenceRef": {
               "kind": "field",
@@ -4061,7 +4060,7 @@
             "evidenceMissing": false
           },
           {
-            "text": "论文报告的算力条目属于 finetune 阶段：DeiT-B 训练 300 epochs 为 2 节点 37 小时或单节点 53 小时，DeiT-S/Ti 在 4 GPU 上少于 3 天，384×384 微调为单节点 8 GPU 20 小时（25 epochs）。这是材料中与用户「4 张 RTX 3090 可做小规模微调」最接近的同阶段证据，但论文给的是节点/GPU 数量而非显存与并行策略，因此只能作为量级参考，不能断言资源已满足。",
+            "text": "论文报告的算力条目属于 finetune 阶段（DeiT-B 训练 300 epochs：2 节点 37 小时或单节点 53 小时；DeiT-S/Ti 在 4 GPU 上少于 3 天；384×384 微调单节点 8 GPU 20 小时），这是四个候选里唯一给出与用户「小规模微调」目标同阶段算力证据的方法，但论文未给出显存与并行策略细节，仍不能判定 4×RTX 3090 一定满足。",
             "basis": "paper",
             "evidenceRef": {
               "kind": "condition",
@@ -4088,7 +4087,7 @@
             "stage": "finetune"
           },
           {
-            "text": "论文自述在 CIFAR-10 上仅用自身数据训练不如 ImageNet 预训练（98.5% vs 99.1%），说明数据多样性会显著影响可比性，是调研中必须标注的适用边界。",
+            "text": "论文自述在 CIFAR-10 上仅用自身数据训练不如 ImageNet 预训练（98.5% vs 99.1%），说明预训练数据来源会显著影响可比性，是调研中必须标注的边界条件。",
             "basis": "paper",
             "evidenceRef": {
               "kind": "field",
@@ -4115,8 +4114,8 @@
         ],
         "applicability": "DeiT-B 在 ImageNet 上 300 epochs 训练及 384×384 微调；fine-tuning：在 ImageNet 上训练 300 epochs，随后在 384×384 分辨率微调（约 25 epochs）；知识蒸馏：使用硬蒸馏，教师为 RegNetY-16GF，蒸馏 token 参与注意力；从头训练：DeiT 在 ImageNet-1k 上从头训练，无外部数据。",
         "missing": [
-          "论文未报告训练时的显存占用与并行策略，无法确认 4 张 RTX 3090 上能否复现 DeiT-B 300 epochs",
-          "论文未报告从头训练阶段的独立算力条目，无法确认该阶段可运行性"
+          "论文未报告训练/微调的显存占用与并行策略，无法确认 4×RTX 3090 上的可运行性",
+          "论文未报告 DeiT-S/Ti 在 4 GPU 上的具体 GPU 型号与显存"
         ],
         "computeReported": true,
         "computeStage": "finetune",
@@ -4126,9 +4125,9 @@
         "goalMatch": {
           "level": "recommended",
           "reasons": [
-            "DeiT 的核心思路是在 ImageNet 上直接训练无卷积视觉 Transformer，并用强数据增强、正则化与蒸馏 token 实现数据高效训练，是「不依赖大规模外部预训练也能得到可比 ImageNet 准确率」的代表，直接回应用户「哪些结果可比」的问题。",
-            "论文报告的算力条目属于 finetune 阶段：DeiT-B 训练 300 epochs 为 2 节点 37 小时或单节点 53 小时，DeiT-S/Ti 在 4 GPU 上少于 3 天，384×384 微调为单节点 8 GPU 20 小时（25 epochs）。这是材料中与用户「4 张 RTX 3090 可做小规模微调」最接近的同阶段证据，但论文给的是节点/GPU 数量而非显存与并行策略，因此只能作为量级参考，不能断言资源已满足。",
-            "论文自述在 CIFAR-10 上仅用自身数据训练不如 ImageNet 预训练（98.5% vs 99.1%），说明数据多样性会显著影响可比性，是调研中必须标注的适用边界。"
+            "DeiT 的核心思路是在 ImageNet 上直接训练无卷积视觉 Transformer，并用蒸馏 token 从卷积网络教师学习；它正是「数据高效训练」这一可比性讨论的关键节点。",
+            "论文报告的算力条目属于 finetune 阶段（DeiT-B 训练 300 epochs：2 节点 37 小时或单节点 53 小时；DeiT-S/Ti 在 4 GPU 上少于 3 天；384×384 微调单节点 8 GPU 20 小时），这是四个候选里唯一给出与用户「小规模微调」目标同阶段算力证据的方法，但论文未给出显存与并行策略细节，仍不能判定 4×RTX 3090 一定满足。",
+            "论文自述在 CIFAR-10 上仅用自身数据训练不如 ImageNet 预训练（98.5% vs 99.1%），说明预训练数据来源会显著影响可比性，是调研中必须标注的边界条件。"
           ]
         },
         "execution": [
@@ -4139,8 +4138,21 @@
           },
           {
             "stage": "inference",
-            "status": "unverified",
-            "note": "全文未检索到「权重/检查点已发布」的表述，也没有报告推理阶段算力，因此该阶段无法判断。"
+            "status": "insufficient_evidence",
+            "note": "论文原文声明权重/代码可获取（见下方引文，p.18），因此拿到现有权重这条路径**有原文依据**；但论文没有报告推理阶段的算力与资源需求，**能不能在你的设备上跑通仍未验证**（可获取 ≠ 可运行）。",
+            "page": 18,
+            "evidence": {
+              "paperId": "p_arxiv_2012.12877",
+              "quote": "We provide an open-source implementation of our method.",
+              "page": 18,
+              "start": 42296,
+              "end": 42351,
+              "section": "7 Conclusion",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            }
           },
           {
             "stage": "finetune",
@@ -4162,7 +4174,7 @@
         "targetStage": "inference",
         "reasons": [
           {
-            "text": "Swin Transformer 的核心思路是层级式 Transformer + 移位窗口注意力，是 ImageNet 分类演进中「宏观设计」的关键一环，用户调研方法演进时需要理解其与 ResNet、ViT 的结构差异。",
+            "text": "Swin 的核心思路是层级式 Transformer + 移位窗口注意力，是「CNN 与 Transformer 在 ImageNet 上如何对齐比较」的重要一环。",
             "basis": "paper",
             "evidenceRef": {
               "kind": "field",
@@ -4187,34 +4199,16 @@
             "evidenceMissing": false
           },
           {
-            "text": "论文报告的算力条目仅属于 inference 阶段（V100 GPU 用于吞吐量测量，具体数量与时长未给出），不能用于判断训练或微调的资源门槛；用户若想复现其 ImageNet 分类训练，材料中没有同阶段算力证据。",
-            "basis": "paper",
+            "text": "论文给出的算力条目仅属于 inference 阶段（V100 GPU 用于吞吐量测量，具体数量与时长未给出），既没有 from_scratch 也没有 finetune 阶段的算力证据，无法对用户「小规模微调」目标做资源判断。",
+            "basis": "gap",
             "evidenceRef": {
-              "kind": "condition",
-              "key": "computeResources",
-              "paperId": "p_arxiv_2103.14030",
-              "methodId": "m_p_arxiv_2103.14030"
+              "kind": "field",
+              "key": "computeResources"
             },
-            "evidence": {
-              "paperId": "p_arxiv_2103.14030",
-              "quote": "Throughput is measured using the GitHub repository\n\nof [68] and a V100 GPU, following [63].",
-              "page": 6,
-              "start": 27932,
-              "end": 28023,
-              "section": "method",
-              "locator": "page+offset",
-              "verified": true,
-              "matchType": "strict",
-              "coverage": 1
-            },
-            "evidenceLocated": true,
-            "evidenceSupportsReason": true,
-            "evidenceMissing": false,
-            "bindingIssue": "模型标注的类型（field）与实际位置（condition）不一致，已按实际位置规范化",
-            "stage": "inference"
+            "evidenceLocated": false
           },
           {
-            "text": "论文自述推理速度方面 ResNe(X)t 由高度优化的 Cudnn 函数实现，而本架构使用未完全优化的 PyTorch 内置函数，这意味着吞吐量对比本身存在实现差异，是判断「结果可比性」时的重要警示。",
+            "text": "论文自述推理速度对比中 ResNe(X)t 使用高度优化的 Cudnn 函数而本架构使用未完全优化的 PyTorch 内置函数，说明吞吐量数字受实现影响，不能直接当作架构优劣的结论。",
             "basis": "paper",
             "evidenceRef": {
               "kind": "field",
@@ -4239,11 +4233,11 @@
             "evidenceMissing": false
           }
         ],
-        "applicability": "表 1 中各 backbone 在 ImageNet 分类上的吞吐量测量；ImageNet-1K 分类：fine-tuning/从头训练（片段未明确），评估协议未在片段中说明；COCO 目标检测与实例分割：在 COCO 2017 上训练与评估，对比时只更换 backbone，其他设置不变；ADE20K 语义分割：以 UperNet in mmseg 为 base framework。",
+        "applicability": "表 1 中各 backbone 在 ImageNet 分类上的吞吐量测量；ImageNet-1K 分类：fine-tuning/从头训练（片段未明确）；COCO 目标检测与实例分割：在 COCO 2017 上训练与评估，对比时只更换 backbone；ADE20K 语义分割：以 UperNet in mmseg 为 base framework。",
         "missing": [
-          "论文未报告 ImageNet 分类训练/微调的算力与训练时长，无法确认可运行性",
-          "ImageNet-1K 分类是 fine-tuning 还是从头训练在片段中未明确",
-          "评估协议未在片段中说明"
+          "论文未报告 ImageNet-1K 分类训练/微调的算力、显存与并行策略，无法确认可运行性",
+          "论文未报告训练时长",
+          "片段未明确 ImageNet-1K 分类是 fine-tuning 还是从头训练"
         ],
         "computeReported": true,
         "computeStage": "inference",
@@ -4253,9 +4247,8 @@
         "goalMatch": {
           "level": "worth_investigating",
           "reasons": [
-            "Swin Transformer 的核心思路是层级式 Transformer + 移位窗口注意力，是 ImageNet 分类演进中「宏观设计」的关键一环，用户调研方法演进时需要理解其与 ResNet、ViT 的结构差异。",
-            "论文报告的算力条目仅属于 inference 阶段（V100 GPU 用于吞吐量测量，具体数量与时长未给出），不能用于判断训练或微调的资源门槛；用户若想复现其 ImageNet 分类训练，材料中没有同阶段算力证据。",
-            "论文自述推理速度方面 ResNe(X)t 由高度优化的 Cudnn 函数实现，而本架构使用未完全优化的 PyTorch 内置函数，这意味着吞吐量对比本身存在实现差异，是判断「结果可比性」时的重要警示。"
+            "Swin 的核心思路是层级式 Transformer + 移位窗口注意力，是「CNN 与 Transformer 在 ImageNet 上如何对齐比较」的重要一环。",
+            "论文自述推理速度对比中 ResNe(X)t 使用高度优化的 Cudnn 函数而本架构使用未完全优化的 PyTorch 内置函数，说明吞吐量数字受实现影响，不能直接当作架构优劣的结论。"
           ]
         },
         "execution": [
@@ -4289,7 +4282,7 @@
         "targetStage": "from_scratch",
         "reasons": [
           {
-            "text": "ConvNeXt 的核心思路是以 ResNet-50 为起点、逐步引入 Swin Transformer 的宏观与微观设计，把标准 ConvNet 现代化，是「CNN vs Transformer 在 ImageNet 上是否可比」这一问题的直接对照材料。",
+            "text": "ConvNeXt 的核心思路是把 ResNet-50 逐步「现代化」为接近 Swin 设计的纯 ConvNet，是判断「CNN 与 Transformer 在 ImageNet 上是否可直接比」的关键对照方法。",
             "basis": "paper",
             "evidenceRef": {
               "kind": "field",
@@ -4314,7 +4307,7 @@
             "evidenceMissing": false
           },
           {
-            "text": "论文的算力条目状态为 unverified、阶段未说明、适用范围未说明，因此无法引用任何同阶段算力来判断用户 4 张 RTX 3090 能否复现其 ImageNet-1K 从头训练（300 epochs）或 ImageNet-22K 预训练后微调（30 epochs，384^2）。",
+            "text": "论文的算力条目状态为 unverified、阶段未说明、适用范围未说明，因此无法对任何阶段（预训练/微调/推理/从头训练）做资源判断，也不能据此说用户资源已满足。",
             "basis": "gap",
             "evidenceRef": {
               "kind": "field",
@@ -4323,11 +4316,11 @@
             "evidenceLocated": false
           },
           {
-            "text": "论文在附录中声明会讨论 limitations（§F），但提供的片段未包含该节内容，因此无法引用作者自述的适用边界。",
+            "text": "论文实验设置写明分类为从头训练（ImageNet-1K，300 epochs）或 ImageNet-22K 预训练后 ImageNet-1K 微调（30 epochs，384^2），但未报告对应算力与训练时长，无法确认可运行性。",
             "basis": "gap",
             "evidenceRef": {
               "kind": "field",
-              "key": "limitations"
+              "key": "experimentalSettings"
             },
             "evidenceLocated": false
           }
@@ -4335,8 +4328,7 @@
         "applicability": "分类：从头训练（ImageNet-1K，300 epochs）或 ImageNet-22K 预训练后 ImageNet-1K 微调（30 epochs，384^2）；检测/分割：在 COCO/ADE20K 上微调，Mask R-CNN / Cascade Mask R-CNN，3× schedule；鲁棒性：直接评估，无额外微调。",
         "missing": [
           "论文未报告算力与训练时长，无法确认可运行性",
-          "算力条目状态为 unverified、阶段未说明、适用范围未说明",
-          "提供的片段未包含 §F limitations 内容"
+          "算力条目状态为 unverified 且阶段未说明"
         ],
         "computeReported": false,
         "resourceFeasibility": "no_matching_stage_evidence",
@@ -4344,7 +4336,7 @@
         "goalMatch": {
           "level": "worth_investigating",
           "reasons": [
-            "ConvNeXt 的核心思路是以 ResNet-50 为起点、逐步引入 Swin Transformer 的宏观与微观设计，把标准 ConvNet 现代化，是「CNN vs Transformer 在 ImageNet 上是否可比」这一问题的直接对照材料。"
+            "ConvNeXt 的核心思路是把 ResNet-50 逐步「现代化」为接近 Swin 设计的纯 ConvNet，是判断「CNN 与 Transformer 在 ImageNet 上是否可直接比」的关键对照方法。"
           ]
         },
         "execution": [
@@ -4355,8 +4347,21 @@
           },
           {
             "stage": "inference",
-            "status": "unverified",
-            "note": "全文未检索到「权重/检查点已发布」的表述，也没有报告推理阶段算力，因此该阶段无法判断。"
+            "status": "insufficient_evidence",
+            "note": "论文原文声明权重/代码可获取（见下方引文，p.1），因此拿到现有权重这条路径**有原文依据**；但论文没有报告推理阶段的算力与资源需求，**能不能在你的设备上跑通仍未验证**（可获取 ≠ 可运行）。",
+            "page": 1,
+            "evidence": {
+              "paperId": "p_arxiv_2201.03545",
+              "quote": "Code: https://github.com/facebookresearch/ConvNeXt",
+              "page": 1,
+              "start": 1669,
+              "end": 1719,
+              "section": "introduction of Vision Transformers (ViTs), which quickly",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            }
           },
           {
             "stage": "finetune",
@@ -4375,44 +4380,46 @@
       {
         "paperId": "p_arxiv_1512.03385",
         "order": 1,
-        "focus": "重点看残差映射 F(x)+x 的动机、ImageNet 上 10-crop 与 single-model 两种评测协议的差异，以及 CIFAR-10 从头训练的超参与迭代设置。",
-        "reason": "作为 ImageNet 分类的经典基准，先建立「从头训练 + top-1/top-5 error」这一可比性锚点，后续方法才能对照。",
+        "focus": "重点看 ImageNet 分类的评测协议（10-crop 与 single-model 两套数字）以及 CIFAR-10 从头训练的完整配置，建立「同一方法在不同协议下数字不可直接比」的直觉。",
+        "reason": "它是后续 ViT/DeiT/Swin/ConvNeXt 共同引用的基线，先读它才能理解后面方法在跟谁比、比的是什么协议。",
         "basis": "paper"
       },
       {
         "paperId": "p_arxiv_2010.11929",
         "order": 2,
-        "focus": "重点看 patch embedding + [class] token 的做法、预训练数据规模（ImageNet vs ImageNet-21k/JFT）对结果的影响，以及论文自述的小数据集过拟合与自监督仍落后监督预训练 4% 的边界。",
-        "reason": "在理解 CNN 基准后，读 ViT 才能看清「预训练规模不同导致准确率不可直接比」这一核心可比性问题。",
+        "focus": "重点看 pretrain 阶段的算力表（TPUv3-core-days）与「大规模预训练 + 下游微调」范式，以及作者关于小数据集过拟合与自监督仍落后监督预训练的说明。",
+        "reason": "它把「预训练规模」引入 ImageNet 比较，是理解为什么 ViT 的数字不能与从头训练的 CNN 直接比的关键。",
         "basis": "paper"
       },
       {
         "paperId": "p_arxiv_2012.12877",
         "order": 3,
-        "focus": "重点看无外部数据、仅 ImageNet-1k 从头训练 300 epochs 的设置，以及蒸馏 token 与卷积教师的作用；对照其与 ViT 在数据需求上的差异。",
-        "reason": "DeiT 是「不依赖大规模预训练也能得到可比 ImageNet 准确率」的关键节点，放在 ViT 之后读能直接回答「哪些结果可比」。",
+        "focus": "重点看 finetune 阶段的算力条目（300 epochs、384×384 微调）与蒸馏 token 机制，以及 CIFAR-10 上自身数据训练不如 ImageNet 预训练的说明。",
+        "reason": "它是四个候选里唯一给出与用户「小规模微调」目标同阶段算力证据的方法，适合作为「如果真要动手，先看哪篇」的入口。",
         "basis": "paper"
       },
       {
         "paperId": "p_arxiv_2103.14030",
         "order": 4,
-        "focus": "重点看层级式设计与移位窗口如何改变计算复杂度，以及论文自述的推理速度实现差异（Cudnn vs 未完全优化的 PyTorch）对吞吐量对比的影响。",
-        "reason": "Swin 是 Transformer 路线在分类/检测/分割上的宏观设计来源，也是 ConvNeXt 的对照对象，放在 DeiT 之后读可衔接演进脉络。",
-        "basis": "paper"
+        "focus": "重点看层级式设计与移位窗口的动机，以及作者关于推理速度受实现优化影响的说明；训练/微调算力部分材料未给出，不要据此下资源结论。",
+        "reason": "它代表 Transformer 路线在 ImageNet 上的另一套设计，读完 ViT/DeiT 后再看能理解架构差异如何影响可比性。",
+        "basis": "gap",
+        "gap": "材料未给出 Swin 在 ImageNet-1K 分类上的训练/微调算力、显存与并行策略，无法判断其可运行性。"
       },
       {
         "paperId": "p_arxiv_2201.03545",
         "order": 5,
-        "focus": "重点看从 ResNet-50 出发逐步引入 Swin 宏观设计、ResNeXt 化、倒置瓶颈、大卷积核的改造路径，以及 ImageNet-1K 从头训练 300 epochs 与 ImageNet-22K 预训练后微调两种设置的差异。",
-        "reason": "ConvNeXt 把 CNN 与 Transformer 的设计要素拉到同一比较框架，放在最后读有助于收束「方法演进 + 可比性」两条线。",
-        "basis": "paper"
+        "focus": "重点看它如何从 ResNet-50 逐步改造为 ConvNeXt，以及分类/检测/分割/鲁棒性各套评测设置；算力条目为 unverified 且阶段未说明，不要据此下资源结论。",
+        "reason": "放在最后读，因为它是对前面 CNN 与 Transformer 两条线的收束式对照，需要先有 ResNet 与 Swin 的背景。",
+        "basis": "gap",
+        "gap": "材料未给出 ConvNeXt 的算力与训练时长，无法确认可运行性。"
       }
     ],
     "questions": [],
-    "conditionSensitivity": "若用户把目标从「调研可比性」改为「亲手复现某个 ImageNet 结果」，则只有 DeiT 的 finetune 阶段算力条目（4 GPU 少于 3 天 / 单节点 53 小时）在量级上接近 4 张 RTX 3090，其余方法会因缺少同阶段算力证据而更偏向 unknown；若用户获得大规模预训练资源，ViT 的 pretrain 阶段才会从不可复现变为可讨论。",
+    "conditionSensitivity": "如果用户把目标从「调研可比性」改成「亲手复现某个 ImageNet 结果」，那么只有 DeiT 给出了与微调同阶段的算力条目，其余方法会因缺少同阶段算力证据而更难推荐；如果用户计算资源从 4×RTX 3090 变为有大规模预训练集群，ViT 的预训练阶段才可能进入可讨论范围。",
     "model": "deepseek-chat",
     "cached": true,
-    "generatedAt": 1789725181059
+    "generatedAt": 1791447729409
   },
   "demoProfile": {
     "background": "刚进入视觉方向的研究生/高年级本科生，学过深度学习基础课程，读过 CNN 与注意力机制的基本材料，但还没有系统做过视觉实验",
