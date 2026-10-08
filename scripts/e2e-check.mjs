@@ -324,7 +324,17 @@ async function main() {
   await sleep(1600);
   const mapOnly = await cdp.evaluate(`(document.querySelector('.main-inner') || document.body).innerText`);
   check('从论文集合可以进入研究地图', /研究地图/.test(mapOnly));
-  check('研究地图首屏只有标题、一句解释、一个继续阅读路线链接', /研究地图 · 视觉方法演进案例/.test(mapOnly) && /继续阅读路线/.test(mapOnly) && !/方法地图/.test(mapOnly) && !/联系与区别/.test(mapOnly));
+  // 2026-10-08 改版：恢复三个视图的切换条 —— 此前「联系与区别 / 从哪里开始」只剩两条隐式深链，
+  // 且进入后没有回到「方法地图」的入口（点目录也不复位）。首屏仍是标题 + 一句解释 + 一行轻量视图切换
+  // + 一个继续阅读路线链接，没有主按钮墙。
+  check(
+    '研究地图首屏是标题、一句解释、三个视图切换与一个继续阅读路线链接（无主按钮墙）',
+    /研究地图 · 视觉方法演进案例/.test(mapOnly) &&
+      /继续阅读路线/.test(mapOnly) &&
+      /方法地图/.test(mapOnly) &&
+      /联系与区别/.test(mapOnly) &&
+      /从哪里开始/.test(mapOnly),
+  );
   // 本轮改版：「数据来源与统计」移到页头折叠区；关系状态行直接可见；筛选与集合操作拆成两个入口
   const optsOpened = await cdp.evaluate(
     `(() => { const d=document.querySelector('.maphead-meta details.fold'); if(!d) return false; d.open=true; return true; })()`,

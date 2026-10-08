@@ -17,6 +17,10 @@ interface Props {
   onOpenPair?: (a: string, b: string) => void;
   /** 只看有证据的关系（同上） */
   onlyEvidence?: boolean;
+  /** 图例旁的一句实话：当前集合的关系覆盖了哪几档证据状态（由 MapView 按真实数据算出） */
+  legendNote?: string;
+  /** 起点建议：画布上可点，直接选中该节点（数据来自阅读路线的第一篇或集合里的第一个方法） */
+  startHint?: { id: string; name: string; fromPlan: boolean } | null;
 }
 
 /** 线型 + 颜色双重区分（不只靠颜色） */
@@ -46,7 +50,7 @@ interface Placed {
  * 探索画布：泳道 = 方法家族（轻量分区），节点 = 短名称 + 一条短贡献，
  * 连线只画真实关系；标签默认不铺开，悬停/聚焦/选中时才出现。
  */
-export function MethodMap({ papers, methods, relations, onOpenEvidence, onCompareExperiments, showPending, showUnclear, onOpenPair, onlyEvidence = false }: Props) {
+export function MethodMap({ papers, methods, relations, onOpenEvidence, onCompareExperiments, showPending, showUnclear, onOpenPair, onlyEvidence = false, legendNote, startHint }: Props) {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const [hoverEdge, setHoverEdge] = useState<string | null>(null);
@@ -345,6 +349,19 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onCompar
               </span>
             ))}
           </div>
+
+          {/* 图例上方：一句现状说明 + 一个起点建议（都是只读展示，不改任何判定） */}
+          {(legendNote || startHint) && (
+            <div className="mapnote">
+              {legendNote && <span className="txt">{legendNote}</span>}
+              {startHint && (
+                <button className="go" onClick={() => selectNode(startHint.id, false)}>
+                  建议从这里开始：{startHint.name}
+                  {startHint.fromPlan ? '（阅读路线的第 1 篇）' : ''}
+                </button>
+              )}
+            </div>
+          )}
 
           <div className="mapzoom">
             <button className="z" onClick={() => setZoom((z) => Math.max(0.7, +(z - 0.15).toFixed(2)))} aria-label="缩小">

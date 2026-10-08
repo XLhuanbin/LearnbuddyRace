@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import type { Evidence, Method, Paper, ReadingPlan, Relation, UserProfile } from '../core/types';
+import type { Evidence, Method, Paper, ReadingPlan, Relation, RelationEvidenceState, UserProfile } from '../core/types';
 import { relationsInScope, type CorpusKey, type CorpusScope, type ScopeMode } from '../core/corpus';
 import { Crumb, Status } from './common';
-import { buildMethodOverview } from '../core/grouping';
+import { buildMethodOverview, buildMethodProfile } from '../core/grouping';
 import { MethodMap } from './MethodMap';
 import { MapRelationsView } from './MapRelationsView';
 import { MapStartView } from './MapStartView';
@@ -32,6 +32,12 @@ interface Props {
   onReloadCase: () => void;
   /** 返回论文集合（简短面包屑用） */
   onGoLibrary?: () => void;
+  /**
+   * 从顶栏「目录」再次点进研究地图时递增。
+   * 三个子视图是同一页面的内部状态：不重置的话会出现「点了研究地图却还停在联系与区别」，
+   * 用户只能退出去再进来，等于一条死路。
+   */
+  resetSignal?: number;
 }
 
 /**
@@ -62,6 +68,7 @@ export function MapView({
   onSwitchCase,
   onReloadCase,
   onGoLibrary,
+  resetSignal = 0,
 }: Props) {
   const [sub, setSub] = useState<SubView>('map');
   /**
@@ -79,6 +86,21 @@ export function MapView({
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [setsOpen, setSetsOpen] = useState(false);
   const loading = corpusLoading === corpusScope.key;
+
+  /** 顶栏再次进入研究地图 → 回到默认的「方法地图」（只复位子视图，不动筛选与缩放） */
+  useEffect(() => {
+    setSub('map');
+  }, [resetSignal]);
+
+  /**
+   * 一次性把被默认隐藏的关系显示到画布上。
+   * 只改「画布显示什么」，不改任何证据状态与判定（隐藏逻辑本身是证据纪律，必须保留）。
+   */
+  const showAllRelations = () => {
+    setOnlyEvidence(false);
+    setShowPending(true);
+    setShowUnclear(true);
+  };
 
   /**
    * 当前集合的数据：案例 = 当前语料预置；我的论文 = 用户自传。
@@ -136,6 +158,37 @@ export function MapView({
     [view],
   );
 
+  /**
+   * 图例旁的一句实话：这份集合的关系实际覆盖了图例里的哪几档证据状态。
+   * 之前画布把「三档线型里只有最弱的一档有数据」这件事藏起来了 —— 只陈述现状，不改判定。
+   */
+  const legendNote = useMemo(() => {
+    const ST: [RelationEvidenceState, string][] = [
+      ['explicit', '原文明示'],
+      ['inferred', '系统推断'],
+      ['candidate', '待核查'],
+    ];
+    const total = view.relations.length;
+    if (!total) return '';
+    const has = new Set(view.relations.filter((r) => r.type !== 'unclear').map((r) => r.evidenceState));
+    const missing = ST.filter(([k]) => !has.has(k)).map(([, label]) => label);
+    if (missing.length === ST.length) return `本案例 ${total} 条关系都还只是「关系不明确」，画布上暂不连线。`;
+    if (!missing.length) return `本案例 ${total} 条关系覆盖图例里的三档证据状态。`;
+    return `本案例 ${total} 条关系里暂未出现${missing.join('、')}。`;
+  }, [view.relations]);
+
+  /** 起点建议：优先取阅读路线的第 1 篇（真实数据），没有路线时退到集合里的第一个方法 */
+  const startHint = useMemo(() => {
+    const profileOf = (m: Method) =>
+      buildMethodProfile(m, view.papers.find((p) => p.id === m.paperId), view.papers);
+    const firstStep = plan?.steps?.[0];
+    const byPlan = firstStep ? view.methods.find((m) => m.paperId === firstStep.paperId) : undefined;
+    const pick = byPlan ?? view.methods[0];
+    if (!pick) return null;
+    const profile = profileOf(pick);
+    return { id: pick.id, name: profile.shortName, fromPlan: Boolean(byPlan) };
+  }, [plan, view]);
+
   const tabs: { id: SubView; name: string }[] = [
     { id: 'map', name: '方法地图' },
     { id: 'relations', name: '联系与区别' },
@@ -171,17 +224,26 @@ export function MapView({
                 关系 {relStats.total} 条 · 当前显示 {relStats.visible} 条
               </Status>
               {relStats.visible < relStats.total && (
-                <span className="small dim">
-                  隐藏 {relStats.total - relStats.visible} 条：
-                  {[
-                    relStats.hiddenUnclear ? `关系不明确 ${relStats.hiddenUnclear} 条` : '',
-                    relStats.hiddenPending ? `待核查 ${relStats.hiddenPending} 条` : '',
-                    relStats.hiddenNoEvidence ? `无引文（只看有证据）${relStats.hiddenNoEvidence} 条` : '',
-                  ]
-                    .filter(Boolean)
-                    .join('、')}
-                  {' — 用「筛选」可以显示出来'}
-                </span>
+                <>
+                  <span className="small dim">
+                    隐藏 {relStats.total - relStats.visible} 条：
+                    {[
+                      relStats.hiddenUnclear ? `关系不明确 ${relStats.hiddenUnclear} 条` : '',
+                      relStats.hiddenPending ? `待核查 ${relStats.hiddenPending} 条` : '',
+                      relStats.hiddenNoEvidence ? `无引文（只看有证据）${relStats.hiddenNoEvidence} 条` : '',
+                    ]
+                      .filter(Boolean)
+                      .join('、')}
+                  </span>
+                  {/* 把「为什么看不到关系」变成一步可点的动作：只改画布显示，不改数据与判定 */}
+                  <button
+                    className="mapreveal"
+                    onClick={showAllRelations}
+                    title="在画布上显示这些关系；只影响显示，不改任何证据状态与结论"
+                  >
+                    在画布上显示这 {relStats.total - relStats.visible} 条
+                  </button>
+                </>
               )}
               {onlyEvidence && <Status kind="pending">已开启「只看有证据关系」</Status>}
               <details className="fold" style={{ flex: '1 1 100%', marginTop: 6 }}>
@@ -287,6 +349,22 @@ export function MapView({
         </div>
       </div>
 
+      {/* 三个视图是同一份关系数据的三个视角：显式切换条，且任何时候都能回到「方法地图」。
+          之前这条切换条被删掉后，联系与区别 / 从哪里开始 只剩两条隐式深链，进去也回不来。 */}
+      <div className="mapviews" role="tablist" aria-label="研究地图视图">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={sub === t.id}
+            className={`chip${sub === t.id ? ' on' : ''}`}
+            onClick={() => setSub(t.id)}
+          >
+            {t.name}
+          </button>
+        ))}
+      </div>
+
       {view.count === 0 ? (
         <div className="mapwork" style={{ display: 'grid', placeItems: 'center' }}>
           <div style={{ textAlign: 'center', padding: 24 }}>
@@ -326,6 +404,8 @@ export function MapView({
               showPending={showPending}
               showUnclear={showUnclear}
               onlyEvidence={onlyEvidence}
+              legendNote={legendNote}
+              startHint={startHint}
             />
           )}
           {sub === 'relations' && (

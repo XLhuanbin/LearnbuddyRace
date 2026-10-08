@@ -101,6 +101,16 @@ export default function App() {
     ];
     return saved && (allowed as string[]).includes(saved) ? (saved as Tab) : 'landing';
   });
+  /**
+   * 每次从顶栏「目录」点进研究地图就自增一次，用来把研究地图的子视图复位到「方法地图」。
+   * 不带 signal 的话，「联系与区别 / 从哪里开始」是页面内部状态，再点一次目录也回不去。
+   */
+  const [mapResetSeq, setMapResetSeq] = useState(0);
+  /** 统一入口：去研究地图就带上复位信号，其余页面直接切 */
+  const goTab = (t: string) => {
+    if (t === 'map') setMapResetSeq((n) => n + 1);
+    setTab(t as Tab);
+  };
   // 记录当前页面：刷新后回到原处，避免新用户以为数据丢了
   React.useEffect(() => {
     try {
@@ -1293,7 +1303,7 @@ export default function App() {
         minimal={tab === 'landing'}
         active={tab}
         onHome={() => setTab('landing')}
-        onGo={(t) => setTab(t as Tab)}
+        onGo={goTab}
         onBack={() => setTab('library')}
       />
 
@@ -1341,7 +1351,21 @@ export default function App() {
                 setTab('library');
               }}
               onUploadOwn={() => setTab('upload')}
-              onGo={(t) => setTab(t)}
+              onGo={async (t) => {
+                /**
+                 * 首页概念卡片：「打开研究地图 / 查看阅读路线」在案例未加载时会落进空态（0 篇论文），
+                 * 所以先加载案例再切页。
+                 *
+                 * 注意这里**不含 'library'**：卡片语义是「去那一页看看」，论文集合这一页自己有
+                 * 「加载演示案例」入口；而且把「打开论文集合」变成「顺带加载案例」会让
+                 * 「进入工作区」这类按文案兜底的走查脚本拿到一个已经载入预置案例的页面，
+                 * 从而误判「鉴权失败后出现了已核验字段」（见 scripts/auth-error-check.mjs）。
+                 */
+                if ((t === 'map' || t === 'decision') && scope.experimentCount === 0) {
+                  await loadSample(corpus);
+                }
+                goTab(t);
+              }}
             />
           )}
 
@@ -1380,6 +1404,7 @@ export default function App() {
                 await switchCorpus(corpus === 'vision' ? 'nlp-dev' : 'vision');
               }}
               onReloadCase={() => loadSample(corpus)}
+              resetSignal={mapResetSeq}
             />
           )}
 

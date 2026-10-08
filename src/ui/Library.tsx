@@ -237,9 +237,15 @@ export function LibraryView({
           </>
         }
         actions={
-          <button className="btn primary" onClick={() => fileRef.current?.click()}>
-            上传 PDF
-          </button>
+          <>
+            {/* 首屏常驻入口：此前「进入研究地图」只藏在下面的「管理论文与案例」折叠里，首次使用者找不到 */}
+            <button className="btn" onClick={onGoMap} disabled={!visiblePapers.length || loading}>
+              进入研究地图 →
+            </button>
+            <button className="btn primary" onClick={() => fileRef.current?.click()}>
+              上传 PDF
+            </button>
+          </>
         }
       />
 
