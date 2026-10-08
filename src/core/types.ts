@@ -228,6 +228,7 @@ export type ExperimentConditions = Record<ConditionDimension, ConditionValue>;
 export type IssueCode =
   | 'field_missing'
   | 'evidence_missing'
+  | 'evidence_unclear'
   | 'evidence_not_located'
   | 'quote_too_short'
   | 'page_mismatch'
@@ -246,6 +247,7 @@ export type IssueCode =
 export const ISSUE_CODE_TEXT: Record<IssueCode, string> = {
   field_missing: '字段缺失',
   evidence_missing: '未提供引文',
+  evidence_unclear: '模型标注无法确认',
   evidence_not_located: '引文无法定位',
   quote_too_short: '引文过短',
   page_mismatch: '页码与定位结果不一致',

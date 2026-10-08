@@ -19,7 +19,7 @@ import {
   RELATION_LABELS,
 } from './types';
 import { locateQuote } from './text';
-import { RULES_VERSION, assessClaimScope, assessRelationEvidence, looksLikeNegation, looksLikeTitle } from './rules';
+import { RULES_VERSION, UNCLEAR_NOTE_KEY, assessClaimScope, assessRelationEvidence, looksLikeNegation, looksLikeTitle } from './rules';
 
 export const MIN_QUOTE_CHARS = 20;
 export { RULES_VERSION };
@@ -68,14 +68,22 @@ export function validateMethod(paper: Paper | undefined, method: Method): Valida
     }
 
     if (!r.evidence) {
+      // 「没有挂载证据」有两种成因，此前一律说成「没有提供任何原文引文」，对 unclear 情形是错的：
+      // 模型其实给了引文，只是自己标注为「无法确认」（extractMethod 因此按 no_evidence 处理、
+      // 不把它作为已核验证据挂载）。两种成因必须分开说清，校验码也分开。
+      const markedUnclear = (r.note ?? '').includes(UNCLEAR_NOTE_KEY);
       issues.push(
         issue(
           'method',
           method.id,
-          'evidence_missing',
+          markedUnclear ? 'evidence_unclear' : 'evidence_missing',
           'warn',
-          `${label}：模型给出了内容但没有提供任何原文引文，标记为「${FIELD_STATUS_TEXT.no_evidence}」。`,
-          '该值不作为可核验结论使用，需要人工回到原文核对。',
+          markedUnclear
+            ? `${label}：模型提供了原文引文，但自己标注为无法确认该内容是否支撑结论，因此没有把它作为可核验证据（标记为「${FIELD_STATUS_TEXT.no_evidence}」）。`
+            : `${label}：模型给出了内容但没有提供任何原文引文，标记为「${FIELD_STATUS_TEXT.no_evidence}」。`,
+          markedUnclear
+            ? '这不是「没有给引文」，而是模型自报「找到的文字不足以支撑结论」；需人工回到原文判断该内容能否使用。'
+            : '该值不作为可核验结论使用，需要人工回到原文核对。',
           key,
         ),
       );

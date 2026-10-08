@@ -86,7 +86,7 @@ import { chat, ModelError, parseJsonLoose, parseJsonObject, requireArrayField, r
 import { createServer, type Server } from 'node:http';
 import { methodAliases, assessRelationEvidence, assessClaimScope, parseSplitsByDataset, looksLikeTitle } from '../src/core/rules';
 import type { ConditionValue, ExperimentConditions, Method, Paper, ReadingPlan, Relation } from '../src/core/types';
-import { CONDITION_DIMENSIONS } from '../src/core/types';
+import { CONDITION_DIMENSIONS, ISSUE_CODE_TEXT } from '../src/core/types';
 
 let pass = 0;
 let fail = 0;
@@ -2290,6 +2290,95 @@ console.log('=== 30. 提示词字段状态词表兼容（reported / not_reported
   check('条件 status=unclear → 保留「无法确认」，不升级为已验证', condUnclear?.status === 'unclear', String(condUnclear?.status));
   const condReported = (await extractWith({ value: null, quote: null, status: 'missing' }, { datasets: { values: ['ImageNet'], quote: QUOTE, status: 'reported' } })).conditions?.datasets;
   check('条件 status=reported + 可定位引文 → 已验证（正向路径没被影响）', condReported?.status === 'verified', String(condReported?.status));
+
+  server.close();
+}
+
+console.log('=== 31. validateMethod 对 unclear 的说明：区分「给了引文但自认无法确认」与「根本没给引文」 ===');
+{
+  // 背景：上一轮把 status='unclear' 归一到 no_evidence 且不挂载引文之后，校验层仍一律说
+  // 「模型给出了内容但没有提供任何原文引文」——而这一情形里模型其实给了引文，只是自认
+  // 「找到的文字不足以支撑结论」。字段自身的 note 与校验说明因此互相矛盾（已复现）。
+  const text = 'We propose FooNet, a new architecture based solely on attention.';
+  const paper = PAPER('p1', 'P1', 2020, text);
+  const ev = buildEvidence(paper, { quote: 'based solely on attention' });
+  const mkFields = (coreIdea: Method['fields']['coreIdea']): Method['fields'] =>
+    Object.fromEntries(
+      (['researchTask', 'methodName', 'coreIdea', 'inputsConditions', 'datasets', 'metrics', 'limitations'] as const).map((k) => [
+        k,
+        k === 'coreIdea' ? coreIdea : { value: undefined, status: 'missing' as const },
+      ]),
+    ) as Method['fields'];
+  const coreIdeaIssues = (coreIdea: Method['fields']['coreIdea']) =>
+    validateMethod(paper, mkMethod('p1', emptyConditions(), mkFields(coreIdea))).filter((i) => i.field === 'coreIdea');
+
+  // ---- 1) unclear：说明必须改写，且与「没给引文」分开 ----
+  const unclearIssues = coreIdeaIssues({
+    value: '表述含糊的内容',
+    status: 'no_evidence',
+    note: '模型找到了相关内容但标注为无法确认（表述含糊），未作为可核验结论。',
+  });
+  check('unclear 字段用独立的校验码 evidence_unclear', unclearIssues.length === 1 && unclearIssues[0].code === 'evidence_unclear', unclearIssues.map((i) => i.code).join(','));
+  check('unclear 的说明不再说「没有提供任何原文引文」', !unclearIssues[0].message.includes('没有提供任何原文引文'), unclearIssues[0].message);
+  check(
+    'unclear 的说明写清「提供了引文，但自认无法确认是否支撑结论」',
+    /提供了原文引文/.test(unclearIssues[0].message) && /无法确认/.test(unclearIssues[0].message),
+    unclearIssues[0].message,
+  );
+  check('unclear 的处理建议也说明「这不是没有给引文」', /不是「没有给引文」/.test(unclearIssues[0].action), unclearIssues[0].action);
+  check('新校验码在界面用的文案表里有标签', typeof ISSUE_CODE_TEXT.evidence_unclear === 'string' && ISSUE_CODE_TEXT.evidence_unclear.length > 0, ISSUE_CODE_TEXT.evidence_unclear);
+
+  // ---- 2) 对照组：确实没有给引文 → 原文案保持不变 ----
+  const noQuoteIssues = coreIdeaIssues({ value: 'FooNet 基于注意力', status: 'no_evidence' });
+  check(
+    '真的没给引文时仍是 evidence_missing，且文案照旧说明「没有提供任何原文引文」',
+    noQuoteIssues[0]?.code === 'evidence_missing' && noQuoteIssues[0].message.includes('没有提供任何原文引文'),
+    noQuoteIssues[0]?.message,
+  );
+  const otherNoteIssues = coreIdeaIssues({ value: 'FooNet 基于注意力', status: 'no_evidence', note: '模型给出了内容但没有提供原文引文' });
+  check('note 里没有判据词时不会被误判成 unclear', otherNoteIssues[0]?.code === 'evidence_missing', otherNoteIssues[0]?.code);
+
+  // ---- 3) 端到端：解析器产出的 unclear 字段必须被校验层认出来（判据词不漂移） ----
+  let payload: unknown = {};
+  const server: Server = createServer((req, res) => {
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204).end();
+      return;
+    }
+    req.on('data', () => undefined);
+    req.on('end', () => res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(payload) } }] })));
+  });
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', () => r()));
+  const cfg = { baseUrl: `http://127.0.0.1:${(server.address() as { port: number }).port}`, apiKey: 'k', model: 'm', maxAttempts: 1 };
+  const runCase = async (coreIdea: unknown) => {
+    payload = { paperTitle: 'FooNet', fields: { coreIdea } };
+    const m = await extractMethod(paper, cfg);
+    return { field: m.fields.coreIdea, issues: validateMethod(paper, m).filter((i) => i.field === 'coreIdea') };
+  };
+
+  const e2eDefault = await runCase({ value: '表述含糊的内容', quote: 'based solely on attention', page: 1, status: 'unclear' });
+  check('端到端：unclear（默认 note）→ evidence_unclear', e2eDefault.issues[0]?.code === 'evidence_unclear', e2eDefault.issues[0]?.code);
+  const e2eModelNote = await runCase({ value: '表述含糊的内容', quote: 'based solely on attention', page: 1, status: 'unclear', note: '只有局部实验描述' });
+  check('端到端：unclear + 模型自带 note（不含判据词）→ 仍被判成 evidence_unclear', e2eModelNote.issues[0]?.code === 'evidence_unclear', e2eModelNote.issues[0]?.code);
+  check(
+    '端到端：unclear 仍然不挂载已核验证据（本轮决定保持不变）',
+    e2eModelNote.field.evidence === undefined && e2eModelNote.field.status === 'no_evidence',
+    `${String(e2eModelNote.field.status)}／evidence=${e2eModelNote.field.evidence ? '有' : '无'}`,
+  );
+
+  // ---- 4) 不回归：可核验字段与「引文无法定位」字段的校验结论不变 ----
+  const verifiedIssues = coreIdeaIssues({ value: 'FooNet 基于注意力', status: 'verified', evidence: ev });
+  check(
+    '可核验字段不产生 evidence_missing / evidence_unclear',
+    !verifiedIssues.some((i) => i.code === 'evidence_missing' || i.code === 'evidence_unclear'),
+    verifiedIssues.map((i) => i.code).join(','),
+  );
+  const notLocatedIssues = coreIdeaIssues({
+    value: 'x',
+    status: 'unverified',
+    evidence: buildEvidence(paper, { quote: '这句话不在原文里，是模型编造的句子。' }),
+  });
+  check('引文无法定位仍是 evidence_not_located（未受影响）', notLocatedIssues[0]?.code === 'evidence_not_located', notLocatedIssues[0]?.code);
 
   server.close();
 }

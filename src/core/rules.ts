@@ -12,6 +12,16 @@ import { CONDITION_DIMENSIONS } from './types';
 /** 规则版本：可比性、关系校验、条件范围、证据支持判定。任何影响结论的改动都要升版本。 */
 export const RULES_VERSION = 'r3.1.0';
 
+/**
+ * 字段 note 的判据词：模型把该字段标注为「找到了内容但无法确认」。
+ *
+ * 由 analyze.extractMethod 在 status=unclear 时写入 note；validate.validateMethod 据此把
+ * 「模型给了引文、但自认文字不足以支撑结论」与「模型根本没有提供引文」分开说明。
+ * 放在 rules.ts 而不是 types.ts：它只是内部文案判据，不进公共数据契约；也不能放 analyze.ts，
+ * 否则 validate ↔ analyze 会形成循环依赖。
+ */
+export const UNCLEAR_NOTE_KEY = '无法确认';
+
 /** 提示词版本在 prompts.ts 中单独维护，缓存同时记录两者。 */
 export type StalenessReason =
   | 'rules_version_changed'

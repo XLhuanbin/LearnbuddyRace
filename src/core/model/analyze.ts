@@ -33,7 +33,7 @@ import { locateNear, locateQuote } from '../text';
 import { selectExcerpt } from '../excerpt';
 import { buildEvidence } from '../evidence';
 import { compareConditions, comparePair, differingDimensions, emptyConditions, LEVEL_LABELS, pairLevel } from '../comparability';
-import { RULES_VERSION, assessClaimScope, assessRelationEvidence, looksLikeNegation, looksLikeTitle, normalizeConditions } from '../rules';
+import { RULES_VERSION, UNCLEAR_NOTE_KEY, assessClaimScope, assessRelationEvidence, looksLikeNegation, looksLikeTitle, normalizeConditions } from '../rules';
 import { applyDivergenceRules, buildCheckedPairs } from '../divergenceRules';
 import { buildRelationHints } from '../relationCandidates';
 import { findWeightsAvailability } from '../inferenceReadiness';
@@ -241,14 +241,17 @@ export async function extractMethod(
     // unclear：模型找到了相关内容，但自己标注为无法确认（表述含糊 / 只有局部实验描述）。
     // 这不是「没找到」，而是「找到的文字不足以支撑结论」，一律按「未找到证据」处理。
     if (rawStatus === 'unclear') {
+      // note 里必须带稳定的判据词：validate.ts 据此把「模型给了引文、但自认无法确认」
+      // 与「模型根本没有给引文」分开说清（MethodFieldResult 没有可承载该区别的字段，不能改公共类型）。
+      let unclearNote =
+        userNote || '模型找到了相关内容但标注为无法确认（表述含糊或只有局部实验描述），未作为可核验结论，需人工回到原文核对。';
+      if (!unclearNote.includes(UNCLEAR_NOTE_KEY)) unclearNote = `${unclearNote}（模型标注为无法确认）`;
       fields[key] = {
         value: value || undefined,
         status: 'no_evidence',
         // 不挂载引文：字段状态不是「可核验」，挂上已定位的引文会被界面算进「已核验字段数」
         // （Library 的 verifiedOf 与上传流程进度都按 evidence.verified 统计），自相矛盾。
-        note:
-          userNote ||
-          '模型找到了相关内容但标注为无法确认（表述含糊或只有局部实验描述），未作为可核验结论，需人工回到原文核对。',
+        note: unclearNote,
         claimedPage,
       };
       continue;
