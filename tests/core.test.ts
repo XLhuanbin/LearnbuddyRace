@@ -2073,6 +2073,123 @@ console.log('=== 28. 零风险档修复回归：页码解析 / 实验记录结�
   extractServer.close();
 }
 
+console.log('=== 29. 规则语义档三项：未知≠一致 / 可比性不采信模型自报 / computeReported 不采信模型自报 ===');
+{
+  // 这一组对应三个「已复现」的规则语义问题（本轮同时把 RULES_VERSION 升到 r3.1.0 并重算预置语料）：
+  // 1. 双方评估数据集/指标都未知时被当成「一致」，可能算出「已知条件下可直接比较」；
+  // 2. 论文数 < 2 时直接把模型自报的 comparabilityLevel 透传给界面；
+  // 3. 方法没有 conditions 时采信模型自报的 computeReported，等于让模型自证「论文报告了算力」。
+  const baseExp = {
+    id: 'x',
+    paperId: 'p1',
+    taskTag: 'classification',
+    modelVariant: 'M',
+    pretrainData: 'ImageNet-21K',
+    trainData: 'ImageNet-1K',
+    inputResolution: '224',
+    extraData: '否',
+    distillation: '无',
+    testTimeAug: '无',
+    inferenceMode: 'single model',
+    evalSplit: 'val',
+    evalDataset: 'ImageNet-1K',
+    metricName: 'top-1 accuracy',
+    metricValue: '80.0',
+    verification: { quoteLocated: true, rowColConfirmed: true, issues: [] },
+  } as ExperimentRecord;
+  const ex = (over: Partial<ExperimentRecord>): ExperimentRecord => ({ ...baseExp, ...over }) as ExperimentRecord;
+
+  // ---- 1) 未知 ≠ 一致 ----
+  check('canonicalMetricName("未知指标") 归为 unknown', canonicalMetricName('未知指标') === 'unknown', canonicalMetricName('未知指标'));
+  const bothUnknown = compareExperiments(ex({ id: 'a', evalDataset: '未知', metricName: '未知指标' }), ex({ id: 'b', evalDataset: '未知', metricName: '未知指标' }));
+  check('双方数据集与指标都未知 → 信息不足（不得判成「可直接比较」）', bothUnknown.level === 'insufficient_info', bothUnknown.level);
+  check(
+    '双方都未知时，未知维度标明是 both（不是「一致」）',
+    bothUnknown.unknowns.some((u) => u.field === 'evalDataset' && u.which === 'both') && bothUnknown.unknowns.some((u) => u.field === 'metricName' && u.which === 'both'),
+    JSON.stringify(bothUnknown.unknowns),
+  );
+  const oneDatasetUnknown = compareExperiments(ex({ id: 'a', evalDataset: '未知' }), ex({ id: 'b' }));
+  check(
+    '只有一方数据集未知 → 信息不足，且不再写成「数据集不同」',
+    oneDatasetUnknown.level === 'insufficient_info' && oneDatasetUnknown.blocked.length === 0,
+    `${oneDatasetUnknown.level}／blocked=${oneDatasetUnknown.blocked.length}`,
+  );
+  const metricUnknown = compareExperiments(ex({ id: 'a', metricName: '未知指标' }), ex({ id: 'b' }));
+  check('指标未知 → 信息不足，且不计入「指标不同」', metricUnknown.level === 'insufficient_info' && metricUnknown.blocked.length === 0, metricUnknown.level);
+  const knownDifferent = compareExperiments(ex({ id: 'a' }), ex({ id: 'b', evalDataset: 'ImageNet-21K' }));
+  check(
+    '双方已知且确实不同 → 仍然是硬阻断（本次改动不能把这条弄丢）',
+    knownDifferent.level === 'not_comparable' && knownDifferent.blocked.some((x) => x.field === 'evalDataset'),
+    knownDifferent.level,
+  );
+  const stillComparable = compareExperiments(ex({ id: 'a' }), ex({ id: 'b', modelVariant: 'N' }));
+  check('双方都有值且一致 → 仍可直接比较（没有把正常路径打死）', stillComparable.level === 'directly_comparable', stillComparable.level);
+
+  // ---- 2) 论文数 < 2 时不采信模型自报的 comparabilityLevel ----
+  const pa = PAPER('pa', 'PA', 2020, 'We propose FooNet, a new architecture based solely on attention.');
+  const pb = PAPER('pb', 'PB', 2020, 'We propose BarNet, a new architecture based solely on attention.');
+  const ma = mkMethod('pa', emptyConditions());
+  const mb = mkMethod('pb', emptyConditions());
+  type RawFinding = Parameters<typeof applyDivergenceRules>[2];
+  const onePaper = applyDivergenceRules([pa, pb], [ma, mb], { kind: 'shared_limitation', topic: 'T', paperIds: ['pa'], comparabilityLevel: 'comparable' } as unknown as RawFinding, 0);
+  check('论文数 < 2 时可比性一律「未知」，不透传模型自报的 comparable', onePaper.comparabilityLevel === 'unknown', String(onePaper.comparabilityLevel));
+  const zeroPaper = applyDivergenceRules([pa, pb], [ma, mb], { kind: 'shared_limitation', topic: 'T', paperIds: [], comparabilityLevel: 'comparable' } as unknown as RawFinding, 0);
+  check('论文数为 0 时同样为「未知」', zeroPaper.comparabilityLevel === 'unknown', String(zeroPaper.comparabilityLevel));
+  const twoPapers = applyDivergenceRules([pa, pb], [ma, mb], { kind: 'shared_limitation', topic: 'T', paperIds: ['pa', 'pb'], comparabilityLevel: 'comparable' } as unknown as RawFinding, 0);
+  check('论文数 >= 2 时由程序重算，模型自报的 comparable 不生效', twoPapers.comparabilityLevel !== 'comparable', String(twoPapers.comparabilityLevel));
+
+  // ---- 3) computeReported 不采信模型自报 ----
+  let payload: unknown = {};
+  const server: Server = createServer((req, res) => {
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204).end();
+      return;
+    }
+    req.on('data', () => undefined);
+    req.on('end', () => res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(payload) } }] })));
+  });
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', () => r()));
+  const cfg = { baseUrl: `http://127.0.0.1:${(server.address() as { port: number }).port}`, apiKey: 'k', model: 'm', maxAttempts: 1 };
+  const profile = { background: '研究生', interest: '视觉', compute: '1 x V100' };
+  const dPaper = PAPER('p1', 'P1', 2020, 'We propose FooNet, a new architecture based solely on attention.');
+  const fullFields = (): Method['fields'] =>
+    Object.fromEntries(
+      (['researchTask', 'methodName', 'coreIdea', 'inputsConditions', 'datasets', 'metrics', 'limitations'] as const).map((k) => [
+        k,
+        { value: undefined, status: 'missing' as const },
+      ]),
+    ) as Method['fields'];
+  payload = {
+    candidates: [{ methodId: 'm_p1', fit: 'suitable', targetStage: 'pretrain', reasons: [], missing: [], computeReported: true }],
+    readingOrder: [{ paperId: 'p1', focus: 'f', reason: 'r', basis: 'profile' }],
+  };
+
+  const noConditionsMethod: Method = { id: 'm_p1', paperId: 'p1', fields: fullFields(), conditions: undefined, experiments: [], overrides: [] };
+  const planNoConds = await generateDecision([dPaper], [noConditionsMethod], profile, cfg);
+  check('没有 conditions 时，模型自报的 computeReported=true 不被采信（一律以程序校验为准）', planNoConds.candidates[0]?.computeReported === false, String(planNoConds.candidates[0]?.computeReported));
+
+  const planEmptyConds = await generateDecision([dPaper], [mkMethod('p1', emptyConditions(), fullFields())], profile, cfg);
+  check('有 conditions 但算力条目未通过校验 → 仍为 false', planEmptyConds.candidates[0]?.computeReported === false, String(planEmptyConds.candidates[0]?.computeReported));
+
+  const verifiedCompute = mkMethod('p1', cond({ computeResources: { values: ['8 x V100 GPU，训练 3 天'], status: 'verified', stage: 'pretrain' } }), fullFields());
+  const planVerified = await generateDecision([dPaper], [verifiedCompute], profile, cfg);
+  check('算力条目确实通过校验时 → 仍然为 true（没有过度纠正成永远 false）', planVerified.candidates[0]?.computeReported === true, String(planVerified.candidates[0]?.computeReported));
+  server.close();
+
+  // ---- 4) 规则版本与预置缓存必须一致（升级规则后必须跑 scripts/revalidate.mjs） ----
+  for (const [file, label] of [
+    ['public/samples-vision/index.json', '预置视觉语料'],
+    ['public/samples/index.json', '预置开发回归样例'],
+  ] as [string, string][]) {
+    const idx = JSON.parse(readFileSync(file, 'utf8')) as { rulesVersion?: string };
+    check(
+      `${label}的 rulesVersion 与当前规则版本一致（规则升级必须同时重算缓存，否则界面会提示需要重算）`,
+      idx.rulesVersion === RULES_VERSION,
+      `缓存 ${idx.rulesVersion} vs 程序 ${RULES_VERSION}`,
+    );
+  }
+}
+
 console.log('');
 console.log(`结果：通过 ${pass}，失败 ${fail}`);
 

@@ -64,6 +64,8 @@ export function canonicalDatasetName(raw?: string): CanonicalResult {
 export function canonicalMetricName(raw?: string): string {
   const t = (raw ?? '').trim().toLowerCase();
   if (!t) return 'unknown';
+  // 「未知指标」这类占位写法必须和「没写」归为同一类，否则两篇都未知会被判成「指标一致」
+  if (UNKNOWN_NAME.test(t)) return 'unknown';
   // 注意：error 与 accuracy 是**不同**的指标（数值方向相反）。实测 ResNet 论文报的是 top-1 err.，
   // 而 DeiT/Swin/ConvNeXt 报的是 top-1 acc.；两者可以互换（100 − err）但不能直接并列比较。
   const isErr = /err/.test(t);
@@ -140,6 +142,17 @@ const CONDITION_FIELDS: { field: keyof ExperimentRecord; label: string; canonica
 
 const UNKNOWN = /^(未知|unknown|not\s+reported|n\/a|-?|)$/i;
 
+/** 同上，但用于「归一化之后」的名字（允许带后缀的占位写法，如「未知指标」） */
+const UNKNOWN_NAME = /^(未知|未知指标|unknown|not\s+reported|n\/a|-?|)$/i;
+
+/**
+ * 数据集名/指标名是否为「未知」。
+ * 归一化结果为空、"unknown"，或原文本身就是「未知 / 未说明」占位 —— 都算未知。
+ * 依据项目铁律「未知 ≠ 一致」：两边都不知道，既不能认定可对照，也不能认定不同。
+ */
+const isUnknownName = (canonical?: string, raw?: string): boolean =>
+  !canonical || canonical === 'unknown' || UNKNOWN.test((raw ?? '').trim());
+
 const same = (a?: string, b?: string, canon?: (v?: string) => string) => {
   const fa = canon ? canon(a) : (a ?? '').trim().toLowerCase();
   const fb = canon ? canon(b) : (b ?? '').trim().toLowerCase();
@@ -159,15 +172,27 @@ export function compareExperiments(a: ExperimentRecord, b: ExperimentRecord): Ex
     blocked.push({ field: 'taskTag', label: '任务', a: a.taskTag, b: b.taskTag });
     reasons.push('两条记录属于不同任务，分类结论不能与检测/分割结果混在一起比较。');
   }
-  const da = canonicalDatasetName(a.evalDataset).canonical ?? a.evalDataset;
-  const db = canonicalDatasetName(b.evalDataset).canonical ?? b.evalDataset;
-  if (da !== db) {
-    blocked.push({ field: 'evalDataset', label: '评估数据集', a: `${a.evalDataset}（${da}）`, b: `${b.evalDataset}（${db}）` });
+  // 评估数据集：只有「双方都有值且归一后不同」才是硬阻断；
+  // 任一方未知一律计入「信息不足」—— 旧实现在双方都未知时会把两个 'unknown' 判成相等，
+  // 于是两处都不知道反而可能被算成「已知条件下可直接比较」（已复现）。
+  const dsA = canonicalDatasetName(a.evalDataset);
+  const dsB = canonicalDatasetName(b.evalDataset);
+  const dsUnknownA = isUnknownName(dsA.canonical, a.evalDataset);
+  const dsUnknownB = isUnknownName(dsB.canonical, b.evalDataset);
+  if (dsUnknownA || dsUnknownB) {
+    unknowns.push({ field: 'evalDataset', label: '评估数据集', which: dsUnknownA && dsUnknownB ? 'both' : dsUnknownA ? 'a' : 'b' });
+    reasons.push('至少一条记录的评估数据集未确认：既不能认定两个结果可对照，也不能认定数据集不同。');
+  } else if (dsA.canonical !== dsB.canonical) {
+    blocked.push({ field: 'evalDataset', label: '评估数据集', a: `${a.evalDataset}（${dsA.canonical}）`, b: `${b.evalDataset}（${dsB.canonical}）` });
     reasons.push('评估数据集不同（或无法归一为同一数据集），数值不可直接对照。');
   }
+  // 指标同理：任一方未知计入「信息不足」，不同才是硬阻断
   const ma = canonicalMetricName(a.metricName);
   const mb = canonicalMetricName(b.metricName);
-  if (ma !== mb) {
+  if (ma === 'unknown' || mb === 'unknown') {
+    unknowns.push({ field: 'metricName', label: '指标', which: ma === 'unknown' && mb === 'unknown' ? 'both' : ma === 'unknown' ? 'a' : 'b' });
+    reasons.push('至少一条记录的评估指标未确认：既不能认定口径一致，也不能认定指标不同。');
+  } else if (ma !== mb) {
     blocked.push({ field: 'metricName', label: '指标', a: a.metricName, b: b.metricName });
     if (isErrorVsAccuracy(ma, mb)) {
       reasons.push(

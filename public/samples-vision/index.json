@@ -13,7 +13,7 @@
     "purpose": "正式参赛案例（真实论文、真实抽取；不是开发流程验证样例）",
     "baseUrlHost": "api.deepseek.com"
   },
-  "rulesVersion": "r3.0.0",
+  "rulesVersion": "r3.1.0",
   "inputsSignature": "p_arxiv_1512.03385,p_arxiv_2010.11929,p_arxiv_2012.12877,p_arxiv_2103.14030,p_arxiv_2201.03545",
   "papers": [
     {
@@ -761,7 +761,7 @@
       "paperTitleGuess": "Deep Residual Learning for Image Recognition",
       "validation": [
         {
-          "id": "vi_mu6seqsg_1",
+          "id": "vi_muz7ck2h_1",
           "scope": "method",
           "refId": "m_p_arxiv_1512.03385",
           "field": "limitations",
@@ -769,10 +769,10 @@
           "severity": "warn",
           "message": "局限：模型给出了内容但没有提供任何原文引文，标记为「未找到证据」。",
           "action": "该值不作为可核验结论使用，需要人工回到原文核对。",
-          "at": 1789725594400
+          "at": 1791443739545
         },
         {
-          "id": "vi_mu6seqsg_2",
+          "id": "vi_muz7ck2h_2",
           "scope": "method",
           "refId": "m_p_arxiv_1512.03385",
           "field": "pretrainingCorpus",
@@ -780,7 +780,7 @@
           "severity": "warn",
           "message": "预训练语料：有内容但引文未通过定位校验或未支撑该主张。",
           "action": "该条件按「信息不足」处理，不参与一致性判断。",
-          "at": 1789725594400
+          "at": 1791443739545
         }
       ]
     },
@@ -1349,7 +1349,7 @@
       "paperTitleGuess": "AN IMAGE IS WORTH 16X16 WORDS: TRANSFORMERS FOR IMAGE RECOGNITION AT SCALE",
       "validation": [
         {
-          "id": "vi_mu6seqtu_3",
+          "id": "vi_muz7ck3x_3",
           "scope": "method",
           "refId": "m_p_arxiv_2010.11929",
           "field": "downstreamExtraData",
@@ -1357,10 +1357,10 @@
           "severity": "warn",
           "message": "下游额外训练数据：无法确认（表述含糊）。",
           "action": "需要人工回到原文确认后再用于比较。",
-          "at": 1789725594450
+          "at": 1791443739597
         },
         {
-          "id": "vi_mu6seqtu_4",
+          "id": "vi_muz7ck3x_4",
           "scope": "method",
           "refId": "m_p_arxiv_2010.11929",
           "field": "dataAugmentation",
@@ -1368,7 +1368,7 @@
           "severity": "warn",
           "message": "数据增强：无法确认（表述含糊）。",
           "action": "需要人工回到原文确认后再用于比较。",
-          "at": 1789725594450
+          "at": 1791443739597
         }
       ]
     },
@@ -2621,7 +2621,7 @@
       "paperTitleGuess": "Swin Transformer: Hierarchical Vision Transformer using Shifted Windows",
       "validation": [
         {
-          "id": "vi_mu6seqvs_5",
+          "id": "vi_muz7ck63_5",
           "scope": "method",
           "refId": "m_p_arxiv_2103.14030",
           "field": "downstreamExtraData",
@@ -2629,10 +2629,10 @@
           "severity": "warn",
           "message": "下游额外训练数据：无法确认（表述含糊）。",
           "action": "需要人工回到原文确认后再用于比较。",
-          "at": 1789725594520
+          "at": 1791443739675
         },
         {
-          "id": "vi_mu6seqvs_6",
+          "id": "vi_muz7ck63_6",
           "scope": "method",
           "refId": "m_p_arxiv_2103.14030",
           "field": "dataAugmentation",
@@ -2640,10 +2640,10 @@
           "severity": "warn",
           "message": "数据增强：有内容但引文未通过定位校验或未支撑该主张。",
           "action": "该条件按「信息不足」处理，不参与一致性判断。",
-          "at": 1789725594520
+          "at": 1791443739675
         },
         {
-          "id": "vi_mu6seqvs_7",
+          "id": "vi_muz7ck63_7",
           "scope": "method",
           "refId": "m_p_arxiv_2103.14030",
           "field": "pretrainedModel",
@@ -2651,10 +2651,10 @@
           "severity": "warn",
           "message": "预训练模型：无法确认（表述含糊）。",
           "action": "需要人工回到原文确认后再用于比较。",
-          "at": 1789725594520
+          "at": 1791443739675
         },
         {
-          "id": "vi_mu6seqvs_8",
+          "id": "vi_muz7ck63_8",
           "scope": "method",
           "refId": "m_p_arxiv_2103.14030",
           "field": "experimentalSettings",
@@ -2662,7 +2662,7 @@
           "severity": "warn",
           "message": "实验设置：无法确认（表述含糊）。",
           "action": "需要人工回到原文确认后再用于比较。",
-          "at": 1789725594520
+          "at": 1791443739675
         }
       ]
     },
@@ -3334,7 +3334,7 @@
       "paperTitleGuess": "A ConvNet for the 2020s",
       "validation": [
         {
-          "id": "vi_mu6seqwx_9",
+          "id": "vi_muz7ck7d_9",
           "scope": "method",
           "refId": "m_p_arxiv_2201.03545",
           "field": "downstreamExtraData",
@@ -3342,10 +3342,10 @@
           "severity": "warn",
           "message": "下游额外训练数据：无法确认（表述含糊）。",
           "action": "需要人工回到原文确认后再用于比较。",
-          "at": 1789725594561
+          "at": 1791443739721
         },
         {
-          "id": "vi_mu6seqwx_10",
+          "id": "vi_muz7ck7d_10",
           "scope": "method",
           "refId": "m_p_arxiv_2201.03545",
           "field": "computeResources",
@@ -3353,7 +3353,7 @@
           "severity": "warn",
           "message": "算力/训练时长：有内容但引文未通过定位校验或未支撑该主张。",
           "action": "该条件按「信息不足」处理，不参与一致性判断。",
-          "at": 1789725594561
+          "at": 1791443739721
         }
       ]
     }
@@ -3579,7 +3579,19 @@
             "paperId": "p_arxiv_2010.11929",
             "claim": "ViT 在较小数据集上比同等计算量的 ResNet 更容易过拟合",
             "quote": "Vision Transformers overfit more than ResNets with\n\ncomparable computational cost on smaller datasets.",
-            "page": 7
+            "page": 7,
+            "quoteEvidence": {
+              "paperId": "p_arxiv_2010.11929",
+              "quote": "Vision Transformers overfit more than ResNets with\n\ncomparable computational cost on smaller datasets.",
+              "page": 7,
+              "start": 25629,
+              "end": 25731,
+              "section": "experiments.",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            }
           },
           {
             "paperId": "p_arxiv_1512.03385",
@@ -3625,25 +3637,73 @@
             "paperId": "p_arxiv_2010.11929",
             "claim": "ViT 在较小数据集上比 ResNet 更容易过拟合；自监督预训练的 ViT-B/16 在 ImageNet 上达到 79.9%，比从头训练提升 2%，但仍落后监督预训练 4%",
             "quote": "Vision Transformers overfit more than ResNets with\n\ncomparable computational cost on smaller datasets.",
-            "page": 7
+            "page": 7,
+            "quoteEvidence": {
+              "paperId": "p_arxiv_2010.11929",
+              "quote": "Vision Transformers overfit more than ResNets with\n\ncomparable computational cost on smaller datasets.",
+              "page": 7,
+              "start": 25629,
+              "end": 25731,
+              "section": "experiments.",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            }
           },
           {
             "paperId": "p_arxiv_2012.12877",
             "claim": "DeiT 在 CIFAR-10 上仅用自身数据训练的效果不如 ImageNet 预训练（98.5% vs 99.1%），作者认为这是预期的，因为网络见到的多样性低得多",
             "quote": "The\n\nresults are not as good as with Imagenet pre-training (98.5% vs 99.1%), which\n\nis expected since the network has seen a much lower diversity.",
-            "page": 14
+            "page": 14,
+            "quoteEvidence": {
+              "paperId": "p_arxiv_2012.12877",
+              "quote": "The\n\nresults are not as good as with Imagenet pre-training (98.5% vs 99.1%), which\n\nis expected since the network has seen a much lower diversity.",
+              "page": 14,
+              "start": 33143,
+              "end": 33289,
+              "section": "Method RegNetY-16GF DeiT-B DeiT-B⚗",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            }
           },
           {
             "paperId": "p_arxiv_2103.14030",
             "claim": "推理速度方面，ResNe(X)t 由高度优化的 Cudnn 函数实现，而本架构使用未完全优化的 PyTorch 内置函数，彻底的 kernel 优化超出本文范围",
             "quote": "Regarding inference speed, while ResNe(X)t is\n\nbuilt by highly optimized Cudnn functions, our architecture\n\nis implemented with built-in PyTorch functions that are not\n\nall well-optimized. A thorough kernel optimization is be-\n\nyond the scope of this paper.",
-            "page": 7
+            "page": 7,
+            "quoteEvidence": {
+              "paperId": "p_arxiv_2103.14030",
+              "quote": "Regarding inference speed, while ResNe(X)t is\n\nbuilt by highly optimized Cudnn functions, our architecture\n\nis implemented with built-in PyTorch functions that are not\n\nall well-optimized. A thorough kernel optimization is be-\n\nyond the scope of this paper.",
+              "page": 7,
+              "start": 33111,
+              "end": 33368,
+              "section": "Method Backbone mIoU score",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            }
           },
           {
             "paperId": "p_arxiv_2201.03545",
             "claim": "论文在附录中声明会讨论 limitations（§F），但本次提供的片段未包含该节内容",
             "quote": "Finally, we discuss the limitations (§F) and\n\nsocietal impact (§G) of our work.",
-            "page": 9
+            "page": 9,
+            "quoteEvidence": {
+              "paperId": "p_arxiv_2201.03545",
+              "quote": "Finally, we discuss the limitations (§F) and\n\nsocietal impact (§G) of our work.",
+              "page": 9,
+              "start": 44163,
+              "end": 44242,
+              "section": "Appendix",
+              "locator": "page+offset",
+              "verified": true,
+              "matchType": "strict",
+              "coverage": 1
+            }
           }
         ],
         "claimType": "qualitative",
@@ -3699,7 +3759,7 @@
       }
     ],
     "derivedFrom": {
-      "rulesVersion": "r3.0.0",
+      "rulesVersion": "r3.1.0",
       "paperSignature": "p_arxiv_1512.03385,p_arxiv_2010.11929,p_arxiv_2012.12877,p_arxiv_2103.14030,p_arxiv_2201.03545"
     },
     "model": "deepseek-chat",
@@ -3708,7 +3768,7 @@
     "stale": true,
     "generatedAt": 1789725167589,
     "staleReasons": [
-      "本文件的分歧种类与可比性已由程序按规则 r3.0.0 重算（规则重算，未重新调用模型）"
+      "本文件的分歧种类与可比性已由程序按规则 r3.1.0 重算（规则重算，未重新调用模型）"
     ]
   },
   "decisionSample": {
@@ -4371,5 +4431,5 @@
   },
   "tableBindingCheckedAt": "2026-09-18T09:53:08.048Z",
   "revalidatedOnly": true,
-  "revalidationNote": "本文件的「判定类结论」（字段校验问题、条件范围与状态、关系可信度三档、分歧种类与可比性、已检查论文对）已由程序按规则 r3.0.0 在模型输出上重算；模型给出的字段值、引文、理由文字来自提示词 v3.0.0 的那次真实调用（未在重算中重新调用模型）。"
+  "revalidationNote": "本文件的「判定类结论」（字段校验问题、条件范围与状态、关系可信度三档、分歧种类与可比性、已检查论文对）已由程序按规则 r3.1.0 在模型输出上重算；模型给出的字段值、引文、理由文字来自提示词 v3.0.0 的那次真实调用（未在重算中重新调用模型）。"
 }

@@ -79,13 +79,10 @@ export function applyDivergenceRules(
       detail: asStr(d.detail),
     }));
 
-  // 用程序按论文对重算可比性，覆盖模型自报值
-  let comparabilityLevel: DivergenceFinding['comparabilityLevel'] =
-    raw.comparabilityLevel === 'comparable' ||
-    raw.comparabilityLevel === 'limited' ||
-    raw.comparabilityLevel === 'not_comparable'
-      ? raw.comparabilityLevel
-      : 'unknown';
+  // 可比性一律由程序按论文对重算，**不采信模型自报值**。
+  // 旧实现只在「论文对 >= 2」时才覆盖，于是 0/1 篇的发现会把模型自评的 comparable 原样透传给界面
+  // （已复现）；而单篇论文根本不存在「论文对可比性」。现在默认就是「未知」，只有能组成论文对时才给结论。
+  let comparabilityLevel: DivergenceFinding['comparabilityLevel'] = 'unknown';
 
   if (paperIds.length >= 2) {
     const levels: DivergenceFinding['comparabilityLevel'][] = [];

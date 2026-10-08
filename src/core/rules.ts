@@ -10,7 +10,7 @@ import type { ConditionDimension, ExperimentConditions, RelationType } from './t
 import { CONDITION_DIMENSIONS } from './types';
 
 /** 规则版本：可比性、关系校验、条件范围、证据支持判定。任何影响结论的改动都要升版本。 */
-export const RULES_VERSION = 'r3.0.0';
+export const RULES_VERSION = 'r3.1.0';
 
 /** 提示词版本在 prompts.ts 中单独维护，缓存同时记录两者。 */
 export type StalenessReason =

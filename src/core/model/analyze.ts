@@ -840,7 +840,9 @@ export async function generateDecision(
           }),
         applicability: c.applicability || undefined,
         missing: (missingRaw ? requireStringArray(missingRaw, '阅读路线结果.candidates[].missing') : []).filter(Boolean),
-        computeReported: compute ? compute.status === 'verified' : !!c.computeReported,
+        // 算力是否已报告一律以程序校验结果为准。没有 conditions（早期缓存 / 迁移数据）时
+        // 不能退回去采信模型自报的 computeReported —— 那等于让模型自证「论文报告了算力」。
+        computeReported: compute?.status === 'verified',
         computeStage: compute?.stage ?? (compute?.status === 'verified' ? 'unknown' : undefined),
         computeScope: compute?.scopeDetail ?? undefined,
       } as CandidateMethod;
