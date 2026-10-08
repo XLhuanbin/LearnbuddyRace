@@ -39,8 +39,49 @@ const resolveChrome = () => {
 const ROOT = resolve(new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
 const DIST = join(ROOT, 'dist');
 const SHOTS = join(ROOT, 'docs', 'import-flow');
-const GOOD_PDF = join(ROOT, 'samples', 'pdfs', '2006.11239.pdf');
+const GOOD_PDF = process.env.RP_IMPORT_PDF
+  ? resolve(process.env.RP_IMPORT_PDF)
+  : join(ROOT, 'samples', 'pdfs', '2006.11239.pdf');
 const BAD_PDF = join(ROOT, '.build', 'fixtures', 'corrupt.pdf');
+
+/**
+ * 夹具自举 + 预检。
+ *
+ * 本脚本需要两个夹具，历史上前者靠人工下载、后者靠人工放置，克隆下来直接跑会「看起来在跑、
+ * 其实在空等」：同一份 PDF 迟迟解析不出来，要等 180s 超时才暴露。这里提前解决：
+ * - 损坏 PDF：**本地即时生成**（非 PDF 内容即可），保证「解析失败可见」这条路径可复现；
+ * - 可解析 PDF：不伪造（真要能解析出文本），缺失时立刻给出可执行的指引并退出，
+ *   而不是让浏览器白等。可用环境变量 RP_IMPORT_PDF 指向自己的 PDF，或放到默认路径。
+ */
+mkdirSync(join(ROOT, '.build', 'fixtures'), { recursive: true });
+if (!existsSync(BAD_PDF)) {
+  // 头两字节像 PDF、其余是随机字节 → pdf.js 必然打不开，正是要测的失败路径（PDF 层错误，不是模型错误）
+  const junk = new Uint8Array(512);
+  for (let i = 0; i < junk.length; i++) junk[i] = Math.floor(Math.random() * 256);
+  writeFileSync(BAD_PDF, Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.from(junk)]));
+  console.log(`[夹具] 已生成损坏 PDF：${BAD_PDF}`);
+}
+if (!existsSync(GOOD_PDF)) {
+  console.error('缺少可解析的样本 PDF，已中止（避免浏览器空等到超时）：');
+  console.error(`  期望路径：${GOOD_PDF}`);
+  console.error('  处理方式（任选其一）：');
+  console.error('    1) 在该路径放一份带文本层的真实 PDF；或');
+  console.error('    2) 用 RP_IMPORT_PDF=<你的 PDF 路径> node scripts/verify-import-flow.mjs 指定一份。');
+  console.error('  说明：这里不能用假文件 —— 该分支要验证「真实 PDF 能被解析并导入」，伪造会让断言失去意义。');
+  process.exit(2);
+}
+
+/**
+ * 「刚导入的这份 PDF」的识别式：默认沿用 DDPM(2006.11239) 关键词，
+ * 同时把实际文件名的词干并入，便于用 RP_IMPORT_PDF 换成其它真实 PDF 时断言仍然成立。
+ * 默认路径下与旧行为完全一致（前缀仍是 denoising|diffusion|2006.11239）。
+ */
+const PDF_STEM = GOOD_PDF.split(/[\\/]/).pop().replace(/\.pdf$/i, '');
+const PDF_MATCH = new RegExp(
+  'denoising|diffusion|2006\\.11239|' + PDF_STEM.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+  'i',
+);
+
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -268,7 +309,7 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
       .join(' | ')}`,
   );
   const after = await uploadList(ev);
-  const ddpmIn = after.names.findIndex((n) => /denoising|diffusion|2006\.11239/i.test(n));
+  const ddpmIn = after.names.findIndex((n) => PDF_MATCH.test(n));
   console.log(`   导入后列表（${after.count} 篇）：${after.names.map((n) => n.slice(0, 28)).join(' | ')}`);
   check('导入的论文出现在方法提取页的列表里（不再静默留在案例列表）', ddpmIn >= 0);
   check(
@@ -289,7 +330,7 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
     const btns=[...document.querySelectorAll('.work2-detail button')].map((b)=>b.textContent.trim());
     return { head: h.trim(), btns, inner: (document.querySelector('.work2-detail')||{}).innerText||'' };
   })()`);
-  check('可以打开刚导入的论文（右侧详情标题 = 该论文）', /denoising|diffusion|2006\.11239/i.test(detail.head), detail.head.slice(0, 40));
+  check('可以打开刚导入的论文（右侧详情标题 = 该论文）', PDF_MATCH.test(detail.head), detail.head.slice(0, 40));
   check(
     '该论文的抽取入口可用（开始提取字段 / 配置模型后提取）',
     detail.btns.some((b) => /提取字段|配置模型后提取/.test(b)),
@@ -455,7 +496,7 @@ console.log('=== 阶段 B（独立数据目录 #2）：空数据 → 同一 PDF 
   const second = await uploadList(ev);
   const secondUser = await ev(userCountExpr);
   console.log(`   库里用户论文：第一次 ${firstUser} 篇 → 第二次 ${secondUser} 篇`);
-  const same = second.names.filter((n) => /denoising|diffusion|2006\.11239/i.test(n)).length;
+  const same = second.names.filter((n) => PDF_MATCH.test(n)).length;
   console.log(`   列表：第一次 ${first.count} 篇 → 第二次 ${second.count} 篇；列表里同名条目 ${same} 个`);
   check(
     '同一 PDF 上传两次只保留一份（按内容哈希去重）',

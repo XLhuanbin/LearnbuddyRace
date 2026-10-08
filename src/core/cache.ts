@@ -276,18 +276,40 @@ function currentBuildId(): Promise<string> {
   return buildIdPromise;
 }
 
+/**
+ * 把从文件读到的缓存索引**规整为当前格式**（预置语料加载的唯一迁移入口）。
+ *
+ * 为什么需要：旧版缓存（cacheVersion 落后）里的方法字段状态是两态（ok / partial / …），
+ * 条件结构缺维度，关系用已废弃的 `assertedBy`；而界面与下游只认当前四态字段与完整条件结构。
+ * 迁移由 `migrateMethod` / `migrateRelation` 完成，二者对**当前格式是语义幂等**的
+ * （已用独立脚本核验：`samples` / `samples-vision` 两份真实缓存迁移前后 0 差异）。
+ *
+ * 修复的真实缺陷：此前 `migrateMethod` 只在「从本机 IndexedDB 恢复记录」的路径上被调用
+ * （App 侧），而从**语料文件**加载（本函数）这条路径没有迁移 —— 同一份数据两条路口径不一致：
+ * 本地恢复会被迁移，语料加载却不会，旧格式缓存会带旧口径进入界面。把迁移收进本函数后，
+ * 两条加载路径都经过同一层。
+ */
+export function normalizeCorpusIndex(data: CachedCorpusIndex): CachedCorpusIndex {
+  return {
+    ...data,
+    methods: (data.methods ?? []).map(migrateMethod),
+    relations: (data.relations ?? []).map(migrateRelation),
+  };
+}
+
 /** 浏览器端加载缓存索引（自动带构建指纹，避免读到 CDN 缓存的旧语料） */
 export async function loadCorpusIndex(base = './samples/'): Promise<{ index: CachedCorpusIndex; formatMismatch?: string }> {
   const v = await currentBuildId();
   const res = await fetch(`${base}index.json?v=${v}`, { cache: 'no-cache' });
   if (!res.ok) throw new Error(`预置语料索引加载失败（HTTP ${res.status}）。`);
-  const data = (await res.json()) as CachedCorpusIndex;
+  const raw = (await res.json()) as CachedCorpusIndex;
   // 版本不一致不再直接失败：旧结构由 migrateMethod/migrateRelation 迁移，并作为过期原因上报给界面。
   const formatMismatch =
-    data.cacheVersion !== CACHE_VERSION
-      ? `缓存文件结构版本为 ${data.cacheVersion}，当前程序为 ${CACHE_VERSION}；已按当前结构迁移加载，相关结果标记为过期。`
+    raw.cacheVersion !== CACHE_VERSION
+      ? `缓存文件结构版本为 ${raw.cacheVersion}，当前程序为 ${CACHE_VERSION}；已按当前结构迁移加载，相关结果标记为过期。`
       : undefined;
-  return { index: data, formatMismatch };
+  // 对外一律返回**已迁移**的索引：两条加载路径（本地恢复 / 语料文件）结构口径一致。
+  return { index: normalizeCorpusIndex(raw), formatMismatch };
 }
 
 /** 按需加载某篇论文的全文（用于证据上下文展示） */
