@@ -18,42 +18,63 @@ import { buildEvidence } from './evidence';
  * 判断一句话是否在说「**本论文提供了**模型/权重/代码」。
  *
  * 必须同时满足：有产物名词 + 有可用/发布措辞，并且落在下面三种句式之一：
- *   A. 自称提供：we/our/this paper + available/released/open-sourced…
+ *   A. 自称提供：we/our/this paper + release/open-source + 产物名词（主语与动词之间不得夹带
+ *      「使用 / 比较 / 基于」类动词，见 CONSUME_VERBS）
  *   B. 产物 + 系动词：models/code/… is|are|will be (publicly) available
  *   C. 可用措辞 + 仓库链接：available/released + https:// | github.com | huggingface
  *
  * 明确排除的假阳性（实测出现过）：
  *   「several recently released pretrained language models」（说的是别的模型）
  *   「surpasses all previously published models」（比较，不是提供）
+ *   「our implementation is based on the open-sourced PyTorch implementation」（在说别人的产物）
  *   「results are reported on the test set when publicly available」（说的是测试集）
  *   「we will release the synthetic datasets」（发布的是数据集，不是模型/权重/代码）
  * 以及任何否定表述（not available / unavailable / 尚未公开）。
  */
 const AVAIL_WORDS = /\b(available|released?|releasing|open-?sourced?)\b|made [a-z]+ available|make [a-z]+ available|已?(?:发布|开源|公开)|可(?:获取|下载)/i;
 const ARTIFACT = /\b(models?|checkpoints?|weights?|codebase|code|implementations?|libraries|library)\b|模型|权重|检查点|代码|实现|库/i;
-const SELF = /\b(we|our|this (?:paper|work))\b/i;
 const URL_RE = /(https?:\/\/|github\.com|huggingface)/i;
 const NEGATION = /\b(?:not|never|un)\s*(?:publicly\s*)?available\b|\bunavailable\b|尚未?公开|不(?:会|能|予)?(?:发布|开源|公开)/i;
+
+/**
+ * 「使用 / 比较 / 基于」类动词。
+ *
+ * 为什么必须有这道守卫：把 `\b` 补回词边界后，`released` / `open-sourced` 当**形容词**用的句子
+ * 也会命中「自称提供」分支，实测在参赛语料里就能复现（ViT 附录）：
+ *   "Our implementation is based on the open-sourced PyTorch implementation in https://github.com/…"
+ *   "our implementation, similar to the open-source implementation, is very slow on TPUs"
+ * 这两句都**不是** ViT 在发布自己的产物。因此要求「自称提供」的主语与发布动词之间
+ * 不能夹带下列动词；命中即视为「在说别人的产物」，不认。
+ */
+const CONSUME_VERBS =
+  /\b(?:use[sd]?|using|employ\w*|adopt\w*|follow\w*|base[ds]?|build[s]?|built|compare[sd]?|comparing|similar|rely|relies|relying|leverage\w*|evaluate[sd]?|adapt\w*|initiali[sz]\w*|warm[- ]?start\w*|borrow\w*|reproduc\w*)\b/i;
 
 function looksLikeAvailability(text: string): boolean {
   if (NEGATION.test(text)) return false;
   if (!ARTIFACT.test(text)) return false;
-  // A：自称提供，且产物必须是「发布/提供」的宾语（避免我们把别人的模型或数据集当成自己的产物）
-  if (
-    /(we|our|this (?:paper|work))[^.]{0,80}?(?:release|releasing|open-?source)w*[^.]{0,60}?(models?|checkpoints?|weights?|code|implementations?|libraries?|library)/i.test(
+  // A：自称提供，且产物必须是「发布/提供」的宾语（避免我们把别人的模型或数据集当成自己的产物）。
+  //
+  // 这里的「反斜杠 + b」必须是两个字符。历史上这三个分支的词边界曾被写成单个 0x08 退格字节，
+  // 导致「自称提供 / make…available / 可用措辞+链接」三个分支全部变成死代码（该模块又零测试，久未被发现）。
+  // 复现：修复前 "We release our pretrained models..." 返回 false。
+  //
+  // 另外 released / open-sourced 当形容词用时（"based on the open-sourced PyTorch implementation"、
+  // "similar to the open-source implementation"、"we use the released models"）不是本论文在发布产物，
+  // 因此要求主语与发布动词之间不能夹带 CONSUME_VERBS。
+  {
+    const m = /\b(we|our|this (?:paper|work))\b([^.]{0,80}?)\b(?:release|releasing|open-?source)\w*[^.]{0,60}?\b(models?|checkpoints?|weights?|code|implementations?|libraries?|library)\b/i.exec(
       text,
-    )
-  ) {
-    return true;
+    );
+    if (m && !CONSUME_VERBS.test(m[2])) return true;
   }
-  if (
-    /(?:make|made|makes|making)[^.]{0,40}?(models?|checkpoints?|weights?|code|implementations?|libraries?|library)[^.]{0,20}?available/i.test(
+  {
+    const m = /\b(?:make|made|makes|making)\b([^.]{0,40}?)\b(models?|checkpoints?|weights?|code|implementations?|libraries?|library)\b[^.]{0,20}?\bavailable\b/i.exec(
       text,
-    )
-  ) {
-    return true;
+    );
+    if (m && !CONSUME_VERBS.test(m[1])) return true;
   }
-  if (SELF.test(text) && AVAIL_WORDS.test(text) && /(available|released?|open-?sourced?)/i.test(text) && URL_RE.test(text)) return true;
+  // 历史上的第三条分支「自称 + 可用措辞 + 仓库链接」已删除：它的条件被下面的 C 完全覆盖，
+  // 而它自己不带 CONSUME_VERBS 守卫，正是它把「基于别人的开源实现，仓库见 https://…」判成了发布声明。
   // B：产物 + 系动词 available
   if (
     /\b(models?|checkpoints?|weights?|code|implementations?|libraries|library)\b[^.]{0,60}\b(?:is|are|will be|have been|has been)\s+(?:publicly\s+)?available/i.test(
@@ -62,8 +83,10 @@ function looksLikeAvailability(text: string): boolean {
   ) {
     return true;
   }
-  // C：可用措辞 + 仓库链接
-  if (AVAIL_WORDS.test(text) && URL_RE.test(text)) return true;
+  // C：可用措辞 + 仓库链接。
+  //    整句还要不含「使用 / 比较 / 基于」类动词，否则会把「基于别人的开源实现，仓库见 https://…」
+  //    误当成本论文的发布声明（ViT 附录里就有一句，见上）。
+  if (!CONSUME_VERBS.test(text) && AVAIL_WORDS.test(text) && URL_RE.test(text)) return true;
   return false;
 }
 

@@ -26,6 +26,7 @@ import { validateMethod, validateRelation } from '../src/core/validate';
 import { effectiveField } from '../src/core/effective';
 import { corpusBaseOfPaper, revalidateCachedRelations } from '../src/core/cache';
 import { applyDivergenceRules } from '../src/core/divergenceRules';
+import { findWeightsAvailability } from '../src/core/inferenceReadiness';
 import { hasThirdPartySubject } from '../src/core/rules';
 import { applyTitleCorrection } from '../src/core/model/analyze';
 import {
@@ -1873,6 +1874,57 @@ console.log('=== 26. 全文路径 / 证据定位 / 关系装配 / 有效值 / �
 
   check('同一方法的实验不会被拿去和自己比较', pickComparableExperimentPair([], []) === null);
   check('一侧没有实验时返回 null（界面据此不展示数字）', pickComparableExperimentPair([], [mkExp('z1', 'pb', 'ImageNet-1K', 'top-1 accuracy', '1.0')]) === null);
+}
+
+console.log('=== 27. 权重/代码可获取性检索（A1 修复回归：词边界曾被写成 0x08 退格字节） ===');
+{
+  // 这一组测试的由来：inferenceReadiness.ts 里三处正则的词边界 \b 曾被写成单个 0x08 退格字节，
+  // 使「自称提供 / make…available / 可用措辞+链接」三个分支全变成死代码，而该模块此前零测试覆盖。
+  // 修复前：下面 5 条正向用例全部返回 found=false。
+  const paperOf = (text: string) => PAPER('pw', 'Availability Probe', 2020, text);
+
+  const trueCases: [string, string][] = [
+    ['We provide an open-source implementation of our method to facilitate future research.', '自称提供（DeiT 原句句式）'],
+    ['We release our model, pretraining and fine-tuning code implemented in PyTorch for research use.', '自称 release + 产物（RoBERTa 原句句式）'],
+    ['We have made the trained weights available along with the training code in the Transformers library.', 'made … available（DistilBERT 原句句式）'],
+    ['The code and models are publicly available at https://github.com/example/project.', '产物 + 系动词 available'],
+    ['Fine-tuning code and pre-trained models are available at https://github.com/google-research/vit.', '产物 + 系动词 available（带链接）'],
+  ];
+  for (const [text, why] of trueCases) {
+    const r = findWeightsAvailability(paperOf(text));
+    check(`能找到「本论文提供产物」的声明：${why}`, r.found === true, text.slice(0, 56));
+  }
+
+  // 反向用例：都必须在 ARTIFACT / NEGATION / CONSUME_VERBS 三道门上被挡掉
+  const falseCases: [string, string][] = [
+    ['Our implementation is based on the open-sourced PyTorch implementation in https://github.com/other/repo.', 'ViT 原句：「基于别人的开源实现」不是自己发布'],
+    ['Our implementation, similar to the open-source implementation, is very slow on TPUs in our setting.', 'ViT 原句：「与开源实现相似」不是自己发布'],
+    ['We use the released pretrained language models as our initialization for the fine-tuning stage.', 'released 作形容词，说的是别人的模型'],
+    ['Several recently released pretrained language models have improved results on this benchmark.', 'released 作形容词，无「我们提供」的主语'],
+    ['We will release the synthetic datasets with the hope of stimulating further study in this area.', '发布的是数据集，不是模型/权重/代码'],
+    ['The model weights are not publicly available and will not be released by the authors.', '否定表述'],
+    ['The test-dev set has no publicly available ground truth and the result is reported by the evaluation server.', '无可获取的产物名词（ResNet 原句）'],
+  ];
+  for (const [text, why] of falseCases) {
+    const r = findWeightsAvailability(paperOf(text));
+    check(`不得判成「本论文发布产物」：${why}`, r.found === false, r.evidence?.quote?.slice(0, 70) ?? '');
+  }
+
+  // 真实语料回归：参赛视觉案例里的 ViT，必须命中它真正的发布声明，而不是附录里那句「基于别人的开源实现」
+  const vitFile = 'public/samples-vision/text/p_arxiv_2010.11929.json';
+  if (existsSync(vitFile)) {
+    const t = JSON.parse(readFileSync(vitFile, 'utf8')) as { rawText: string; pages: Paper['pages'] };
+    const r = findWeightsAvailability(PAPER('p_arxiv_2010.11929', 'ViT', 2021, t.rawText));
+    const q = normalize(r.evidence?.quote ?? '', false).out;
+    check('真实 ViT 论文能检索到权重/代码可获取声明', r.found === true);
+    check(
+      '真实 ViT 的证据句是发布声明，而不是「based on the open-sourced …」那句',
+      r.found === true && /models are available/i.test(q) && !/based on the open-?sourced/i.test(q),
+      q.slice(0, 90),
+    );
+  } else {
+    check('预置视觉语料存在（缺少则该断言无意义）', false, vitFile);
+  }
 }
 
 console.log('');
