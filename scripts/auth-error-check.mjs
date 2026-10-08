@@ -302,12 +302,12 @@ async function main() {
   return el ? el.querySelector('input[type=file]') : null;
 })()`,
   });
-  if (rUp.result && rUp.result.objectId) {
-    await cdp.send('DOM.setFileInputFiles', { objectId: rUp.result.objectId, files: [pdf] });
-    console.log('     [上传] 已通过「上传按钮最近容器内的 file input」提交论文');
-  } else {
-    console.log('     [上传] ✗ 未定位到上传控件（后面会因缺少抽取按钮而失败）');
+  if (!(rUp.result && rUp.result.objectId)) {
+    // 定位失败就明确报错中止：不做「对所有 file input 都塞一次」的兜底（那会操作到无关控件）
+    throw new Error('未定位到上传控件（按钮匹配不到，或按钮与 file input 不在同一容器层级）；已中止，且没有操作任何 file input。');
   }
+  await cdp.send('DOM.setFileInputFiles', { objectId: rUp.result.objectId, files: [pdf] });
+  console.log('     [上传] 已通过「上传按钮最近容器内的那一个 file input」提交论文（只操作这一个控件）');
   // 抽取按钮文案随视图/改版变化（论文集合「分析方法字段」、方法提取「开始提取方法字段」、旧「抽取方法字段」）
   const btnReady = await cdp.waitFor(`[...document.querySelectorAll('button')].some((b)=>/抽取方法字段|提取方法字段|分析方法字段|开始提取/.test(b.textContent))`, 90000, '抽取按钮');
   check('论文导入后出现抽取按钮', btnReady);
