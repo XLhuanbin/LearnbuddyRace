@@ -10,7 +10,7 @@ import type { ConditionDimension, ExperimentConditions, RelationType } from './t
 import { CONDITION_DIMENSIONS } from './types';
 
 /** 规则版本：可比性、关系校验、条件范围、证据支持判定。任何影响结论的改动都要升版本。 */
-export const RULES_VERSION = 'r3.1.0';
+export const RULES_VERSION = 'r3.2.0';
 
 /**
  * 字段 note 的判据词：模型把该字段标注为「找到了内容但无法确认」。

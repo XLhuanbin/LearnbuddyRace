@@ -28,7 +28,7 @@ import type {
 } from '../types';
 import { CONDITION_DIMENSIONS, METHOD_FIELD_LABELS } from '../types';
 import type { ExecutionAssessment, ExperimentRecord, ResourceFeasibility, TaskTag, TrainingStage } from '../types';
-import { canonicalDatasetName } from '../experiments';
+import { canonicalDatasetName, isMetricValueMissing } from '../experiments';
 import { locateNear, locateQuote } from '../text';
 import { selectExcerpt } from '../excerpt';
 import { buildEvidence } from '../evidence';
@@ -580,7 +580,31 @@ export function assembleRelationsFromModel(
   rawRelations.forEach((r, i) => {
     const from = r.from || '';
     const to = r.to || '';
-    if (!validIds.has(from) || !validIds.has(to) || from === to) return;
+    if (!validIds.has(from) || !validIds.has(to) || from === to) {
+      // 这类关系不进入结果（端点无法成立），但**不能静默丢弃**：否则读者只看到「关系变少了」，
+      // 无从判断是模型漏判、还是被程序剔除。这里用既有问题机制（ValidationIssue）留一条可读说明，
+      // 它会出现在分析日志里（App 的关系分析日志 / 离线管线的计数与报告），不写入缓存。
+      //
+      // 注：同一对端点的重复行仍然静默归并（下面的 seen 去重）—— 那只是归一化，
+      // 关系本身仍在结果里，没有信息丢失。
+      const reason =
+        from && to && from === to
+          ? `是一条自环关系（${from} → ${to}）`
+          : !from || !to
+            ? `缺少关系端点（from=${JSON.stringify(r.from ?? null)}，to=${JSON.stringify(r.to ?? null)}）`
+            : `端点不在本次分析范围内（${from} → ${to}）`;
+      issues.push({
+        id: `vi_relskip_${i}`,
+        scope: 'relation',
+        refId: `${from}->${to}`,
+        code: 'parse_warning',
+        severity: 'warn',
+        message: `模型给出的这条关系${reason}，已从结果中剔除（该关系未进入结果）。`,
+        action: '若这两个方法确实存在关系，请确认它们都在当前语料/范围内后重新分析关系，或人工添加该关系。',
+        at: Date.now(),
+      });
+      return;
+    }
     const key = `${from}->${to}`;
     if (seen.has(key)) return;
     seen.add(key);
@@ -1351,6 +1375,10 @@ export function parseExperimentRecords(paper: Paper, parsed: Record<string, unkn
     if (colLabel && !colLoc) issues.push('列标签未在引文附近定位到');
     if (caption && capLoc) issues.push(`表题已在引文附近定位（${capMatch === 'strict' ? '逐字一致' : '归一化后一致'}）`);
     if (rowLabel && rowLoc) issues.push(`行标签已在引文附近定位（${rowMatch === 'strict' ? '逐字一致' : '归一化后一致'}）`);
+    // 数值缺失要如实标出：这条记录没有可比对的数字，不参与数值对照（未知 ≠ 一致）。
+    if (isMetricValueMissing(toStr(item.metricValue, 40))) {
+      issues.push('未给出指标数值（metricValue 为空或「未知」这类占位写法），该记录不参与数值对照');
+    }
 
     // 「整次抽取的条数超出提示词约定」是语料级情况，而 ExperimentRecord 没有语料级字段，
     // 因此挂在第一条记录的核查问题上，保证读者一定看得到，不被静默吞掉。

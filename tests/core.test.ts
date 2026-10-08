@@ -68,6 +68,7 @@ import {
   canonicalMetricName,
   canonicalResolution,
   compareExperiments,
+  isMetricValueMissing,
   pickComparableExperimentPair,
   suggestComparablePairs,
 } from '../src/core/experiments';
@@ -2457,6 +2458,133 @@ console.log('=== 32. A1b：紧凑写法「产物 + 冒号 + 仓库链接」的�
     /publicly available at/i.test(rBoth.evidence?.quote ?? '') && !/^Code:/i.test((rBoth.evidence?.quote ?? '').trim()),
     (rBoth.evidence?.quote ?? '').slice(0, 60),
   );
+}
+
+console.log('=== 33. 关系装配：越界端点 / 自环 / 端点缺失不得静默丢弃 ===');
+{
+  // 复现过的问题：assembleRelationsFromModel 遇到「端点不在本语料 / 自环 / 端点缺失」直接 return，
+  // 一条问题都不留（实测 issues 为 0），读者只看到「关系变少了」，无从判断是模型漏判还是被程序剔除。
+  // 现在仍然不进入结果，但通过既有问题机制（ValidationIssue + 已声明未使用的 parse_warning 码）留下说明。
+  const textA = 'We propose ResNet, a residual learning framework to ease the training of networks.';
+  const textB = 'We propose ViT which applies a pure transformer directly to sequences of image patches.';
+  const papers = [PAPER('pa', 'ResNet', 2016, textA), PAPER('pb', 'ViT', 2021, textB)];
+  const fieldsOf = (name: string): Method['fields'] =>
+    Object.fromEntries(
+      (['researchTask', 'methodName', 'coreIdea', 'inputsConditions', 'datasets', 'metrics', 'limitations'] as const).map((k) => [
+        k,
+        k === 'methodName' ? { value: name, status: 'verified' as const } : { value: undefined, status: 'missing' as const },
+      ]),
+    ) as Method['fields'];
+  const mA: Method = { id: 'm_pa', paperId: 'pa', fields: fieldsOf('ResNet'), conditions: emptyConditions(), experiments: [], overrides: [] };
+  const mB: Method = { id: 'm_pb', paperId: 'pb', fields: fieldsOf('ViT'), conditions: emptyConditions(), experiments: [], overrides: [] };
+  const asm = (raw: unknown[]) => assembleRelationsFromModel(raw as Parameters<typeof assembleRelationsFromModel>[0], papers, [mA, mB]);
+
+  const ghost = asm([{ from: 'm_ghost', to: 'm_pb', type: 'extends', evidenceState: 'candidate' }]);
+  check('端点不在本语料 → 关系不进入结果', ghost.relations.length === 0, String(ghost.relations.length));
+  check(
+    '端点不在本语料 → 留下明确说明（parse_warning / warn）',
+    ghost.issues.length === 1 && ghost.issues[0].code === 'parse_warning' && ghost.issues[0].severity === 'warn',
+    JSON.stringify(ghost.issues.map((i) => i.code)),
+  );
+  check(
+    '说明写清原因并指出是哪一对端点',
+    /端点不在本次分析范围内/.test(ghost.issues[0]?.message ?? '') && (ghost.issues[0]?.message ?? '').includes('m_ghost'),
+    ghost.issues[0]?.message,
+  );
+  check('说明给出可执行建议（重新分析或人工添加）', /重新分析|人工添加/.test(ghost.issues[0]?.action ?? ''), ghost.issues[0]?.action);
+  check('问题的 scope 标成 relation', ghost.issues[0]?.scope === 'relation', String(ghost.issues[0]?.scope));
+
+  const selfLoop = asm([{ from: 'm_pa', to: 'm_pa', type: 'similar', evidenceState: 'candidate' }]);
+  check(
+    '自环关系 → 不进入结果，但留下「自环」说明',
+    selfLoop.relations.length === 0 && /自环/.test(selfLoop.issues[0]?.message ?? ''),
+    selfLoop.issues[0]?.message,
+  );
+
+  const missingEndpoint = asm([{ from: '', to: 'm_pb', type: 'extends', evidenceState: 'candidate' }]);
+  check(
+    '端点缺失 → 不进入结果，但说明写明「缺少关系端点」',
+    missingEndpoint.relations.length === 0 && /缺少关系端点/.test(missingEndpoint.issues[0]?.message ?? ''),
+    missingEndpoint.issues[0]?.message,
+  );
+
+  // 同一批里混入一条异常关系，不影响正常关系的装配
+  const mixed = asm([
+    { from: 'm_ghost', to: 'm_pb', type: 'extends', evidenceState: 'candidate' },
+    { from: 'm_pa', to: 'm_pb', type: 'extends', evidenceState: 'candidate', quote: textB },
+  ]);
+  check('同一批里正常关系仍被保留', mixed.relations.length === 1 && mixed.relations[0].fromMethodId === 'm_pa', String(mixed.relations.length));
+  check('异常项只产生一条 parse_warning，不干扰正常项', mixed.issues.filter((i) => i.code === 'parse_warning').length === 1, String(mixed.issues.filter((i) => i.code === 'parse_warning').length));
+}
+
+console.log('=== 34. 实验记录数值缺失：必须保留信息不足，不得判成「可直接比较」 ===');
+{
+  // 复现过的问题：记录没有 metricValue 时被落成 ''，既没有任何核查问题，
+  // 两条都没数值（或只有一方有）的记录还会被判成 directly_comparable —— unknowns/blocked/reasons 全空。
+  // 这违反「未知 ≠ 一致 / 保留信息不足」。修复后按规则语义变更升 RULES_VERSION 并重算两个预置语料。
+  const baseRec = {
+    id: 'x',
+    paperId: 'p1',
+    taskTag: 'classification',
+    modelVariant: 'M',
+    pretrainData: 'ImageNet-21K',
+    trainData: 'ImageNet-1K',
+    inputResolution: '224',
+    extraData: '否',
+    distillation: '无',
+    testTimeAug: '无',
+    inferenceMode: 'single model',
+    evalSplit: 'val',
+    evalDataset: 'ImageNet-1K',
+    metricName: 'top-1 accuracy',
+    metricValue: '80.0',
+    verification: { quoteLocated: true, rowColConfirmed: true, issues: [] },
+  } as ExperimentRecord;
+  const mk = (over: Partial<ExperimentRecord>): ExperimentRecord => ({ ...baseRec, ...over }) as ExperimentRecord;
+
+  // ---- 判据函数本身 ----
+  check('isMetricValueMissing：空串/未知/—/n/a 都算缺失', ['', '  ', '未知', '—', '–', 'n/a', 'N/A'].every((v) => isMetricValueMissing(v)), '');
+  check('isMetricValueMissing：真实数值不算缺失', ['80.0', '83.1', '0.5'].every((v) => !isMetricValueMissing(v)), '');
+
+  // ---- 可比性：数值缺失一律信息不足 ----
+  const bothMissing = compareExperiments(mk({ id: 'a', metricValue: '' }), mk({ id: 'b', metricValue: '' }));
+  check('双方都没有数值 → 信息不足（不得判成「可直接比较」）', bothMissing.level === 'insufficient_info', bothMissing.level);
+  check(
+    '未知维度标明是「指标数值」且 which=both',
+    bothMissing.unknowns.some((u) => u.field === 'metricValue' && u.which === 'both'),
+    JSON.stringify(bothMissing.unknowns),
+  );
+  check('给出「没有数字谈不上可直接比较」的理由', bothMissing.reasons.some((r) => r.includes('没有可对照的指标数值')), JSON.stringify(bothMissing.reasons));
+
+  const oneMissing = compareExperiments(mk({ id: 'a', metricValue: '' }), mk({ id: 'b' }));
+  check(
+    '只有一方缺数值 → 信息不足，且 which 指向正确的一侧',
+    oneMissing.level === 'insufficient_info' && oneMissing.unknowns.some((u) => u.field === 'metricValue' && u.which === 'a'),
+    `${oneMissing.level}/${JSON.stringify(oneMissing.unknowns)}`,
+  );
+
+  for (const placeholder of ['未知', '—', 'n/a']) {
+    const r = compareExperiments(mk({ id: 'a', metricValue: placeholder }), mk({ id: 'b' }));
+    check(`数值写成占位写法「${placeholder}」→ 同样按信息不足处理`, r.level === 'insufficient_info', r.level);
+  }
+
+  check('双方都有数值 → 仍可直接比较（正常路径没有被影响）', compareExperiments(mk({ id: 'a' }), mk({ id: 'b' })).level === 'directly_comparable');
+  check(
+    '数值缺失优先于「条件差异」：缺数值 + 条件不同仍是信息不足',
+    compareExperiments(mk({ id: 'a', metricValue: '' }), mk({ id: 'b', inputResolution: '384' })).level === 'insufficient_info',
+  );
+
+  // ---- 抽取侧：记录级要如实标出数值缺失 ----
+  const paper = PAPER('p1', 'P1', 2020, 'We propose FooNet, a new architecture based solely on attention.');
+  const parseIssues = (metricValue?: string) =>
+    parseExperimentRecords(paper, { experiments: [{ modelVariant: 'FooNet', quote: 'based solely on attention', ...(metricValue === undefined ? {} : { metricValue }) }] })[0].verification?.issues ?? [];
+  check(
+    '抽取侧：没有 metricValue 时留下可读的核查问题',
+    parseIssues().some((s) => s.includes('未给出指标数值')),
+    JSON.stringify(parseIssues()),
+  );
+  check('抽取侧：有数值时不出现该问题', !parseIssues('80.0').some((s) => s.includes('未给出指标数值')), JSON.stringify(parseIssues('80.0')));
+  check('抽取侧：占位写法「未知」同样标出', parseIssues('未知').some((s) => s.includes('未给出指标数值')), JSON.stringify(parseIssues('未知')));
 }
 
 console.log('');

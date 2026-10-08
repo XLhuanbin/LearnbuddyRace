@@ -153,6 +153,20 @@ const UNKNOWN_NAME = /^(未知|未知指标|unknown|not\s+reported|n\/a|-?|)$/i;
 const isUnknownName = (canonical?: string, raw?: string): boolean =>
   !canonical || canonical === 'unknown' || UNKNOWN.test((raw ?? '').trim());
 
+/** 指标数值的「未知 / 未给出」占位写法 */
+const METRIC_VALUE_UNKNOWN = /^(未知|未给出|未报告|unknown|not\s+reported|n\/a|na|-|—|–|)$/i;
+
+/**
+ * 指标数值是否缺失（空串，或「未知 / n/a / — / –」这类占位写法）。
+ *
+ * 用途：数值缺失时不能判「可直接比较」—— 两边都没有数字，谈不上对照；
+ * 这与「未知 ≠ 一致」是同一条原则（参见 isUnknownName）。
+ * 抽取侧（analyze.parseExperimentRecords）也用它给记录标出可读的核查问题。
+ */
+export function isMetricValueMissing(raw?: string): boolean {
+  return METRIC_VALUE_UNKNOWN.test((raw ?? '').trim());
+}
+
 const same = (a?: string, b?: string, canon?: (v?: string) => string) => {
   const fa = canon ? canon(a) : (a ?? '').trim().toLowerCase();
   const fb = canon ? canon(b) : (b ?? '').trim().toLowerCase();
@@ -202,6 +216,14 @@ export function compareExperiments(a: ExperimentRecord, b: ExperimentRecord): Ex
       reasons.push('指标不同（例如 top-1 与 top-5），不能互相比较。');
     }
   }
+  // 指标数值本身缺失：双方都没有数字、或只有一方有数字时，都不能判「已知条件下可直接比较」
+  const valueMissingA = isMetricValueMissing(a.metricValue);
+  const valueMissingB = isMetricValueMissing(b.metricValue);
+  if (valueMissingA || valueMissingB) {
+    unknowns.push({ field: 'metricValue', label: '指标数值', which: valueMissingA && valueMissingB ? 'both' : valueMissingA ? 'a' : 'b' });
+    reasons.push('至少一条记录没有可对照的指标数值：没有数字谈不上「可直接比较」。');
+  }
+
   const sa = (a.evalSplit ?? '').trim().toLowerCase();
   const sb = (b.evalSplit ?? '').trim().toLowerCase();
   if (sa && sb && sa !== sb) {
