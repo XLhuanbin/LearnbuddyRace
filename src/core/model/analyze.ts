@@ -45,6 +45,7 @@ import {
   parseJsonObject,
   requireArrayField,
   requireArrayOfObjects,
+  requireStringArray,
   type CallTrace,
 } from './client';
 import { withEffectiveMethods } from '../effective';
@@ -103,10 +104,23 @@ interface RawCondition {
   stage?: string;
 }
 
-function toPage(v: number | string | null | undefined): number | undefined {
+/**
+ * 把模型给出的页码解析为整数。
+ *
+ * 只接受「恰好一个数字」的写法（3 / "3" / "p.3" / "第 3 页"）。出现多个数字时
+ * （"3-4"、"表3，第5页"）无法判定模型指的是哪一页，一律返回 undefined（按未知处理）。
+ *
+ * 旧实现是 Number(String(v).replace(/[^\d]/g, ''))：会把 "3-4" 拼成 34、把 "表3，第5页" 拼成 35，
+ * 于是 validate.ts 会据此刻出**虚假的**「页码超出页数」error（已用真实路径复现）。
+ * 未知就是未知，不能靠拼数字猜。
+ */
+export function toPage(v: number | string | null | undefined): number | undefined {
   if (v === null || v === undefined || v === '') return undefined;
-  const n = typeof v === 'number' ? v : Number(String(v).replace(/[^\d]/g, ''));
-  return Number.isFinite(n) && n > 0 ? n : undefined;
+  if (typeof v === 'number') return Number.isInteger(v) && v > 0 ? v : undefined;
+  const groups = String(v).match(/\d+/g) ?? [];
+  if (groups.length !== 1) return undefined;
+  const n = Number(groups[0]);
+  return Number.isInteger(n) && n > 0 ? n : undefined;
 }
 
 function toStringArray(v: (string | null)[] | null | undefined): string[] {
@@ -254,8 +268,6 @@ export async function extractMethod(
     }
 
     // 范围检查统一在 rules.normalizeConditions 中实现（与离线重算共用同一套规则）
-    conditions[dim] = { values, status: resolved, evidence, note, claimedPage, scope, scopeDetail, stage };
-
     conditions[dim] = { values, status: resolved, evidence, note, claimedPage, scope, scopeDetail, stage };
   }
 
@@ -692,12 +704,20 @@ export async function generateDecision(
         ? (stageRaw as TrainingStage)
         : 'unknown';
       const modelFit = c.fit === 'suitable' ? 'suitable' : c.fit === 'conditional' ? 'conditional' : 'unknown';
+      // 模型返回的内层数组字段先过结构校验：不是数组 → 明确失败（ModelError），
+      // 而不是在下面直接 .filter 抛 TypeError（旧实现的实测表现）。
+      const candidateObj = c as unknown as Record<string, unknown>;
+      const reasonsRaw = optionalArrayField(candidateObj, 'reasons', '阅读路线结果.candidates');
+      const missingRaw = optionalArrayField(candidateObj, 'missing', '阅读路线结果.candidates');
       return {
         methodId: method.id,
         paperId: method.paperId,
         fit: modelFit,
         targetStage,
-        reasons: (c.reasons || [])
+        reasons: (reasonsRaw
+          ? (requireArrayOfObjects(reasonsRaw, '阅读路线结果.candidates[].reasons') as unknown as NonNullable<typeof c.reasons>)
+          : []
+        )
           .filter((r) => r.text)
           .map((r) => {
             const basis = r.basis === 'profile' ? 'profile' : r.basis === 'gap' ? 'gap' : 'paper';
@@ -819,7 +839,7 @@ export async function generateDecision(
             };
           }),
         applicability: c.applicability || undefined,
-        missing: (c.missing || []).filter(Boolean),
+        missing: (missingRaw ? requireStringArray(missingRaw, '阅读路线结果.candidates[].missing') : []).filter(Boolean),
         computeReported: compute ? compute.status === 'verified' : !!c.computeReported,
         computeStage: compute?.stage ?? (compute?.status === 'verified' ? 'unknown' : undefined),
         computeScope: compute?.scopeDetail ?? undefined,
@@ -1180,6 +1200,9 @@ function toStr(v: unknown, max = 300): string | undefined {
   return t.slice(0, max);
 }
 
+/** 提示词约定的实验记录上限：最多 4 条分类 + 最多 1 条非分类（见 prompts.ts 的「实验记录抽取要求」） */
+const MAX_EXPERIMENT_RECORDS = 5;
+
 /**
  * 解析模型给出的实验记录。
  *
@@ -1191,11 +1214,20 @@ function toStr(v: unknown, max = 300): string | undefined {
 export function parseExperimentRecords(paper: Paper, parsed: Record<string, unknown>): ExperimentRecord[] {
   // experiments 出现时必须是数组（写成字符串/对象说明模型没按结构返回 → 按失败处理）；
   // 整个键缺失时才允许 0 条，并在下方如实反映。
-  const rawList = (optionalArrayField(parsed, 'experiments', '实验记录') ?? []) as Record<string, unknown>[];
+  const present = optionalArrayField(parsed, 'experiments', '实验记录');
+  // 数组里混进非对象项（字符串 / null）同样属于结构错误：旧实现是 continue 静默跳过，
+  // 结果会出现「模型返回 3 条、界面只显示 1 条」且没有任何提示。改用 requireArrayOfObjects
+  // 明确失败，与 client.ts 的「结构错误、关键数组非法 = 明确失败」契约一致。
+  const rawList: Record<string, unknown>[] = present ? requireArrayOfObjects(present, '实验记录.experiments') : [];
   const out: ExperimentRecord[] = [];
 
-  for (const [idx, item] of rawList.slice(0, 8).entries()) {
-    if (!item || typeof item !== 'object') continue;
+  // 超过提示词约定的条数时：保留前 N 条，但必须在记录里留下可见痕迹 —— 不允许静默丢弃。
+  const overflowNote =
+    rawList.length > MAX_EXPERIMENT_RECORDS
+      ? `模型返回了 ${rawList.length} 条实验记录，超过提示词约定的上限 ${MAX_EXPERIMENT_RECORDS} 条（最多 4 条分类 + 1 条非分类），已只保留前 ${MAX_EXPERIMENT_RECORDS} 条，其余未纳入比较。`
+      : undefined;
+
+  for (const [idx, item] of rawList.slice(0, MAX_EXPERIMENT_RECORDS).entries()) {
     const taskRaw = (toStr(item.taskTag, 20) ?? '').toLowerCase();
     const taskTag: TaskTag = (EXP_TASK_TAGS as readonly string[]).includes(taskRaw) ? (taskRaw as TaskTag) : 'other';
 
@@ -1233,6 +1265,10 @@ export function parseExperimentRecords(paper: Paper, parsed: Record<string, unkn
     if (colLabel && !colLoc) issues.push('列标签未在引文附近定位到');
     if (caption && capLoc) issues.push(`表题已在引文附近定位（${capMatch === 'strict' ? '逐字一致' : '归一化后一致'}）`);
     if (rowLabel && rowLoc) issues.push(`行标签已在引文附近定位（${rowMatch === 'strict' ? '逐字一致' : '归一化后一致'}）`);
+
+    // 「整次抽取的条数超出提示词约定」是语料级情况，而 ExperimentRecord 没有语料级字段，
+    // 因此挂在第一条记录的核查问题上，保证读者一定看得到，不被静默吞掉。
+    if (idx === 0 && overflowNote) issues.push(overflowNote);
 
     const rowColConfirmed = !!(evidence?.verified && capLoc && rowLoc);
 

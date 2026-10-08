@@ -11,6 +11,7 @@
 import type { ConditionDimension, DivergenceFinding, Evidence, Method, Paper } from './types';
 import { LEVEL_LABELS, comparePair, differingDimensions, pairLevel } from './comparability';
 import { buildEvidence } from './evidence';
+import { optionalArrayField, requireArrayOfObjects, requireStringArray } from './model/client';
 
 export interface RawDivergenceFinding {
   kind?: string;
@@ -24,6 +25,13 @@ export interface RawDivergenceFinding {
   nextAction?: string;
   comparabilityLevel?: string;
 }
+
+/**
+ * 只接受字符串字段。模型把标量写成数字/对象时，旧实现会在 `(raw.topic || '').trim()`、
+ * `(raw.commonScope || '').trim()` 这类地方直接抛 TypeError；这里统一降级为「没有该内容」。
+ * 注意：不做 String(v) 兜底 —— 那会把对象变成 "[object Object]" 之类的假内容。
+ */
+const asStr = (v: unknown, fallback = ''): string => (typeof v === 'string' ? v : fallback);
 
 const VALID_KINDS = [
   'conclusion_divergence',
@@ -40,25 +48,35 @@ export function applyDivergenceRules(
   raw: RawDivergenceFinding,
   index: number,
 ): DivergenceFinding {
+  // 模型返回的内层数组字段一律先过结构校验：不是数组 → 明确失败（ModelError），
+  // 而不是在下面直接 .filter 抛 TypeError（旧实现的实测表现：paperIds/sides/conditionDifferences
+  // 传字符串时都会抛 "(raw.xxx || []).filter is not a function"）。
+  // 校验放在本函数内而不是调用方：本模块同时被实时分析与 scripts/revalidate.mjs 复用。
+  const rawObj = raw as unknown as Record<string, unknown>;
   const validPaperIds = new Set(methods.map((m) => m.paperId));
-  const paperIds = (raw.paperIds || []).filter((id) => validPaperIds.has(id));
+  const paperIds = requireStringArray(optionalArrayField(rawObj, 'paperIds', '分歧分析结果.findings') ?? [], '分歧分析结果.findings.paperIds').filter(
+    (id) => validPaperIds.has(id),
+  );
   const ruleNotes: string[] = [];
 
   const rawKind = (VALID_KINDS as readonly string[]).includes(raw.kind ?? '') ? (raw.kind as DivergenceFinding['kind']) : 'none_found';
   // 旧枚举名映射到更准确的表述：条件不一致 ≠ 「只能由条件差异解释」
   let finalKind: DivergenceFinding['kind'] = (rawKind as string) === 'condition_explained' ? 'condition_confounded' : rawKind;
 
-  let explanation = raw.explanation || '';
+  let explanation = asStr(raw.explanation);
   const claimType: 'numeric' | 'qualitative' | undefined =
     raw.claimType === 'numeric' || raw.claimType === 'qualitative' ? raw.claimType : undefined;
-  const commonScope = (raw.commonScope || '').trim() || undefined;
+  const commonScope = asStr(raw.commonScope).trim() || undefined;
 
-  let conditionDifferences: DivergenceFinding['conditionDifferences'] = (raw.conditionDifferences || [])
+  let conditionDifferences: DivergenceFinding['conditionDifferences'] = requireArrayOfObjects(
+    optionalArrayField(rawObj, 'conditionDifferences', '分歧分析结果.findings') ?? [],
+    '分歧分析结果.findings.conditionDifferences',
+  )
     .filter((d) => d.label || d.detail)
     .map((d) => ({
-      dimension: (d.dimension || 'experimentalSettings') as ConditionDimension,
-      label: d.label || d.dimension || '条件',
-      detail: d.detail || '',
+      dimension: asStr(d.dimension, 'experimentalSettings') as ConditionDimension,
+      label: asStr(d.label) || asStr(d.dimension) || '条件',
+      detail: asStr(d.detail),
     }));
 
   // 用程序按论文对重算可比性，覆盖模型自报值
@@ -175,14 +193,14 @@ export function applyDivergenceRules(
   return {
     id: `dv_${index}`,
     kind: finalKind,
-    topic: raw.topic || '未命名主题',
+    topic: asStr(raw.topic) || '未命名主题',
     paperIds,
-    sides: (raw.sides || [])
-      .filter((s) => s.paperId && validPaperIds.has(s.paperId))
+    sides: requireArrayOfObjects(optionalArrayField(rawObj, 'sides', '分歧分析结果.findings') ?? [], '分歧分析结果.findings.sides')
+      .filter((s) => typeof s.paperId === 'string' && validPaperIds.has(s.paperId))
       .map((s) => {
         const paperId = s.paperId as string;
-        const claim = s.claim || '';
-        const rawQuote = (s.quote || '').trim();
+        const claim = asStr(s.claim);
+        const rawQuote = asStr(s.quote).trim();
         if (!rawQuote) {
           return { paperId, claim, quote: undefined };
         }
@@ -215,7 +233,7 @@ export function applyDivergenceRules(
     commonScope,
     conditionDifferences: conditionDifferences.length ? conditionDifferences : undefined,
     explanation,
-    nextAction: raw.nextAction || '回到原文核对相关结论与实验条件。',
+    nextAction: asStr(raw.nextAction) || '回到原文核对相关结论与实验条件。',
     comparabilityLevel,
     ruleNotes: ruleNotes.length ? ruleNotes : undefined,
     disclaimer,

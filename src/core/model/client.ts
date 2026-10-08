@@ -268,6 +268,21 @@ export function requireArrayOfObjects(values: unknown[], what: string): Record<s
   return values.map((v, i) => requireObject(v, `${what}的第 ${i + 1} 项`));
 }
 
+/** 每个元素都必须是字符串（数组里混进数字/对象/null 一律视为结构错误） */
+export function requireStringArray(values: unknown[], what: string): string[] {
+  return values.map((v, i) => {
+    if (typeof v !== 'string') {
+      const got = v === null ? 'null' : Array.isArray(v) ? '数组' : typeof v;
+      throw new ModelError(
+        `模型返回的${what}第 ${i + 1} 项不是字符串（实际是 ${got}），已按失败处理。`,
+        'format',
+        JSON.stringify(v)?.slice(0, 200),
+      );
+    }
+    return v;
+  });
+}
+
 /** 从模型返回文本中稳健地解析 JSON（容忍 ```json 包裹与前后解释文字） */
 export function parseJsonLoose<T>(text: string): T {
   let s = text.trim();

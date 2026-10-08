@@ -31,10 +31,13 @@ import { hasThirdPartySubject } from '../src/core/rules';
 import { applyTitleCorrection } from '../src/core/model/analyze';
 import {
   assembleRelationsFromModel,
+  extractMethod,
+  generateDecision,
   hasConfigEvidence,
   parseExperimentRecords,
   parseGpuCount,
   requireReadingSteps,
+  toPage,
 } from '../src/core/model/analyze';
 import { buildRelationHints, findRelationCandidates, primaryAlias } from '../src/core/relationCandidates';
 import {
@@ -83,6 +86,7 @@ import { chat, ModelError, parseJsonLoose, parseJsonObject, requireArrayField, r
 import { createServer, type Server } from 'node:http';
 import { methodAliases, assessRelationEvidence, assessClaimScope, parseSplitsByDataset, looksLikeTitle } from '../src/core/rules';
 import type { ConditionValue, ExperimentConditions, Method, Paper, ReadingPlan, Relation } from '../src/core/types';
+import { CONDITION_DIMENSIONS } from '../src/core/types';
 
 let pass = 0;
 let fail = 0;
@@ -1925,6 +1929,148 @@ console.log('=== 27. 权重/代码可获取性检索（A1 修复回归：词边�
   } else {
     check('预置视觉语料存在（缺少则该断言无意义）', false, vitFile);
   }
+}
+
+console.log('=== 28. 零风险档修复回归：页码解析 / 实验记录结构 / 模型内层数组 ===');
+{
+  // 这一组对应四个「已复现、修复前会给出错误结果或抛 TypeError」的问题：
+  // 1. toPage 把 "3-4" 拼成 34 → 刻出虚假的「页码超出页数」error；
+  // 2. parseExperimentRecords 静默跳过非对象项、且条数上限（8）与提示词约定（4+1）不一致；
+  // 3. applyDivergenceRules / generateDecision 对模型内层数组字段直接 .filter → 结构异常时抛 TypeError。
+  const text = 'We propose FooNet, a new architecture based solely on attention.';
+  const paper24: Paper = { ...PAPER('p1', 'P1', 2020, text), pageCount: 24 };
+  const modelErr = (fn: () => unknown): Error | undefined => {
+    try {
+      fn();
+      return undefined;
+    } catch (e) {
+      return e as Error;
+    }
+  };
+  const fullFields = (): Method['fields'] =>
+    Object.fromEntries(
+      (['researchTask', 'methodName', 'coreIdea', 'inputsConditions', 'datasets', 'metrics', 'limitations'] as const).map((k) => [
+        k,
+        { value: undefined, status: 'missing' as const },
+      ]),
+    ) as Method['fields'];
+
+  // ---- 1) 页码解析：多组数字不能被拼成一个数字 ----
+  check('页码 "3" → 3', toPage('3') === 3);
+  check('页码 "p.3" / "第 5 页" → 3 / 5', toPage('p.3') === 3 && toPage('第 5 页') === 5);
+  check('页码 "3-4"（范围）→ 未知，而不是 34', toPage('3-4') === undefined, String(toPage('3-4')));
+  check('页码 "表3，第5页"（两组数字）→ 未知，而不是 35', toPage('表3，第5页') === undefined, String(toPage('表3，第5页')));
+  check('页码 0 / 负数 / 空串 → 未知', toPage(0) === undefined && toPage(-2) === undefined && toPage('') === undefined);
+
+  // 用户可见后果：修复前 toPage('3-4') = 34，会刻出「页码 p.34 超出该论文页数（共 24 页）」的虚假 error
+  const m24 = mkMethod('p1', emptyConditions(), {
+    coreIdea: {
+      value: 'x',
+      status: 'verified',
+      evidence: buildEvidence(paper24, { quote: 'based solely on attention' }),
+      claimedPage: toPage('3-4'),
+    },
+  } as Method['fields']);
+  check('"3-4" 不再产生虚假的 page_invalid 校验问题', !validateMethod(paper24, m24).some((i) => i.code === 'page_invalid'), validateMethod(paper24, m24).map((i) => i.code).join(','));
+
+  // ---- 2) 实验记录：非对象项不得静默跳过；条数上限与提示词一致 ----
+  const plainPaper = PAPER('p2', 'P2', 2020, text);
+  check('experiments 缺失仍允许 0 条（不误判为失败）', parseExperimentRecords(plainPaper, {}).length === 0);
+  const badItems = modelErr(() => parseExperimentRecords(plainPaper, { experiments: [{ modelVariant: 'A' }, 'oops'] }));
+  check('experiments 数组里混进非对象 → 明确失败（ModelError，不再静默丢弃）', badItems instanceof ModelError, String(badItems));
+
+  const eight = Array.from({ length: 8 }, (_, i) => ({ modelVariant: `M${i}` }));
+  const kept = parseExperimentRecords(plainPaper, { experiments: eight });
+  check('超过提示词约定的条数（4 条分类 + 1 条非分类）时只保留 5 条', kept.length === 5, String(kept.length));
+  check(
+    '被截断时在核查问题里留下可见痕迹，不允许静默丢弃',
+    (kept[0].verification?.issues ?? []).some((s) => s.includes('超过提示词约定')),
+    JSON.stringify(kept[0].verification?.issues ?? []),
+  );
+  check(
+    '未超上限时不出现该提示',
+    !(parseExperimentRecords(plainPaper, { experiments: eight.slice(0, 5) })[0].verification?.issues ?? []).some((s) => s.includes('超过提示词约定')),
+  );
+
+  // ---- 3a) 分歧规则：内层数组字段不是数组 → ModelError，而不是 TypeError ----
+  const onePaper = PAPER('pa', 'PA', 2020, text);
+  const oneMethod = mkMethod('pa', emptyConditions());
+  for (const field of ['paperIds', 'sides', 'conditionDifferences'] as const) {
+    const e = modelErr(() =>
+      applyDivergenceRules([onePaper], [oneMethod], { [field]: 'oops' } as unknown as Parameters<typeof applyDivergenceRules>[2], 0),
+    );
+    check(`分歧结果 ${field} 不是数组 → 明确的 ModelError（修复前是 TypeError）`, e instanceof ModelError, `${e?.constructor.name}: ${e?.message}`);
+  }
+
+  // ---- 3b) 决策编排：candidates[].reasons / missing 结构异常 → ModelError ----
+  let payload: unknown = {};
+  const mkServer = (): Server =>
+    createServer((req, res) => {
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204).end();
+        return;
+      }
+      req.on('data', () => undefined);
+      req.on('end', () =>
+        res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(payload) } }] })),
+      );
+    });
+  const start = async (server: Server) => {
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', () => r()));
+    return { baseUrl: `http://127.0.0.1:${(server.address() as { port: number }).port}`, apiKey: 'k', model: 'm', maxAttempts: 1 };
+  };
+
+  const dPaper = PAPER('p1', 'P1', 2020, text);
+  const dMethod: Method = { id: 'm_p1', paperId: 'p1', fields: fullFields(), conditions: emptyConditions(), experiments: [], overrides: [] };
+  const dProfile = { background: '研究生', interest: '视觉', compute: '1 x V100' };
+
+  const decisionServer = mkServer();
+  const dCfg = await start(decisionServer);
+  const badCandidates: Record<string, unknown>[] = [
+    { reasons: 'oops' },
+    { missing: 'oops' },
+    { reasons: [{ text: 'x', basis: 'profile' }], missing: [1, 2] },
+  ];
+  for (const bad of badCandidates) {
+    payload = { candidates: [{ methodId: 'm_p1', ...bad }], readingOrder: [{ paperId: 'p1' }] };
+    const e = await (async () => {
+      try {
+        await generateDecision([dPaper], [dMethod], dProfile, dCfg);
+        return undefined;
+      } catch (err) {
+        return err as Error;
+      }
+    })();
+    check(`决策结果 ${JSON.stringify(bad)} → 明确的 ModelError（修复前是 TypeError）`, e instanceof ModelError, `${e?.constructor.name}: ${e?.message}`);
+  }
+
+  // 正向对照：结构正常时必须仍然跑通（证明上面的校验没有把正常路径一起打死）
+  payload = {
+    candidates: [{ methodId: 'm_p1', fit: 'suitable', targetStage: 'finetune', reasons: [{ text: '该论文报告了微调阶段算力', basis: 'profile' }], missing: ['数据划分'] }],
+    readingOrder: [{ paperId: 'p1', focus: '先读方法', reason: '与目标一致', basis: 'profile' }],
+  };
+  const plan = await generateDecision([dPaper], [dMethod], dProfile, dCfg);
+  check('结构正常的决策结果仍能返回（candidates / steps 都在）', plan.candidates.length === 1 && plan.steps.length === 1, `${plan.candidates.length}/${plan.steps.length}`);
+  decisionServer.close();
+
+  // ---- 4) 抽取端到端：页码不再被拼接；条件对象结构未因清理重复赋值而改变 ----
+  payload = {
+    paperTitle: 'FooNet',
+    fields: { coreIdea: { value: 'FooNet 是一个基于注意力的架构', quote: 'based solely on attention', page: '3-4' } },
+    conditions: { datasets: { values: ['ImageNet'], quote: 'based solely on attention', status: 'reported' } },
+  };
+  const extractServer = mkServer();
+  const eCfg = await start(extractServer);
+  const extracted = await extractMethod(paper24, eCfg);
+  check('extractMethod：模型给 "3-4" 时 claimedPage 为未知（修复前被拼成 34）', extracted.fields.coreIdea.claimedPage === undefined, String(extracted.fields.coreIdea.claimedPage));
+  const conds = extracted.conditions;
+  check(
+    'extractMethod：条件对象仍包含全部维度、状态为字符串（清理重复赋值未改变结构）',
+    !!conds && CONDITION_DIMENSIONS.every((d) => typeof conds[d]?.status === 'string'),
+    CONDITION_DIMENSIONS.join(','),
+  );
+  check('extractMethod：experiments 缺失时如实返回 0 条', extracted.experiments.length === 0, String(extracted.experiments.length));
+  extractServer.close();
 }
 
 console.log('');
