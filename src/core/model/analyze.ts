@@ -81,6 +81,50 @@ const FIELD_KEYS: FieldKey[] = [
   'limitations',
 ];
 
+/**
+ * 模型给出的标量字段只按字符串处理。
+ *
+ * 为什么需要：模型偶尔把 status / note / quote / value 写成数字、对象或数组。旧实现直接
+ * `item?.note?.trim()`、`(item?.status || '').toLowerCase()`、`(item?.value ?? '').toString()`：
+ * 前两者遇到数字/数组会抛 TypeError 让整次分析崩掉；最后一个会把对象变成 "[object Object]"
+ * 当成字段值（等于编造内容）。未知类型一律当「没给」，既不猜也不转成字符串。
+ */
+function asString(v: unknown): string {
+  return typeof v === 'string' ? v.trim() : '';
+}
+
+/**
+ * 同上，但额外接受有限数字：只有 `value` 用得上（模型偶尔把数值型字段直接写成数字）。
+ * 引文 / 状态 / 说明这些字段给数字本身就是模型输出异常，一律按「没给」处理 ——
+ * 否则 `quote: 42` 会被当成引文 "42" 去做全文定位，最后给出「模型可能改写了原文」这种错误解释。
+ */
+function asText(v: unknown): string {
+  if (typeof v === 'string') return v.trim();
+  if (typeof v === 'number' && Number.isFinite(v)) return String(v);
+  return '';
+}
+
+/**
+ * 提示词的「状态」词表与内部状态不是一一对应，这里统一归一（**不修改提示词文本**）。
+ *
+ * - 字段 schema 写的是 `ok|missing`，同文件 STATUS_RULES 定义的却是
+ *   `reported / not_reported / not_extracted / unclear`；解析器此前只认 `missing`；
+ * - 内部只有 verified / unverified / no_evidence / missing 四个槽（types.ts 的 FieldStatus）。
+ *
+ * 归一规则：
+ * - `reported` / `ok` / 未给 → 走原有证据路径（引文定位成功才算 verified）；
+ * - `missing` / `not_reported` / `not_extracted` → 模型自认该条目不提供，按缺失处理，
+ *   由 note 写出区别（下游界面占位文案与 validate 都按 note 判据区分这三类缺失）；
+ * - `unclear`（找到了内容但无法确认）→ **绝不能当作可核验**：这正是
+ *   「定位到了文字」与「这段文字足以支撑结论」必须分开的情形。
+ */
+const ABSENT_STATUSES = new Set(['missing', 'not_reported', 'not_extracted']);
+
+/** 模型「自认不可用」却又给了内容时的说明：不静默丢弃，也不把它当成已确认的结论 */
+function absentConflictNote(rawStatus: string): string {
+  return `模型把该条目标为 ${rawStatus}（自认该项不可用），但同时又给出了内容；为避免把它当成已确认的结论，已按缺失处理。`;
+}
+
 interface RawField {
   value?: string | null;
   quote?: string | null;
@@ -189,26 +233,56 @@ export async function extractMethod(
   const fields = {} as Record<FieldKey, MethodFieldResult>;
   for (const key of FIELD_KEYS) {
     const item = rawFields[key];
-    const value = (item?.value ?? '').toString().trim();
-    const declaredMissing =
-      (item?.status || item?.fieldStatus || '').toLowerCase() === 'missing' || !value;
+    const value = asText(item?.value);
+    const rawStatus = (asString(item?.status) || asString(item?.fieldStatus)).toLowerCase();
+    const userNote = asString(item?.note) || undefined;
     const claimedPage = toPage(item?.page);
 
-    if (declaredMissing) {
+    // unclear：模型找到了相关内容，但自己标注为无法确认（表述含糊 / 只有局部实验描述）。
+    // 这不是「没找到」，而是「找到的文字不足以支撑结论」，一律按「未找到证据」处理。
+    if (rawStatus === 'unclear') {
       fields[key] = {
-        value: undefined,
-        status: 'missing',
-        note: item?.note?.trim() || (value ? '未提取到' : '论文未报告'),
+        value: value || undefined,
+        status: 'no_evidence',
+        // 不挂载引文：字段状态不是「可核验」，挂上已定位的引文会被界面算进「已核验字段数」
+        // （Library 的 verifiedOf 与上传流程进度都按 evidence.verified 统计），自相矛盾。
+        note:
+          userNote ||
+          '模型找到了相关内容但标注为无法确认（表述含糊或只有局部实验描述），未作为可核验结论，需人工回到原文核对。',
+        claimedPage,
       };
       continue;
     }
 
-    const quote = (item?.quote ?? '')?.toString().trim();
+    const saysAbsent = ABSENT_STATUSES.has(rawStatus);
+    if (saysAbsent || !value) {
+      // 三类「不可用」标签统一按缺失处理，但 note 必须写出区别，下游据此区分
+      // 「论文明确没有」/「本次片段中没有」/「抽取失败」。
+      let note = userNote;
+      if (value && saysAbsent) note = [note, absentConflictNote(rawStatus)].filter(Boolean).join('；');
+      if (!note) {
+        note =
+          rawStatus === 'not_extracted'
+            ? '本次片段中未提取到'
+            : rawStatus === 'not_reported'
+              ? '论文明确表示不适用或没有使用（论文未报告）'
+              : value
+                ? '未提取到'
+                : '论文未报告';
+      } else if (rawStatus === 'not_reported' && !note.includes('未报告')) {
+        // 与界面占位文案、validate 的既有判据对齐（它们按 note 里有没有「未报告」区分缺失类型）
+        note = `${note}（论文未报告）`;
+      }
+      fields[key] = { value: undefined, status: 'missing', note };
+      continue;
+    }
+
+    const quote = asString(item?.quote);
     if (!quote) {
       fields[key] = {
         value,
         status: 'no_evidence',
-        note: item?.note?.trim() || '模型给出了内容但没有提供原文引文',
+        note: userNote || '模型给出了内容但没有提供原文引文',
         claimedPage,
       };
       continue;
@@ -216,7 +290,7 @@ export async function extractMethod(
 
     const evidence = buildEvidence(paper, { quote });
     fields[key] = evidence?.verified
-      ? { value, status: 'verified', evidence, note: item?.note?.trim() || undefined, claimedPage }
+      ? { value, status: 'verified', evidence, note: userNote, claimedPage }
       : {
           value,
           status: 'unverified',
@@ -233,14 +307,14 @@ export async function extractMethod(
       rawConditions[dim] ??
       (dim === 'downstreamExtraData' ? rawConditions['extraTrainingData'] : undefined);
     if (!item) continue;
-    const status = (item.status || '').toLowerCase();
+    const status = asString(item.status).toLowerCase();
     const values = toStringArray(item.values);
-    const quote = (item.quote ?? '')?.toString().trim();
+    const quote = asString(item.quote);
     const claimedPage = toPage(item.page);
-    const scopeRaw = (item.scope || '').toLowerCase();
+    const scopeRaw = asString(item.scope).toLowerCase();
     let scope: ConditionValue['scope'] =
       scopeRaw === 'paper' || scopeRaw === 'experiment' ? (scopeRaw as 'paper' | 'experiment') : scopeRaw === 'unknown' ? 'unknown' : undefined;
-    const stageRaw = (item.stage || '').toLowerCase();
+    const stageRaw = asString(item.stage).toLowerCase();
     const stage: ConditionValue['stage'] =
       (['pretrain', 'finetune', 'inference', 'from_scratch', 'distill'] as const).includes(stageRaw as never)
         ? (stageRaw as ConditionValue['stage'])
@@ -248,13 +322,20 @@ export async function extractMethod(
 
     let resolved: ConditionValue['status'];
     let evidence;
-    let note = item.note?.trim() || undefined;
-    let scopeDetail = item.scopeDetail?.trim() || undefined;
+    let note = asString(item.note) || undefined;
+    let scopeDetail = asString(item.scopeDetail) || undefined;
 
     if (status === 'not_reported') {
       resolved = 'not_reported';
     } else if (status === 'unclear') {
       resolved = 'unclear';
+    } else if (ABSENT_STATUSES.has(status)) {
+      // 模型自认该维度不可用（missing / not_extracted）：即使同时给了 values/quote 也不当作已确认，
+      // 与字段侧同一套规则（标签优先），并在 note 里留下冲突说明。
+      resolved = 'not_extracted';
+      note =
+        [note, values.length || quote ? absentConflictNote(status) : ''].filter(Boolean).join('；') ||
+        '本次片段中未提取到';
     } else if (!values.length && !quote) {
       resolved = 'not_extracted';
       note = note || '本次片段中未提取到';

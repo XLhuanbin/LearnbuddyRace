@@ -2190,6 +2190,110 @@ console.log('=== 29. 规则语义档三项：未知≠一致 / 可比性不采�
   }
 }
 
+console.log('=== 30. 提示词字段状态词表兼容（reported / not_reported / not_extracted / unclear / missing） ===');
+{
+  // 背景：prompts.ts 的字段 schema 写的是 ok|missing，同文件的 STATUS_RULES 定义的是
+  // reported / not_reported / not_extracted / unclear，而内部 FieldStatus 只有
+  // verified / unverified / no_evidence / missing 四个槽 —— 解析器此前只认 'missing'。
+  // 已复现的两个后果：
+  // 1）status='unclear'（模型自认「找到了内容但无法确认」）+ 可定位引文 → 被判成 verified；
+  // 2）status='not_extracted' 时 note 落成「论文未报告」，把「片段里没有」讲成「论文没写」。
+  // 另有同类空值风险：note/status 写成数字或数组会抛 TypeError，value 写成对象会变成 "[object Object]"。
+  const TEXT =
+    'We propose FooNet, a new architecture based solely on attention. Our method reaches 80.0% top-1 accuracy on ImageNet with 10x fewer parameters.';
+  const paper = PAPER('p1', 'P1', 2020, TEXT);
+  const QUOTE = 'based solely on attention';
+
+  let payload: unknown = {};
+  const server: Server = createServer((req, res) => {
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204).end();
+      return;
+    }
+    req.on('data', () => undefined);
+    req.on('end', () => res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(payload) } }] })));
+  });
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', () => r()));
+  const cfg = { baseUrl: `http://127.0.0.1:${(server.address() as { port: number }).port}`, apiKey: 'k', model: 'm', maxAttempts: 1 };
+
+  const extractWith = async (coreIdea: unknown, conditions?: unknown) => {
+    payload = { paperTitle: 'FooNet', fields: { coreIdea }, ...(conditions ? { conditions } : {}) };
+    return extractMethod(paper, cfg);
+  };
+  const fieldOf = async (coreIdea: unknown) => (await extractWith(coreIdea)).fields.coreIdea;
+
+  // ---- 正向：状态词表逐个走通 ----
+  const reported = await fieldOf({ value: 'FooNet 基于注意力', quote: QUOTE, page: 1, status: 'reported' });
+  check('status=reported + 可定位引文 → 可核验', reported.status === 'verified' && reported.evidence?.verified === true, String(reported.status));
+  const okStatus = await fieldOf({ value: 'FooNet 基于注意力', quote: QUOTE, page: 1, status: 'ok' });
+  check('status=ok（字段 schema 写法）+ 可定位引文 → 可核验', okStatus.status === 'verified', String(okStatus.status));
+  const noStatus = await fieldOf({ value: 'FooNet 基于注意力', quote: QUOTE, page: 1 });
+  check('未给 status + 可定位引文 → 仍可核验（老行为不回归）', noStatus.status === 'verified', String(noStatus.status));
+
+  const missing = await fieldOf({ value: null, quote: null, status: 'missing' });
+  check('status=missing → 缺失，且写明「论文未报告」', missing.status === 'missing' && (missing.note ?? '').includes('论文未报告'), String(missing.note));
+  const notReported = await fieldOf({ value: null, quote: null, status: 'not_reported', note: '论文明确表示不适用' });
+  check(
+    'status=not_reported → 缺失，且 note 带上「未报告」判据（界面/校验层据此区分缺失类型）',
+    notReported.status === 'missing' && (notReported.note ?? '').includes('未报告'),
+    String(notReported.note),
+  );
+  const notExtracted = await fieldOf({ value: null, quote: null, status: 'not_extracted' });
+  check(
+    'status=not_extracted → 缺失，且 note 写明「本次片段中未提取到」（不再讲成「论文未报告」）',
+    notExtracted.status === 'missing' && (notExtracted.note ?? '').includes('片段'),
+    String(notExtracted.note),
+  );
+  const aliasStatus = await fieldOf({ value: null, quote: null, fieldStatus: 'not_extracted' });
+  check('fieldStatus 别名同样生效', aliasStatus.status === 'missing' && (aliasStatus.note ?? '').includes('片段'), String(aliasStatus.note));
+
+  // ---- 核心：unclear 绝不能当作可核验 ----
+  const unclear = await fieldOf({ value: '表述含糊的内容', quote: QUOTE, page: 1, status: 'unclear' });
+  check('status=unclear + 可定位引文 → 不得判成「可核验」', unclear.status !== 'verified', String(unclear.status));
+  check('status=unclear → 按「未找到证据」处理', unclear.status === 'no_evidence', String(unclear.status));
+  check(
+    'status=unclear 不挂载已核验引文（否则界面会把它算进「已核验字段数」）',
+    unclear.evidence === undefined,
+    JSON.stringify(unclear.evidence ?? null).slice(0, 60),
+  );
+  const unclearUnlocated = await fieldOf({ value: '表述含糊的内容', quote: '这句话不在原文里，是模型编的。', status: 'unclear' });
+  check('status=unclear + 引文无法定位 → 同样不是可核验', unclearUnlocated.status === 'no_evidence', String(unclearUnlocated.status));
+
+  // ---- 自相矛盾的输入：标签优先，但必须留下说明（不静默丢弃） ----
+  const conflict = await fieldOf({ value: 'FooNet 基于注意力', quote: QUOTE, status: 'not_extracted' });
+  check('标签说 not_extracted 却又给了内容 → 按缺失处理（标签优先）', conflict.status === 'missing' && conflict.value === undefined, String(conflict.status));
+  check('冲突时 note 写明原因，不静默丢弃', (conflict.note ?? '').includes('自认该项不可用'), String(conflict.note));
+
+  // ---- 异常输入：不抛 TypeError、不伪造内容 ----
+  const noteNumber = await fieldOf({ value: null, quote: null, status: 'missing', note: 123 as unknown as string });
+  check('note 写成数字 → 不再抛 TypeError，分析照常完成', noteNumber.status === 'missing', String(noteNumber.status));
+  const statusNumber = await fieldOf({ value: 'FooNet', quote: QUOTE, status: 5 as unknown as string });
+  check('status 写成数字 → 不再抛 TypeError，按未给状态处理（走证据路径）', statusNumber.status === 'verified', String(statusNumber.status));
+  const statusArray = await fieldOf({ value: null, quote: null, fieldStatus: ['missing'] as unknown as string });
+  check('fieldStatus 写成数组 → 不再抛 TypeError', statusArray.status === 'missing', String(statusArray.status));
+  const valueObject = await fieldOf({ value: { name: 'FooNet' } as unknown as string, quote: QUOTE, status: 'ok' });
+  check(
+    'value 写成对象 → 不得变成 "[object Object]" 当成字段值（按未给处理）',
+    valueObject.value === undefined && valueObject.status === 'missing',
+    `${String(valueObject.value)}／${valueObject.status}`,
+  );
+  const quoteNumber = await fieldOf({ value: 'FooNet', quote: 42 as unknown as string, status: 'ok' });
+  check('quote 写成数字 → 不再抛 TypeError，按没有引文处理', quoteNumber.status === 'no_evidence', String(quoteNumber.status));
+
+  // ---- 条件侧同一套词表 ----
+  const condMissing = (await extractWith({ value: null, quote: null, status: 'missing' }, { datasets: { values: ['ImageNet'], quote: QUOTE, status: 'missing' } })).conditions?.datasets;
+  check('条件 status=missing（即使给了 values/quote）→ 不当作已确认', condMissing?.status === 'not_extracted', String(condMissing?.status));
+  check('条件标签冲突时同样留下说明', (condMissing?.note ?? '').includes('自认该项不可用'), String(condMissing?.note));
+  const condNotReported = (await extractWith({ value: null, quote: null, status: 'missing' }, { datasets: { values: [], quote: null, status: 'not_reported' } })).conditions?.datasets;
+  check('条件 status=not_reported → 明确「论文没有」', condNotReported?.status === 'not_reported', String(condNotReported?.status));
+  const condUnclear = (await extractWith({ value: null, quote: null, status: 'missing' }, { datasets: { values: ['ImageNet'], quote: QUOTE, status: 'unclear' } })).conditions?.datasets;
+  check('条件 status=unclear → 保留「无法确认」，不升级为已验证', condUnclear?.status === 'unclear', String(condUnclear?.status));
+  const condReported = (await extractWith({ value: null, quote: null, status: 'missing' }, { datasets: { values: ['ImageNet'], quote: QUOTE, status: 'reported' } })).conditions?.datasets;
+  check('条件 status=reported + 可定位引文 → 已验证（正向路径没被影响）', condReported?.status === 'verified', String(condReported?.status));
+
+  server.close();
+}
+
 console.log('');
 console.log(`结果：通过 ${pass}，失败 ${fail}`);
 
