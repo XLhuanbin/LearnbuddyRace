@@ -29,6 +29,7 @@ import {
   hydratePaper,
   migrateMethod,
   migrateRelation,
+  normalizeRestoredData,
   revalidateCachedRelations,
   FIELD_KEYS_ORDER,
 } from './core/cache';
@@ -300,9 +301,10 @@ export default function App() {
         setPapers(psFixed);
         logRef.current(`恢复本机已有数据：${psFixed.length} 篇论文、${msFixed.length} 条方法分析`);
       }
-      // 兼容第一阶段遗留数据：状态与关系字段按新口径迁移
-      setMethods(msFixed.map(migrateMethod));
-      setRelations(rs.map(migrateRelation));
+      // 兼容第一阶段遗留数据：迁移 + **按当前规则重跑关系证据校验**（刷新恢复也要过证据校验）
+      const restoredInit = normalizeRestoredData(msFixed, rs, psFixed);
+      setMethods(restoredInit.methods);
+      setRelations(restoredInit.relations);
       const u = await loadMeta<UsageRecord[]>('usage');
       if (u) setUsage(u);
       // 分析产物（语料元信息 / 分歧 / 路线 / 示例条件）必须带语料集身份：
@@ -519,9 +521,11 @@ export default function App() {
       await repo.delete('papers', id);
     } catch (e) {
       log(`移除失败：${(e as Error).message}（已重新读取本机数据，未做任何丢失性操作）`);
-      setPapers(await repo.listPapers());
-      setMethods((await repo.listMethods()).map(migrateMethod));
-      setRelations((await repo.listRelations()).map(migrateRelation));
+      const psBack = await repo.listPapers();
+      const restoredBack = normalizeRestoredData(await repo.listMethods(), await repo.listRelations(), psBack);
+      setPapers(psBack);
+      setMethods(restoredBack.methods);
+      setRelations(restoredBack.relations);
       return;
     }
     setPapers(next.papers);

@@ -95,6 +95,12 @@ const legacyIndex = {
         coreIdea: { status: 'unverified' },
         inputsConditions: { status: 'no_evidence', value: 'ImageNet' },
         datasets: { status: 'missing' },
+        // 正例：旧标签 ok **且引文已定位** —— 必须仍然可核验（门槛不能变成一律降级）
+        metrics: {
+          status: 'ok',
+          value: 'top-1 accuracy',
+          evidence: { paperId: 'p_arxiv_0000.00001', quote: 'top-1 accuracy', page: 2, locator: 'page', verified: true },
+        },
       },
       // 旧格式的条件结构：只有部分维度，且用早期的 extraTrainingData 键名
       conditions: {
@@ -103,6 +109,9 @@ const legacyIndex = {
       },
       // 旧格式没有 overrides
     },
+    // 关系迁移要能校验「引文是否足以支撑该关系」，必须有方法名可用
+    { id: 'm_old_2', paperId: 'p_arxiv_0000.00001', fields: { methodName: { status: 'ok', value: 'ResNet' } } },
+    { id: 'm_old_3', paperId: 'p_arxiv_0000.00001', fields: { methodName: { status: 'ok', value: 'ViT' } } },
   ],
   relations: [
     {
@@ -121,6 +130,15 @@ const legacyIndex = {
       evidence: { paperId: 'p_arxiv_0000.00001', quote: 'x', locator: 'none', verified: false },
       // 既没有 evidenceState 也没有 assertedBy，且引文未定位
     },
+    {
+      // 正例：引文已定位 **且** 指名了被继承方法、含继承措辞 —— 必须仍保留 explicit
+      id: 'r_old_3',
+      fromMethodId: 'm_old_2',
+      toMethodId: 'm_old_3',
+      type: 'extends',
+      evidence: { paperId: 'p_arxiv_0000.00001', quote: 'Our ViT is based on ResNet.', page: 2, locator: 'page', verified: true },
+      assertedBy: 'explicit',
+    },
   ],
   verification: { fieldsWithValue: 0, fieldsEvidenceVerified: 0, fieldsEvidenceFailed: 0, fieldsNoEvidence: 0, fieldsMissing: 0, totalFields: 0 },
 };
@@ -129,7 +147,21 @@ const norm = normalizeCorpusIndex(legacyIndex);
 const m0 = norm.methods[0];
 
 check('迁移不改变 cacheVersion 等元信息（只迁移结构，不改身份）', norm.cacheVersion === legacyIndex.cacheVersion && norm.notLive === true);
-check('成果：方法字段全部落到当前四态', FIELD_STATUSES.includes(m0.fields.researchTask.status) && m0.fields.researchTask.status === 'verified', `researchTask: ok → ${m0.fields.researchTask.status}`);
+check(
+  '成果：旧标签 ok 但**没有引文**的字段不标「可核验」→ 待人工核对',
+  FIELD_STATUSES.includes(m0.fields.researchTask.status) && m0.fields.researchTask.status === 'unverified',
+  `researchTask: ok（无引文）→ ${m0.fields.researchTask.status}`,
+);
+check(
+  '成果：旧标签 ok 但**引文已定位**的字段仍可核验（门槛没有过度收紧）',
+  m0.fields.metrics.status === 'verified',
+  `metrics: ok（引文已定位）→ ${m0.fields.metrics.status}`,
+);
+check(
+  '成果：因缺证据而降级的字段写明原因（可追溯）',
+  (m0.fields.researchTask.note || '').includes('没有可核验的原文引文'),
+  m0.fields.researchTask.note || '',
+);
 check('成果：partial 有值 → unverified', m0.fields.methodName.status === 'unverified', `methodName: partial → ${m0.fields.methodName.status}`);
 check('成果：unverified 无值 → missing（不把空值当已核验）', m0.fields.coreIdea.status === 'missing', `coreIdea: unverified(空) → ${m0.fields.coreIdea.status}`);
 check('成果：no_evidence 保持不变', m0.fields.inputsConditions.status === 'no_evidence');
@@ -146,9 +178,28 @@ check('成果：原有维度的取值不丢失', (m0.conditions.datasets.values 
 
 const rel1 = norm.relations.find((r) => r.id === 'r_old_1');
 const rel2 = norm.relations.find((r) => r.id === 'r_old_2');
-check('成果：关系 assertedBy=explicit 迁移为 evidenceState=explicit', rel1.evidenceState === 'explicit');
+check(
+  '成果：assertedBy=explicit 但引文不足以支撑（未指名被继承方法）→ 降为待核查',
+  rel1.evidenceState === 'candidate',
+  `r_old_1: assertedBy=explicit → ${rel1.evidenceState}`,
+);
+check(
+  '成果：降级关系留下可读原因（stateAdjusted）',
+  (rel1.stateAdjusted ?? []).some((x) => String(x.reason).includes('迁移后按「待核查」处理')),
+  JSON.stringify((rel1.stateAdjusted ?? []).map((x) => x.reason)).slice(0, 90),
+);
+const rel3 = norm.relations.find((r) => r.id === 'r_old_3');
+check(
+  '成果：引文已定位且通过充分性判定时仍保留 explicit（门槛没有变成一律降级）',
+  rel3.evidenceState === 'explicit',
+  `r_old_3 → ${rel3.evidenceState}`,
+);
 check('成果：迁移出的关系带非空来源理由（不允许空 rationale）', typeof rel1.rationale === 'string' && rel1.rationale.length > 0, (rel1.rationale || '').slice(0, 40));
-check('成果：无状态且引文未定位的关系按 inferred 迁移（不冒充原文明示）', rel2.evidenceState === 'inferred', `→ ${rel2.evidenceState}`);
+check(
+  '成果：既无状态标签、引文又未定位的关系 → 待核查（不冒充任何正向结论）',
+  rel2.evidenceState === 'candidate',
+  `r_old_2 → ${rel2.evidenceState}`,
+);
 check('成果：关系 evidenceState 全部是当前三档之一', norm.relations.every((r) => ['explicit', 'inferred', 'candidate'].includes(r.evidenceState)));
 
 /* -------------------- 2. 当前格式缓存的幂等性 -------------------- */

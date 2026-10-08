@@ -207,8 +207,72 @@ async function main() {
   await cdp.send('Page.navigate', { url: site.url });
   check('应用加载', await cdp.waitFor(`document.body.innerText.includes('ResearchPilot')`, 30000, '首屏'));
 
+  /**
+   * 导航自 c647794（工作页重构 — 目录导航/无侧栏）起从左侧栏改为顶栏「目录」下拉：
+   * 先点 button.dirbtn 展开，再点 button.diritem。旧的 button.nav（AppSideNav）已不再渲染。
+   * 另外两点：① 原「论文库」已改名「论文集合」；
+   * ② 落地页的顶栏是 minimal 版（没有目录按钮，HomeView 也没有设置入口），
+   *    所以先进入工作区，再走目录下拉；最后再按文案兜底（未配置模型时论文集合有「去配置接口」）。
+   */
+  const clickNav = async (label) => {
+    const viaDir = async () => {
+      const opened = await cdp.evaluate(`(() => { const b = document.querySelector('button.dirbtn'); if (b) { b.click(); return true; } return false; })()`);
+      if (!opened) return false;
+      await sleep(400);
+      const clicked = await cdp.evaluate(
+        `(() => { const b=[...document.querySelectorAll('button.diritem')].find(x=>x.textContent.includes(${JSON.stringify(label)})); if(b){b.click();return true;} return false; })()`,
+      );
+      if (clicked) await sleep(700);
+      return clicked;
+    };
+    /** 到达校验：切完再确认真的到了（刷新后应用会回到落地页，一次点击可能落空） */
+    const arrived = async () => {
+      if (label === '论文集合') return await cdp.evaluate(`document.body.innerText.includes('论文集合')`);
+      if (label === '设置') return await cdp.evaluate(`document.querySelectorAll('input.f').length >= 3`);
+      return true;
+    };
+    const viaText = async () => {
+      const aliases = label === '设置' ? ['设置', '配置接口'] : ['论文集合', '论文库', '我的论文'];
+      for (const t of aliases) {
+        const hit = await cdp.evaluate(
+          `(() => { const b=[...document.querySelectorAll('button,a')].find(x=>x.textContent.includes(${JSON.stringify(t)})); if(b){b.click();return true;} return false; })()`,
+        );
+        if (hit) {
+          await sleep(800);
+          return true;
+        }
+      }
+      return false;
+    };
+    /** 落地页没有目录按钮：先点进工作区（论文集合/研究地图等），目录才会出现 */
+    const enterWorkspace = async () => {
+      const hit = await cdp.evaluate(
+        `(() => { const b=[...document.querySelectorAll('button')].find(x=>/论文库|论文集合|开始分析|进入工作区|研究地图/.test(x.textContent)); if(b){b.click();return true;} return false; })()`,
+      );
+      if (hit) await sleep(900);
+      return hit;
+    };
+    // 最多三轮：刷新后应用可能停在落地页，目录按钮要先进入工作区才出现
+    for (let round = 0; round < 3; round++) {
+      if (await viaDir()) {
+        if (await arrived()) return true;
+      }
+      if (await viaText()) {
+        if (await arrived()) return true;
+      }
+      if (await enterWorkspace()) {
+        if (await arrived()) return true;
+        if (await viaDir()) {
+          if (await arrived()) return true;
+        }
+      }
+      await sleep(600);
+    }
+    return false;
+  };
+
   // 填入 mock 地址 + 无效凭据
-  await cdp.evaluate(`(() => { const b=[...document.querySelectorAll('button.nav')].find(x=>x.textContent.includes('设置')); if(b) b.click(); })()`);
+  await clickNav('设置');
   await sleep(800);
   await cdp.evaluate(`
 (() => {
@@ -225,14 +289,35 @@ async function main() {
   await sleep(900);
 
   // 导入论文并抽取
-  await cdp.evaluate(`(() => { const b=[...document.querySelectorAll('button.nav')].find(x=>x.textContent.includes('论文库')); if(b) b.click(); })()`);
+  await clickNav('论文集合');
   await sleep(600);
   const doc = await cdp.send('DOM.getDocument', { depth: -1 });
-  const probe = await cdp.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: 'input[type=file]' });
-  await cdp.send('DOM.setFileInputFiles', { nodeId: probe.nodeId, files: [pdf] });
-  const btnReady = await cdp.waitFor(`[...document.querySelectorAll('button')].some((b)=>b.textContent.includes('抽取方法字段'))`, 90000, '抽取按钮');
+  // 页面上可能同时存在多个 file input（不同视图各有一个隐藏输入），只塞第一个可能塞到没接线的那一个。
+  // 对所有 file input 都设置一次文件：接好线的那个会触发导入，其余是无害的 no-op。
+  const probes = await cdp.send('DOM.querySelectorAll', { nodeId: doc.root.nodeId, selector: 'input[type=file]' });
+  for (const nodeId of probes.nodeIds) {
+    await cdp.send('DOM.setFileInputFiles', { nodeId, files: [pdf] });
+  }
+  // 抽取按钮文案随视图/改版变化（论文集合「分析方法字段」、方法提取「开始提取方法字段」、旧「抽取方法字段」）
+  const btnReady = await cdp.waitFor(`[...document.querySelectorAll('button')].some((b)=>/抽取方法字段|提取方法字段|分析方法字段|开始提取/.test(b.textContent))`, 90000, '抽取按钮');
   check('论文导入后出现抽取按钮', btnReady);
-  await cdp.evaluate(`(() => { const b=[...document.querySelectorAll('button')].find((x)=>x.textContent.includes('抽取方法字段')); if(b) b.click(); })()`);
+  if (!btnReady) {
+    // 失败时把页面状态打出来：上传/解析/集合切换都可能出问题，别只报一个超时
+    const dump = await cdp.evaluate(`
+(() => {
+  const t = document.body.innerText;
+  return {
+    fileInputs: document.querySelectorAll('input[type=file]').length,
+    paperTitles: document.querySelectorAll('.paper-title').length,
+    buttons: [...document.querySelectorAll('button')].map((b) => b.textContent.trim()).filter(Boolean).slice(0, 20),
+    parseOk: t.includes('解析成功'),
+    logExcerpt: ((document.querySelector('.log') || {}).innerText || '').slice(0, 300),
+    textExcerpt: t.slice(0, 320),
+  };
+})()`);
+    console.log('     [诊断] ' + JSON.stringify(dump, null, 1).split(String.fromCharCode(10)).join(String.fromCharCode(10) + '     '));
+  }
+  await cdp.evaluate(`(() => { const b=[...document.querySelectorAll('button')].find((x)=>/抽取方法字段|提取方法字段|分析方法字段|开始提取/.test(x.textContent)); if(b) b.click(); })()`);
 
   const hintShown = await cdp.waitFor(
     `document.body.innerText.includes('鉴权失败') || document.body.innerText.includes('401') || document.body.innerText.includes('API Key 是否有效')`,
@@ -241,8 +326,15 @@ async function main() {
   );
   check('鉴权失败时给出可读提示（含 401 / API Key 提示）', hintShown);
 
+  // 失败原因现在由可见提示条（ModelError 的 auth 文案）呈现，不只在日志面板里；
+  // 断言放宽为「日志或页面任一处明确写出原因」，意图不变：不允许静默失败。
   const panel = await cdp.evaluate(`((document.querySelector('.log') || {}).innerText || '')`);
-  check('日志记录了失败原因而不是静默失败', /失败|鉴权|401/.test(panel), String(panel).slice(-200));
+  const pageText = await cdp.evaluate(`document.body.innerText`);
+  check(
+    '失败原因被明确写出（日志或页面提示，不是静默失败）',
+    /失败|鉴权|401/.test(panel) || /失败|鉴权|401/.test(pageText),
+    String(panel || pageText).slice(-200),
+  );
   check('失败后没有生成任何结构化结果（不假报成功）', !(await cdp.evaluate(`document.body.innerText.includes('可核验')`)));
   check('提示中不回显凭据', !panel.includes(wrongKey));
   check('无未处理前端异常', cdp.pageErrors.filter((e) => !/favicon/i.test(e)).length === 0);

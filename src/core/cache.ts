@@ -18,7 +18,7 @@ import type {
   Relation,
 } from './types';
 import { CONDITION_DIMENSIONS, METHOD_FIELD_LABELS } from './types';
-import { RULES_VERSION, type StalenessReport } from './rules';
+import { RULES_VERSION, assessRelationEvidence, type StalenessReport } from './rules';
 import { validateRelation } from './validate';
 
 export const FIELD_KEYS_ORDER: FieldKey[] = [
@@ -122,16 +122,70 @@ export function assessCorpusStaleness(
   return { stale: reasons.length > 0, reasons, notes };
 }
 
-/** 兼容第一阶段缓存：把 assertedBy 迁移为 evidenceState */
-export function migrateRelation(r: Relation): Relation {
+/**
+ * 兼容第一阶段缓存：把已废弃的 assertedBy 迁移为 evidenceState。
+ *
+ * 两条硬约束（2026-10-08 集成阶段补齐）：
+ * 1. **旧标签不是结论**：`assertedBy: 'explicit'` 只代表当时那次调用的说法，不能直接当「原文明示」；
+ * 2. **引文能定位也不等于足以支撑**：`evidence.verified` 只说明这段文字在原文里找得到，
+ *    不说明它支撑该关系（例如引文压根没提到被继承的方法名）。充分性必须过 `assessRelationEvidence`。
+ *
+ * 因此 explicit 仅在「引文已定位 **且** 通过充分性判定」时保留；拿不到方法信息（迁移时传不进 methods）
+ * 或不足以判定时一律降为「待核查」，并在 stateAdjusted 里写明原因 —— 降级不删除数据，只降可信度。
+ */
+export function migrateRelation(r: Relation, methods?: Method[]): Relation {
   if (r.evidenceState) return r;
-  const legacy = r.assertedBy ?? (r.evidence?.verified ? 'explicit' : 'inferred');
+  const legacyLabel = (r as unknown as { assertedBy?: string }).assertedBy;
+  /** 旧标签只作为「当时认为是什么」的提示，不作为结论 */
+  const wanted: Relation['evidenceState'] =
+    legacyLabel === 'explicit' ? 'explicit' : legacyLabel === 'inferred' ? 'inferred' : 'candidate';
+
+  let evidenceState: Relation['evidenceState'] = 'candidate';
+  let downgradeReason = '';
+  if (wanted === 'explicit') {
+    const fromMethod = methods?.find((m) => m.id === r.fromMethodId);
+    const toMethod = methods?.find((m) => m.id === r.toMethodId);
+    const located = r.evidence?.verified === true;
+    const assessment =
+      located && fromMethod && toMethod
+        ? assessRelationEvidence(
+            r.evidence?.quote ?? '',
+            fromMethod.fields.methodName.value,
+            toMethod.fields.methodName.value,
+            r.type,
+          )
+        : undefined;
+    if (assessment?.sufficient) {
+      evidenceState = 'explicit';
+    } else {
+      downgradeReason = !located
+        ? '旧格式缓存的关系没有可核验的原文引文'
+        : !fromMethod || !toMethod
+          ? '迁移时拿不到关系两端的方法信息，无法校验引文是否足以支撑该关系'
+          : `引文不足以支撑「原文明示」（${assessment?.reason ?? '理由不足'}）`;
+    }
+  } else if (wanted === 'inferred') {
+    evidenceState = 'inferred';
+  } else {
+    downgradeReason = '旧格式缓存既没有关系状态标签，也没有可核验的原文引文';
+  }
+
   return {
     ...r,
-    evidenceState: legacy === 'explicit' ? 'explicit' : 'inferred',
+    evidenceState,
     rationale:
       r.rationale ??
-      (legacy === 'explicit' ? `论文原文明确陈述了该关系（p.${r.evidence?.page ?? '?'}）。` : '第一阶段缓存未记录推断理由。'),
+      (evidenceState === 'explicit'
+        ? `论文原文明确陈述了该关系（p.${r.evidence?.page ?? '?'}）。`
+        : '第一阶段缓存未记录推断理由。'),
+    ...(downgradeReason
+      ? {
+          stateAdjusted: [
+            ...(r.stateAdjusted ?? []),
+            { from: wanted, to: evidenceState, reason: `${downgradeReason}；迁移后按「待核查」处理，需人工核对。` },
+          ],
+        }
+      : {}),
   };
 }
 
@@ -204,8 +258,26 @@ export function migrateMethod(m: Method): Method {
     const r = fields[k];
     if (!r) continue;
     const legacy = (r as unknown as { status: string }).status;
-    if (legacy === 'ok' || legacy === 'verified') fields[k] = { ...r, status: 'verified' };
-    else if (legacy === 'partial' || legacy === 'unverified') fields[k] = { ...r, status: r.value ? 'unverified' : 'missing' };
+    if (legacy === 'ok' || legacy === 'verified') {
+      /**
+       * 「可核验」的判据是**有可核验的原文引文**（evidence.verified），不是旧格式里的状态词。
+       * 2026-10-08 集成阶段补齐：此前只认状态词，旧缓存里「写了 verified 但引文缺失/未定位」的字段
+       * 会被显示成「可核验」，同时又被 validateMethod 报一条「没有提供任何原文引文」——
+       * 同一条字段两处说法自相矛盾，而且会被 Library.verifiedOf 算进「已核验字段数」。
+       * 现在：有值但证据不成立 → 待人工核对；连值都没有 → 缺失。
+       */
+      if (r.evidence?.verified === true && r.value) {
+        fields[k] = { ...r, status: 'verified' };
+      } else if (r.value) {
+        fields[k] = {
+          ...r,
+          status: 'unverified',
+          note: r.note ?? '迁移自旧格式：该字段没有可核验的原文引文，未标为「可核验」，需人工核对。',
+        };
+      } else {
+        fields[k] = { ...r, status: 'missing' };
+      }
+    } else if (legacy === 'partial' || legacy === 'unverified') fields[k] = { ...r, status: r.value ? 'unverified' : 'missing' };
     else if (legacy === 'missing') fields[k] = { ...r, status: 'missing' };
     else if (legacy === 'no_evidence') fields[k] = { ...r, status: 'no_evidence' };
   }
@@ -290,11 +362,33 @@ function currentBuildId(): Promise<string> {
  * 两条加载路径都经过同一层。
  */
 export function normalizeCorpusIndex(data: CachedCorpusIndex): CachedCorpusIndex {
+  const methods = (data.methods ?? []).map(migrateMethod);
   return {
     ...data,
-    methods: (data.methods ?? []).map(migrateMethod),
-    relations: (data.relations ?? []).map(migrateRelation),
+    methods,
+    // 关系迁移要能校验「引文是否足以支撑该关系」，必须把方法名一起传进去
+    relations: (data.relations ?? []).map((r) => migrateRelation(r, methods)),
   };
+}
+
+/**
+ * 本机恢复（刷新恢复）路径的统一归一：**迁移 + 按当前规则重跑关系证据校验**。
+ *
+ * 与预置语料加载路径（normalizeCorpusIndex → revalidateCachedRelations）口径一致：
+ * 迁移只补结构；关系是不是「原文明示」必须过证据校验。
+ * 充分性判定只依赖引文与方法名（不需要论文全文），所以本机恢复时无需先把全文读出来。
+ */
+export function normalizeRestoredData(
+  methods: Method[],
+  relations: Relation[],
+  papers: Paper[],
+): { methods: Method[]; relations: Relation[]; notes: string[] } {
+  const migratedMethods = methods.map(migrateMethod);
+  const migratedRelations = relations.map((r) => migrateRelation(r, migratedMethods));
+  // 本机数据没有逐条记录「生成时的规则版本」，这里只做证据校验，不做版本强制降级
+  //（版本不一致的过期提示由预置语料路径的 assessCorpusStaleness 负责）
+  const check = revalidateCachedRelations(migratedRelations, migratedMethods, papers, { rulesVersionChanged: false });
+  return { methods: migratedMethods, relations: check.relations, notes: check.notes };
 }
 
 /** 浏览器端加载缓存索引（自动带构建指纹，避免读到 CDN 缓存的旧语料） */
