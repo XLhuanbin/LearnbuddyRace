@@ -480,27 +480,12 @@ export function UploadFlowView({
                     </p>
                   )}
 
+                  {/* 2026-10-09：'当前阶段 / 当前结果 / 已完成步骤' 三项已由上方进度卡覆盖，
+                      这里只保留进度卡没有的信息（字段数量 / 证据数量 / 下一步），避免重复。 */}
                   <details className="fold">
-                    <summary>查看处理细节（当前阶段 · 已完成步骤 · 字段与证据数量）</summary>
+                    <summary>查看处理细节（字段与证据数量 · 下一步）</summary>
                     <div className="fold-body">
                       <dl className="kvlist">
-                        <div>
-                          <dt>当前阶段</dt>
-                          <dd>
-                            {cur ? `${cur.no} ${cur.name}` : '等待上传论文'}（{cur ? STATE_TEXT[cur.state] : '等待中'}）
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>当前结果</dt>
-                          <dd>{cur ? cur.result : '还没有论文'}</dd>
-                        </div>
-                        <div>
-                          <dt>已完成步骤</dt>
-                          <dd>
-                            {currentSteps.filter((s) => s.state === 'done').length}/5 步（
-                            {currentSteps.filter((s) => s.state === 'done').map((s) => s.name).join('、') || '尚未开始'}）
-                          </dd>
-                        </div>
                         <div>
                           <dt>字段数量</dt>
                           <dd>{currentMethod ? `${withValue}/7 有值` : '尚未提取'}</dd>
