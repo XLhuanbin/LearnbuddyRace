@@ -1645,17 +1645,17 @@ export default function App() {
             />
           )}
 
-          {tab !== 'landing' && (
-          <details className="fold footnote">
-            <summary>研究伦理与边界（点开查看）</summary>
-            <div className="fold-body">
-              <p>
-                本作品把「论文原文」当作分析材料而不是指令来源；界面中每个结论都能回到原文，定位不到就标记为「待人工核对」或「未找到证据」。
-              </p>
-              <p>系统不对方法效果排名，不把关键词相似当作技术继承，也不把预置样例伪装成实时分析。</p>
-            </div>
-          </details>
-          )}
+          {/*
+            2026-10-10：原先这里在所有非首页 tab 的底部固定渲染一个
+            <details class="fold footnote">「研究伦理与边界（点开查看）」折叠条。
+            用户要求移除（草稿里没有这种全站尾随块，页面应保持纯净）。
+            它原本承担的两条声明（不排名 / 不把关键词相似当继承 / 不把预置样例伪装成实时分析）
+            仍由各处页面级的文案与验收脚本覆盖：
+              · 实验可比性页：不做排名、不给因果结论
+              · 方法提取页 fineprint：解析在本机完成、密钥只存本机
+              · 首页页脚：配图为产品概念示意、真实结果指向对应工作页
+              · 代码层：comparability.ts / evidence.ts / effective.ts 的硬约束
+          */}
           </div>
         </main>
       </div>
