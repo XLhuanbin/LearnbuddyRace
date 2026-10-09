@@ -418,14 +418,13 @@ if (existsSync(UPLOAD_PDF)) {
 }
 check('已注入真实 PDF 并触发解析', uploaded);
 await sleep(6000);
-// 「N 页 · N 字符」收在论文详情/处理细节的折叠区里（默认收起）—— 先展开再断言
-await cdp.ev(`(() => { document.querySelectorAll('.main-inner details').forEach((d) => { d.open = true; }); return true; })()`);
-await sleep(800);
+// 2026-10-09 改版：方法提取页不再展示每篇的「N 页 · N 字符」（已移到论文集合的论文详情里）。
+// 这里改验「解析已完成」这一真实结果在方法提取页可见（进度卡 / 五步流程里）。
 const upText = await mainText();
 check(
-  '显示解析结果（页数 / 字符数）',
-  /\d+ 页 · \d+ 字符/.test(upText),
-  upText.match(/\d+ 页 · \d+ 字符/)?.[0] ?? '（没找到「N 页 · N 字符」）',
+  '解析完成后在方法提取页可见（1 篇已解析）',
+  /1 篇已解析|解析文本/.test(upText),
+  upText.replace(/\n+/g, ' | ').slice(0, 120),
 );
 check('未配置模型时就地提示配置（不让用户先去找设置）', /需要模型接口/.test(upText) && /接口地址/.test(upText) && /密钥/.test(upText));
 check('提示密钥只保存在本机浏览器', /只保存在本机浏览器|不会写入任何产物/.test(upText));

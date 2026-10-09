@@ -1420,8 +1420,6 @@ export default function App() {
               methods={methods}
               jobs={jobs}
               lastImportedId={lastImportedId}
-              onReparse={reparsePaper}
-              canReparseInPlace={canReparseInPlace}
               onUseOwnScope={() => setMapMode('own')}
               onUseCaseScope={() => setMapMode('case')}
               modelReady={modelReady}
@@ -1435,7 +1433,6 @@ export default function App() {
               onImport={importFiles}
               onPaste={importPaste}
               onExtract={extract}
-              onCancel={cancelExtract}
               onEnterMap={() => setTab('map')}
               onOpenPaper={(paperId) => {
                 setExpFocus(paperId);

@@ -3,7 +3,6 @@ import type { Method, Paper } from '../core/types';
 import type { JobState } from './Library';
 import { verifiedOf } from './Library';
 import { FIELD_KEYS_ORDER } from '../core/cache';
-import { METHOD_FIELD_LABELS, FIELD_STATUS_TEXT } from '../core/types';
 import { buildMethodProfile, shortContribution } from '../core/grouping';
 import type { CorpusScope } from '../core/corpus';
 import { effectiveFieldValue } from '../core/effective';
@@ -25,14 +24,10 @@ interface Props {
   onImport: (files: FileList) => void;
   onPaste: (title: string, text: string) => void;
   onExtract: (paperId: string, force: boolean) => void;
-  /** 重新解析 PDF（会真正重跑解析；必要时要用户重新选一次文件） */
-  onReparse: (paperId: string) => void;
-  /** 这份 PDF 现在能否直接重解析（文件还在本次会话的内存里） */
-  canReparseInPlace: (paperId: string) => boolean;
-  onCancel: (paperId: string) => void;
   onEnterMap: () => void;
+  /** 点队列里的一篇 → 跳去论文集合看详情（字段/证据/重解析/取消都在那） */
   onOpenPaper: (paperId: string) => void;
-  /** 刚刚导入的论文：默认选中它并给出醒目入口 */
+  /** 刚刚导入的论文：默认高亮并给出醒目入口 */
   lastImportedId?: string | null;
   /** 切到「我上传的论文」/「案例」范围（列表与计数会一起跟着走） */
   onUseOwnScope: () => void;
@@ -131,20 +126,17 @@ function stepsOf(p: Paper, m: Method | undefined, job: JobState | undefined, mod
 /**
  * 方法提取页。
  *
- * **外观按 Superdesign 草稿 a6947252「论文上传与分析」逐元素严格复刻**
- * （左侧 40px 细脊线、eyebrow + 超大衬线标题 + 一句说明的首屏、12 栅格 7/5 两栏、
- *  虚线拖拽区、白底分析进度卡「标题 + 步骤 + 大号百分比 + 进度条 + 底部两行小字」、
- *  sticky 待处理队列卡、通栏页脚 —— 结构与数值都照草稿，不改外观组件）。
+ * **外观按 Superdesign 草稿 a6947252「论文上传与分析」逐元素严格复刻**：
+ * 左侧 40px 细脊线、eyebrow + 超大衬线标题 + 一句说明的首屏、12 栅格 7/5 两栏、
+ * 虚线拖拽区、白底分析进度卡（标题 + 步骤 + 大号百分比 + 进度条 + 底部两行小字）、
+ * sticky 待处理队列卡、通栏页脚 —— 结构与数值都照草稿，不改外观组件。
  *
- * **只替换了与事实不符的内容**：
- *   - 「支持 PDF、Word 及主流学术格式批量导入」→「支持 PDF 批量导入」（本项目只支持 PDF）
- *   - 「拖拽文件至此」→「拖拽 PDF 至此」（同上）
- *   - 进度卡的 45% / 「步骤: 结构化解析 (2/4)」/「预计剩余时间: 1分20秒」→ 真实步骤进度（不改结构，只换数值来源）
- *   - 「数据使用协议 / 所有上传文件将进行加密处理」→ 可证实的「解析在本机浏览器完成，不会上传服务器」
- *   - 页脚「Privacy & Trust First / 使用指南 / 法律条款」→ 同类样式下的真实表述与真实入口
+ * **只替换了与事实不符的内容**，并**移除了草稿没有、纯属重复的「每篇论文详情」**：
+ * 字段/证据/重解析/取消等按篇功能都在「论文集合」页，本页只负责「上传 → 看进度 → 进队列」，
+ * 点队列里的一篇会跳到论文集合看详情。
  *
- * 为兼容不得不加的部分（均已注明）：顶栏是 sticky 而非草稿的 fixed，故 main 不照抄 pt-32；
- * 原页面的真实功能（粘贴正文、当前论文详情、失败详情与重解析、模型配置）保留为左栏的追加卡片。
+ * 为兼容不得不加的部分（已注明）：顶栏是 sticky 而非草稿的 fixed，故 main 不照抄 pt-32；
+ * 原页面的真实功能（粘贴正文、五步 FlowBar、模型配置）作为左栏追加卡片保留。
  */
 export function UploadFlowView({
   papers,
@@ -160,9 +152,6 @@ export function UploadFlowView({
   onImport,
   onPaste,
   onExtract,
-  onReparse,
-  canReparseInPlace,
-  onCancel,
   onEnterMap,
   onOpenPaper,
   lastImportedId,
@@ -171,9 +160,6 @@ export function UploadFlowView({
   onGo,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [sel, setSel] = useState<string | null>(null);
-  /** 用户手动选过哪一篇（导入后要自动跳到刚导入的那一篇） */
-  const [touched, setTouched] = useState(false);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteTitle, setPasteTitle] = useState('');
   const [pasteText, setPasteText] = useState('');
@@ -192,39 +178,16 @@ export function UploadFlowView({
    * - 只要进入过 own 范围（导入后 App 会切过去），就显示我上传的论文；
    * - 案例里一篇都没有但用户有自传论文时，也显示自传论文（否则页面会是空的）；
    * - 其余情况显示案例。
-   * 无论哪种，**列表 / 计数 / 当前选中 / 抽取入口都取自同一个 `shown`**。
+   * 无论哪种，**列表 / 计数 / 抽取入口都取自同一个 `shown`**。
    */
   const listMode: 'case' | 'own' = scope.mode === 'own' || (casePapers.length === 0 && ownPapers.length > 0) ? 'own' : 'case';
   const shown = listMode === 'own' ? ownPapers : casePapers;
   /** 自传论文存在但当前看的是案例列表 → 必须给出醒目入口（不能静默藏着） */
   const hiddenOwn = listMode === 'case' && ownPapers.length > 0 ? ownPapers.length : 0;
   const pendingExtract = shown.filter((p) => p.parseStatus === 'ok' && !methods.some((m) => m.paperId === p.id));
-  const pendingCount = pendingExtract.length;
   const hasMethod = (p: Paper) => methods.some((m) => m.paperId === p.id);
   const doneCount = shown.filter(hasMethod).length;
   const needModel = !modelReady && shown.some((p) => p.parseStatus === 'ok' && !hasMethod(p));
-
-  /**
-   * 默认选中「最需要注意」的那一篇：刚导入的 > 失败 > 进行中 > 未完成 > 第一篇。
-   * 「刚导入」优先，是为了让用户上传完立刻看到自己那篇论文的抽取入口。
-   */
-  const autoSel =
-    (lastImportedId && shown.some((p) => p.id === lastImportedId) ? lastImportedId : null) ??
-    shown.find((p) => p.parseStatus === 'failed' || jobs[p.id]?.status === 'failed')?.id ??
-    shown.find((p) => jobs[p.id]?.status === 'running')?.id ??
-    shown.find((p) => p.parseStatus === 'ok' && !hasMethod(p))?.id ??
-    shown[0]?.id ??
-    null;
-  // 用户没手动选过时，始终跟随 autoSel（这样导入后会自动跳到刚导入的那一篇）
-  const currentId = (touched ? sel : null) ?? autoSel;
-  const current = shown.find((p) => p.id === currentId);
-  const currentMethod = current ? methods.find((m) => m.paperId === current.id) : undefined;
-  const currentJob = current ? jobs[current.id] : undefined;
-  const currentSteps = current ? stepsOf(current, currentMethod, currentJob, modelReady) : [];
-  const failedStep = currentSteps.find((s) => s.state === 'failed');
-  const verified = currentMethod ? verifiedOf(currentMethod) : 0;
-  const withValue = currentMethod ? FIELD_KEYS_ORDER.filter((k) => currentMethod.fields[k]?.value).length : 0;
-  const cur = currentSteps.find((s) => s.state === 'running') ?? currentSteps.find((s) => s.state === 'failed') ?? currentSteps.find((s) => s.state === 'waiting') ?? currentSteps[4];
 
   /** 页面级总览：把每篇的状态合并成一条流程（取最靠后的真实进度） */
   const overview: { no: string; name: string; state: StepState; result: string }[] = (() => {
@@ -268,8 +231,13 @@ export function UploadFlowView({
   const pct = Math.round((stepDone / stepTotal) * 100);
   const anyRunning = overview.some((s) => s.state === 'running');
   const progTitle = pct === 100 ? '方法论梳理已完成' : anyRunning ? '正在深度分析方法论...' : '等待开始梳理';
-  const progStepLabel = `步骤: ${cur ? `${cur.no} ${cur.name}` : '等待上传论文'} (${stepDone}/${stepTotal})`;
-  const progNote = cur ? cur.result.slice(0, 42) : '拖入 PDF 或粘贴正文即可开始';
+  const curOv =
+    overview.find((s) => s.state === 'running') ??
+    overview.find((s) => s.state === 'failed') ??
+    overview.find((s) => s.state === 'waiting') ??
+    overview[overview.length - 1];
+  const progStepLabel = `步骤: ${curOv.no} ${curOv.name} (${stepDone}/${stepTotal})`;
+  const progNote = curOv.result.slice(0, 42);
 
   /** 方法短名：与论文集合 / 研究地图使用同一套派生规则 */
   const shortNameOf = (m: Method) => buildMethodProfile(m, papers.find((x) => x.id === m.paperId), papers).shortName;
@@ -434,7 +402,7 @@ export function UploadFlowView({
               </div>
             )}
 
-            {/* 刚导入的论文：明确告诉用户「在哪里、被选中了」 */}
+            {/* 刚导入的论文：明确告诉用户「在哪里、可以去论文集合看详情」 */}
             {lastImportedId &&
               (() => {
                 const just = shown.find((p) => p.id === lastImportedId);
@@ -444,7 +412,7 @@ export function UploadFlowView({
                   <div className="justbar" role="status">
                     <Status kind="ok">刚刚导入</Status>
                     <span className="small">
-                      已选中「<strong>{t}</strong>」，右侧就是它的处理进度与抽取入口。
+                      已导入「<strong>{t}</strong>」，可在论文集合里查看详情与抽取。
                     </span>
                     {listMode === 'own' ? (
                       <button className="btn ghost sm" onClick={onUseCaseScope}>
@@ -454,150 +422,6 @@ export function UploadFlowView({
                   </div>
                 );
               })()}
-
-            {/* 当前论文详情（原页面功能，兼容保留；.up-detail 供验收脚本定位） */}
-            <div className="up-prog up-detail">
-              {current ? (
-                <>
-                  <div className="detail-head">
-                    <h3>{current.title}</h3>
-                    {titleNeedsConfirm(current) && (
-                      <span className="titleflag" title="这个标题是从 PDF 首页猜出来的，还没有在原文里核验">
-                        标题待确认
-                      </span>
-                    )}
-                    {currentMethod && <span className="mname">{shortNameOf(currentMethod)}</span>}
-                    <Status
-                      kind={currentJob?.status === 'running' ? 'info' : currentMethod ? (currentMethod.cached ? 'cached' : 'live') : failedStep ? 'bad' : 'pending'}
-                    >
-                      {currentJob?.status === 'running' ? '进行中' : currentMethod ? '字段已生成' : failedStep ? '失败' : '等待中'}
-                    </Status>
-                  </div>
-
-                  {currentMethod && (
-                    <p className="detail-idea">
-                      {shortContribution(effectiveFieldValue(currentMethod, 'coreIdea')) || '尚未提取到核心思路'}
-                    </p>
-                  )}
-
-                  {/* 2026-10-09：原先这里还有一个「查看处理细节」折叠区（当前阶段/当前结果/已完成步骤/
-                      字段数量/证据数量/下一步）。它的信息要么已由上方进度卡覆盖，要么后续在「论文集合」页
-                      按篇展示，属于重复内容 —— 按用户要求整体移除。 */}
-
-                  <div className="row" style={{ gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-                    {current.parseStatus === 'ok' && !currentMethod && (
-                      <button className="btn-primary" disabled={!!currentJob && currentJob.status === 'running'} onClick={() => onExtract(current.id, false)}>
-                        {modelReady ? '开始提取字段' : '配置模型后提取'}
-                      </button>
-                    )}
-                    {current.parseStatus === 'failed' && (
-                      /* 这里必须是**真正重新解析 PDF**：不能拿模型抽取冒充解析重试（实测问题 2）。
-                         浏览器不会长期保留用户选过的文件，所以必要时会请他重新选一次。 */
-                      <button className="btn-primary" onClick={() => onReparse(current.id)}>
-                        {canReparseInPlace(current.id) ? '重新解析这份 PDF' : '重新选择 PDF 并重新解析'}
-                      </button>
-                    )}
-                    {currentJob?.status === 'running' && (
-                      <button className="btn-ghost" onClick={() => onCancel(current.id)}>
-                        停止等待
-                      </button>
-                    )}
-                    <button className="btn-ghost" onClick={() => onOpenPaper(current.id)} disabled={!currentMethod}>
-                      在论文集合里打开
-                    </button>
-                    <button className="btn-ghost" onClick={onEnterMap} disabled={!methods.length}>
-                      进入研究地图 →
-                    </button>
-                  </div>
-
-                  {failedStep && (
-                    <div className="confirmbar" style={{ background: 'var(--bad-soft)', borderColor: 'var(--bad-line)' }}>
-                      <div className="t">
-                        <strong>失败在哪一步：</strong>
-                        {failedStep.no} {failedStep.name}
-                        <br />
-                        <strong>失败原因：</strong>
-                        {failedStep.no === '02' ? current.parseError || '未能从该文件解析出文本层' : currentJob?.error || '模型调用未成功返回'}
-                        <br />
-                        <strong>如何重试：</strong>
-                        {failedStep.no === '02'
-                          ? '点上面的「重新选择 PDF 并重新解析」——它会真的重跑一次 PDF 解析（必要时请你重新选一次文件）；扫描件需要先做 OCR，系统不会返回空结果冒充成功。'
-                          : '点上面的「开始提取字段」；也可以先在设置里检查接口地址、模型名与额度。换个 PDF 解析失败不是模型问题，不是在这里重试。'}
-                        <br />
-                        <strong>已完成的数据：</strong>
-                        {current.parseStatus === 'ok'
-                          ? '全文与页码解析结果保留，上一次的方法字段（如有）不会被覆盖。'
-                          : '论文元数据（标题、页数、内容哈希）已保存，移除前一直保留。'}
-                      </div>
-                    </div>
-                  )}
-
-                  <details className="fold">
-                    <summary>查看处理过程与原文依据（处理时间线 · 字段 · 证据）</summary>
-                    <div className="fold-body">
-                      <div className="secthead">
-                        <h3>处理时间线</h3>
-                        <span className="sub">每一步的真实状态与已得到的结果</span>
-                      </div>
-                      <div className="quiet-group" style={{ marginTop: 0, borderTop: 'none', paddingTop: 0 }}>
-                        {currentSteps.map((s) => (
-                          <div className="lnrow" key={s.no}>
-                            <span className="no">{s.no}</span>
-                            <span className="nm">{s.name}</span>
-                            <span className={`stt ${s.state}`}>{STATE_TEXT[s.state]}</span>
-                            <span className="res">
-                              {s.result}
-                              {s.next && <span className="dim"> · 下一步：{s.next}</span>}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-
-                      {currentMethod && (
-                        <>
-                          <div className="secthead">
-                            <h3>字段与证据</h3>
-                            <span className="sub">首屏只显示 3 个关键字段，其余默认收起</span>
-                          </div>
-                          <div className="quiet-group" style={{ marginTop: 0, borderTop: 'none', paddingTop: 0 }}>
-                            {FIELD_KEYS_ORDER.length > 0 && (
-                              <details className="fold" style={{ marginTop: 10 }}>
-                                <summary>查看字段与原文依据（共 {FIELD_KEYS_ORDER.length} 项）</summary>
-                                <div className="fold-body">
-                                  {FIELD_KEYS_ORDER.map((k) => {
-                                    const f = currentMethod.fields[k];
-                                    return (
-                                      <div className="method-field-row" key={k}>
-                                        <span className="nm">{METHOD_FIELD_LABELS[k]}</span>
-                                        <span className={`stt ${f.evidence?.verified ? 'done' : f.status === 'missing' ? 'failed' : 'waiting'}`}>
-                                          {FIELD_STATUS_TEXT[f.status]}
-                                        </span>
-                                        <span className="value">
-                                          {f.value ? f.value.slice(0, 96) + (f.value.length > 96 ? '…' : '') : '未提取到'}
-                                          {f.evidence
-                                            ? f.evidence.verified
-                                              ? ` · 引文已定位（p.${f.evidence.page ?? '?'}）`
-                                              : ' · 引文未通过校验'
-                                            : ' · 无引文'}
-                                        </span>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </details>
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </details>
-                </>
-              ) : (
-                <p className="small dim" style={{ margin: 0 }}>
-                  右侧选择一篇论文查看它的处理详情。
-                </p>
-              )}
-            </div>
 
             {/* 模型配置（原页面功能，兼容保留） */}
             {needModel && (
@@ -656,12 +480,9 @@ export function UploadFlowView({
                     return (
                       <button
                         key={p.id}
-                        className={`up-row${p.id === currentId ? ' on' : ''}${p.id === lastImportedId ? ' just' : ''}`}
-                        onClick={() => {
-                          setSel(p.id);
-                          setTouched(true);
-                        }}
-                        aria-current={p.id === currentId ? 'true' : undefined}
+                        className={`up-row${p.id === lastImportedId ? ' just' : ''}`}
+                        onClick={() => onOpenPaper(p.id)}
+                        title="在论文集合里查看详情"
                       >
                         <span className="nm">
                           {p.title}

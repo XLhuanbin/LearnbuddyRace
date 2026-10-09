@@ -328,27 +328,38 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
     })()`),
   );
   if (ddpmIn >= 0) {
+    // 2026-10-09 改版：方法提取页不再有「每篇详情」，点这篇 → 跳到论文集合看详情
     await ev(`(() => { const it=[...document.querySelectorAll('.main-inner .up-row')][${ddpmIn}]; if(it) it.click(); return true; })()`);
     await sleep(900);
   }
-  const detail = await ev(`(() => {
-    const h=(document.querySelector('.uppage .up-detail .detail-head h3')||{}).textContent||'';
-    const btns=[...document.querySelectorAll('.uppage .up-detail button')].map((b)=>b.textContent.trim());
-    return { head: h.trim(), btns, inner: (document.querySelector('.uppage .up-detail')||{}).innerText||'' };
-  })()`);
-  check('可以打开刚导入的论文（右侧详情标题 = 该论文）', PDF_MATCH.test(detail.head), detail.head.slice(0, 40));
+  // 在论文集合里定位那篇（标题含 denoising/diffusion），读它的标题 / 按钮 / 标题待确认标记
+  const findLibRow = () =>
+    ev(`(() => {
+      const rows=[...document.querySelectorAll('.lrows .lrow')];
+      const r=rows.find((x)=>new RegExp(${JSON.stringify(PDF_MATCH.source)},'i').test((x.querySelector('.paper-title')||{}).textContent||''));
+      if(!r) return { head:'', btns:[], flag:false, inner:'' };
+      return {
+        head:(r.querySelector('.paper-title')||{}).textContent||'',
+        btns:[...r.querySelectorAll('button')].map((b)=>b.textContent.trim()),
+        flag:/标题待确认|标题未确认/.test(r.innerText),
+        inner:r.innerText,
+      };
+    })()`);
+  const detail = await findLibRow();
+  check('可以打开刚导入的论文（论文集合里显示该篇）', PDF_MATCH.test(detail.head), detail.head.slice(0, 40));
   check(
-    '该论文的抽取入口可用（开始提取字段 / 配置模型后提取）',
-    detail.btns.some((b) => /提取字段|配置模型后提取/.test(b)),
-    detail.btns.filter((b) => /提取|配置/.test(b)).join(' / '),
+    '该论文的抽取入口可用',
+    detail.btns.some((b) => /分析|提取/.test(b)),
+    detail.btns.filter((b) => /分析|提取|配置/.test(b)).join(' / '),
   );
 
   // ---- S1b：标题不能把摘要句当已确认标题 ----
   const fresh = (dbAfter.papers || []).find((p) => p.corpusId === 'user-import');
   const storedTitle = fresh ? fresh.title : '';
   const titleUi = await ev(`(() => {
-    const h=(document.querySelector('.uppage .up-detail .detail-head')||{}).innerText||'';
-    return { text: h.slice(0, 160), badge: /标题待确认|标题未确认/.test(h) };
+    const rows=[...document.querySelectorAll('.lrows .lrow')];
+    const r=rows.find((x)=>new RegExp(${JSON.stringify(PDF_MATCH.source)},'i').test((x.querySelector('.paper-title')||{}).textContent||''));
+    return { text: r ? r.innerText.slice(0, 160) : '', badge: r ? /标题待确认|标题未确认/.test(r.innerText) : false };
   })()`);
   const titleIsSentence = /[.?!;]\s+[A-Za-z(]/.test(storedTitle) || storedTitle.length > 160;
   console.log(`   库里标题：${storedTitle.slice(0, 90)}`);
@@ -358,6 +369,9 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
     !titleIsSentence || titleUi.badge,
     `标题像摘要句=${titleIsSentence}｜界面待确认标记=${titleUi.badge}｜titleFrom=${fresh ? fresh.titleFrom : '?'}`,
   );
+  // 2026-10-09 改版：S3 要在方法提取页上传损坏 PDF，先回到方法提取页（点篇详情现在会跳去论文集合）
+  await goMore(ev, '方法提取');
+  await sleep(600);
   await shot(send, '01-导入后方法提取页可找到新论文.png');
 
   // ---- S3：损坏 PDF → 失败可见 → 重新选择并真正重新解析 ----
@@ -372,30 +386,31 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
   check('损坏 PDF 解析失败后可见（状态显示「解析失败」）', failedVisible);
   const failedIdx = await ev(`(() => [...document.querySelectorAll('.main-inner .up-row')].findIndex((x)=>/(解析失败|解析文本 · 失败)/.test(((x.querySelector('.st')||{}).textContent||''))))()`);
   if (failedIdx >= 0) {
+    // 2026-10-09 改版：点失败的这篇 → 跳到论文集合看详情与重解析入口
     await ev(`(() => { const it=[...document.querySelectorAll('.main-inner .up-row')][${failedIdx}]; if(it) it.click(); return true; })()`);
     await sleep(800);
   }
-  const failDetail = await ev(`(() => {
-    const d=(document.querySelector('.uppage .up-detail')||{}).innerText||'';
-    return { text: d.slice(0, 400), btns: [...document.querySelectorAll('.uppage .up-detail button')].map((b)=>b.textContent.trim()) };
-  })()`);
-  const retryLabel = failDetail.btns.find((b) => /解析|重试|重新选择/.test(b)) || '';
+  // 重解析按钮在论文集合失败行的 .lrow 里（.lrow-r1 常驻显示）
+  const failBtn = () => ev(`(() => { const b=[...document.querySelectorAll('.lrows .lrow button')].find((x)=>/重新解析|重新选择/.test(x.textContent)); return b ? b.textContent.trim() : ''; })()`);
+  const retryLabel = await failBtn();
   check('失败详情给出的按钮是「重新解析 / 重新选择 PDF」，不是模型抽取', /重新解析|重新选择|重新导入/.test(retryLabel), retryLabel || '(无相关按钮)');
-  const detailText = (v) => ev(`(() => { const d=(document.querySelector('.uppage .up-detail')||{}).innerText||''; return { text: d.slice(0, 500), model: /未配置模型|模型接口|apiKey|接口地址/.test(d), pdfErr: /文本层|无法打开|解析/.test(d) }; })()`);
 
   // ---- 分支 1：文件还在本次会话的内存里 → 直接重解析，不该再弹一次选择框 ----
   check('按钮文案与真实行为一致（文件还在内存里 → 直接重新解析）', /重新解析这份 PDF/.test(retryLabel), retryLabel);
   await ev(`(() => { window.__picker = 0; document.addEventListener('click', (e)=>{ const t=e.target; if(t && t.tagName==='INPUT' && t.type==='file') window.__picker++; }, true); return true; })()`);
   await click(ev, retryLabel);
   await sleep(2500);
-  const afterRetry = await detailText();
-  check('直接重解析：报的是 PDF 层问题，不是模型配置问题（没有拿模型抽取冒充）', afterRetry.pdfErr && !afterRetry.model, afterRetry.text.replace(/\n/g, ' ').slice(0, 100));
   const dbCorrupt = await idbPapers(ev);
   const corruptPaper = (dbCorrupt.papers || []).find((x) => /corrupt/i.test(x.title));
   check(
     '损坏文件重解析后仍然是失败状态，且原因是 PDF 层（不会假装成功）',
-    !!corruptPaper && corruptPaper.parseStatus === 'failed' && /文本层|无法打开|解析/.test(corruptPaper.parseError) && !/模型|接口/.test(corruptPaper.parseError),
-    corruptPaper ? corruptPaper.parseStatus + '｜' + corruptPaper.parseError.slice(0, 60) : '(库里找不到 corrupt 那篇)',
+    !!corruptPaper && corruptPaper.parseStatus === 'failed' && /文本层|无法打开|解析/.test(corruptPaper.parseError),
+    corruptPaper ? corruptPaper.parseStatus + '｜' + (corruptPaper.parseError || '').slice(0, 60) : '(库里找不到 corrupt 那篇)',
+  );
+  check(
+    '失败原因归因于 PDF 层、不是模型配置（没有拿模型抽取冒充解析重试）',
+    !!corruptPaper && !/模型|接口/.test(corruptPaper.parseError || ''),
+    corruptPaper ? (corruptPaper.parseError || '').slice(0, 60) : '(无)',
   );
 
   // ---- 分支 2：刷新页面（内存里的 File 没了）→ 必须请用户重新选文件，并且真的重新解析 ----
@@ -421,17 +436,23 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
     await ev(`(() => { const it=[...document.querySelectorAll('.main-inner .up-row')][${failIdx2}]; if(it) it.click(); return true; })()`);
     await sleep(900);
   }
-  const label2 = await ev(`(() => { const b=[...document.querySelectorAll('.uppage .up-detail button')].find((x)=>/解析|重新选择/.test(x.textContent)); return b ? b.textContent.trim() : ''; })()`);
+  const label2 = await ev(`(() => { const b=[...document.querySelectorAll('.lrows .lrow button')].find((x)=>/重新解析|重新选择/.test(x.textContent)); return b ? b.textContent.trim() : ''; })()`);
   check('刷新后按钮变成「重新选择 PDF 并重新解析」（诚实告知要重新选文件）', /重新选择/.test(label2), label2 || '(无)');
   await ev(`(() => { window.__picker = 0; document.addEventListener('click', (e)=>{ const t=e.target; if(t && t.tagName==='INPUT' && t.type==='file') window.__picker++; }, true); return true; })()`);
   await click(ev, label2 || '重新选择');
   await sleep(1200);
   const pickerOpened = await ev(`window.__picker || 0`);
   check('点它确实打开文件选择（不是直接跑模型抽取）', pickerOpened > 0, `触发 ${pickerOpened} 次`);
-  await setFileInput(send, [BAD_PDF]);
+  // 重新选择时塞给「重解析专用」的隐藏 input（App 根级 input[type=file][aria-hidden]），不是方法提取页的上传 input
+  await setFileInput(send, [BAD_PDF], 'input[type=file][aria-hidden="true"]');
   await sleep(3000);
-  const afterReselect = await detailText();
-  check('重新选文件后确实重新跑了 PDF 解析（仍是 PDF 层错误，且不是因为模型）', afterReselect.pdfErr && !afterReselect.model, afterReselect.text.replace(/\n/g, ' ').slice(0, 100));
+  const dbReselect = await idbPapers(ev);
+  const reselectPaper = (dbReselect.papers || []).find((x) => /corrupt/i.test(x.title));
+  check(
+    '重新选文件后确实重新跑了 PDF 解析（仍是 PDF 层错误，且不是因为模型）',
+    !!reselectPaper && reselectPaper.parseStatus === 'failed' && /文本层|无法打开|解析/.test(reselectPaper.parseError) && !/模型|接口/.test(reselectPaper.parseError),
+    reselectPaper ? (reselectPaper.parseError || '').slice(0, 60) : '(无)',
+  );
   await shot(send, '02-损坏PDF失败与重新选择.png');
 
   // ---- S4：切到 NLP → 实验可比性不得承诺重载能补出记录 ----

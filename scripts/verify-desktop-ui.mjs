@@ -334,7 +334,7 @@ for (const [tag, w, h] of VIEWPORTS) {
     upload.names.some((n) => /Residual/.test(n)) && upload.names.some((n) => /IMAGE IS WORTH/i.test(n)),
     upload.names.join(' | '),
   );
-  // 打开 ResNet 与 ViT
+  // 2026-10-09 改版：方法提取页不再有「每篇详情」，点队列里的一篇 → 跳到论文集合看详情。
   const openOne = async (re) =>
     ev(`(() => {
     const items = [...document.querySelectorAll('.main-inner .up-row')];
@@ -344,13 +344,12 @@ for (const [tag, w, h] of VIEWPORTS) {
     return 'CLICKED';
   })()`);
   const c1 = await openOne('Residual');
+  await sleep(700);
+  const lib1 = await ev(`(document.body.innerText || '')`);
+  check(`[${tag}] 点队列里的论文会跳到论文集合（含该篇标题）`, c1 === 'CLICKED' && /论文集合/.test(lib1) && /Residual/i.test(lib1), String(lib1).slice(0, 60).replace(/\n/g, ' '));
+  // 回到方法提取页继续截图
+  await goMore('方法提取');
   await sleep(500);
-  const t1 = await ev(`(document.querySelector('.uppage .detail-head h3') || {}).textContent || ''`);
-  check(`[${tag}] 可以打开 ResNet 那一篇（详情标题随之变化）`, c1 === 'CLICKED' && /Residual/i.test(t1), String(t1).slice(0, 40));
-  const c2 = await openOne('IMAGE IS WORTH');
-  await sleep(500);
-  const t2 = await ev(`(document.querySelector('.uppage .detail-head h3') || {}).textContent || ''`);
-  check(`[${tag}] 可以打开 ViT 那一篇`, c2 === 'CLICKED' && /IMAGE IS WORTH/i.test(t2), String(t2).slice(0, 40));
   await shot(`地图-方法提取-${tag}.png`);
 
   // ---------- 方法关系 ----------
