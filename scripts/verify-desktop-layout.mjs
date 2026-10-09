@@ -236,7 +236,7 @@ async function main() {
   const statusChips = new Set(headChips.map((s) => String(s.className).replace('status', '').trim()));
   // 2026-10-09 改版：方法提取页按 Superdesign 草稿复刻后，首屏有一个 12px 的 eyebrow 小标签
   // （草稿是 text-xs，属于标签而不是「承载解释的整句」），归入 meta 类排除。
-  const isMeta = (el) => /(meta|dim|lab|small|tag|chip|status|kv|footnote|eyebrow)/.test(String(el.className));
+  const isMeta = (el) => /(meta|dim|lab|small|tag|chip|status|kv|footnote|eyebrow|fineprint)/.test(String(el.className));
   let floorFs = 99;
   let floorSample = '';
   let sentFs = 99;
@@ -248,6 +248,9 @@ async function main() {
     if (t.length < 6) continue;
     const cls = String(el.className).split(' ')[0] || el.tagName;
     const fs = parseFloat(getComputedStyle(el).fontSize);
+    // 2026-10-10：Superdesign 草稿的小字规格是 text-[10px]（角标 / 底注 / 「大小 • PDF」一行）。
+    // 元数据允许到 10px，不参与 12px 下限；非元数据仍必须 ≥12px（下面那句检查不变）。
+    if (isMeta(el) && fs >= 10) continue;
     if (fs && fs < floorFs) { floorFs = fs; floorSample = cls + '：「' + t.slice(0, 16) + '…」'; }
     // 「承载解释的整句」：20 字以上、不是元数据类
     if (t.length >= 20 && t.length <= 400 && !isMeta(el) && fs && fs < sentFs) {

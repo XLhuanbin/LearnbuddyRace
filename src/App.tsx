@@ -87,6 +87,21 @@ type Tab =
   | 'settings'
   | 'status';
 
+/**
+ * 逐文件的导入结果（2026-10-10）。
+ * 草稿的「待处理队列」是按**文件**展示的（文件卡：图标 + 文件名 + 大小 • PDF + 删除），
+ * 所以底层要把「这次提交的每个文件」和「它的真实结果」对上，界面才能按文件如实显示状态。
+ */
+export interface ImportResult {
+  fileName: string;
+  /** 真正入库的论文（解析失败时也有，parseStatus='failed'） */
+  paper?: Paper;
+  /** 没入库的原因（内容重复被去重 / 解析器没返回论文对象） */
+  skipped?: string;
+  /** 抛异常时的原因 */
+  error?: string;
+}
+
 /** 三类由模型生成的分析任务（各自有 busy / 取消 / 请求版本保护） */
 type TaskKind = 'relations' | 'plan' | 'divergence';
 
@@ -351,6 +366,8 @@ export default function App() {
     );
     /** 本次真正写进库里的论文（去重跳过的不算），用于导入后切范围与给出入口 */
     const added: Paper[] = [];
+    /** 逐文件结果（2026-10-10）：草稿的「待处理队列」是按**文件**展示的，界面需要把每个文件对上它的真实结果 */
+    const results: ImportResult[] = [];
     for (const file of Array.from(files)) {
       log(`导入文件：${file.name}（${(file.size / 1024 / 1024).toFixed(1)} MB）`);
       try {
@@ -361,6 +378,7 @@ export default function App() {
           log(
             `  跳过：与已导入的「${titleByHash.get(hash) ?? file.name}」内容相同（按内容哈希去重，不重复消耗模型额度）`,
           );
+          results.push({ fileName: file.name, skipped: `内容与「${titleByHash.get(hash) ?? ''}」相同，已跳过（不重复消耗额度）` });
           continue;
         }
         seenHashes.add(hash);
@@ -373,7 +391,10 @@ export default function App() {
             license: '版权归原作者，仅在本机解析用于个人阅读',
           },
         });
-        if (!outcome.paper) continue;
+        if (!outcome.paper) {
+          results.push({ fileName: file.name, skipped: '解析器没有返回论文对象' });
+          continue;
+        }
         /**
          * 标题状态必须如实：PDF 首页排版多变，实测会把摘要句抓成标题。
          * 不像标题的一律先标「待确认」，等模型在原文里核验出真标题再改写。
@@ -388,6 +409,7 @@ export default function App() {
           await repo.savePaper(paper);
           setPapers((p) => [...p, paper]);
           added.push(paper);
+          results.push({ fileName: file.name, paper });
           continue;
         }
         log(`  解析成功：标题「${paper.title}」，${paper.pages.length} 页，${paper.charCount} 字符`);
@@ -397,8 +419,10 @@ export default function App() {
         await repo.savePaper(paper);
         setPapers((p) => [...p, paper]);
         added.push(paper);
+        results.push({ fileName: file.name, paper });
       } catch (err) {
         log(`  异常：${(err as Error).message}`);
+        results.push({ fileName: file.name, error: (err as Error).message });
       }
     }
     if (added.length) {
@@ -418,6 +442,27 @@ export default function App() {
     setTick((t) => t + 1);
     // 论文集合变了：在途分析结果不再对应当前数据
     invalidateTasks();
+    // 逐文件结果：供「待处理队列」按文件如实显示状态
+    return results;
+  };
+
+  /**
+   * 一键分析（2026-10-10 适配 Superdesign 草稿的前端逻辑）：
+   * 草稿是「先把文件攒在待处理队列 → 点『开始梳理脉络』→ 一次性分析」，
+   * 所以底层把这个动作串起来：**导入并解析全部文件 → 已配置模型时逐篇抽取**。
+   * 串行抽取是为了让「分析中」的进度可读，也避免并发打爆用户自配的接口。
+   */
+  const analyzeFiles = async (files: File[]) => {
+    const results = await importFiles(files);
+    if (!modelReady) {
+      log('未配置模型接口：已完成解析并把论文放进「论文集合」；「提取方法字段」需要先在设置里配置模型。');
+      return results;
+    }
+    for (const r of results) {
+      if (!r.paper || r.paper.parseStatus !== 'ok') continue;
+      await extract(r.paper.id, false);
+    }
+    return results;
   };
 
   /**
@@ -1430,9 +1475,9 @@ export default function App() {
               onTest={testConnection}
               testing={testing}
               testResult={testResult ? `${testResult.ok ? '连接成功' : '连接失败'}：${testResult.text}` : undefined}
-              onImport={importFiles}
+              /* 草稿的前端逻辑：先攒文件 → 点「开始梳理脉络」一次性分析（解析 + 抽取） */
+              onAnalyze={analyzeFiles}
               onPaste={importPaste}
-              onExtract={extract}
               onEnterMap={() => setTab('map')}
               onOpenPaper={(paperId) => {
                 setExpFocus(paperId);

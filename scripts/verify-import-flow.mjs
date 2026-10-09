@@ -261,11 +261,11 @@ const logText = (ev) => ev(`(() => { const l = document.querySelector('.log, .lo
 const uploadList = (ev) =>
   ev(`(() => {
   // 2026-10-09 改版：方法提取页按 Superdesign 草稿重做，队列行的类名从 .pitem 改为 .up-row
-  const items = [...document.querySelectorAll('.main-inner .up-row')];
+  const items = [...document.querySelectorAll('.main-inner .filecard')];
   return {
     count: items.length,
-    names: items.map((x)=>((x.querySelector('.nm')||{}).textContent||'').trim()),
-    states: items.map((x)=>((x.querySelector('.st')||{}).textContent||'').trim()),
+    names: items.map((x)=>((x.querySelector('.fc-name')||{}).textContent||'').trim()),
+    states: items.map((x)=>((x.querySelector('.fc-status')||{}).textContent||'').trim()),
   };
 })()`);
 
@@ -280,9 +280,14 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
   // ---- S1：上传真实 PDF（DDPM 2006.11239）----
   await goMore(ev, '方法提取');
   const before = await uploadList(ev);
-  check('上传前：方法提取页显示案例的 5 篇论文', before.count === 5, `${before.count} 篇`);
+  // 2026-10-10 适配草稿逻辑：方法提取页是「上传页」，不再列论文 —— 上传前队列应为空
+  check('上传前：方法提取页的待处理队列为空', before.count === 0, `${before.count} 个文件`);
 
   const set1 = await setFileInput(send, [GOOD_PDF]);
+  // 2026-10-10 适配草稿逻辑：文件先进「待处理队列」，必须再点「开始梳理脉络」才真正分析
+  await sleep(900);
+  await click(ev, '开始梳理脉络');
+  await sleep(1500);
   check('可以把本地 PDF 放进上传入口（选择文件）', set1 === 'OK', String(set1));
   /** 等库里真的出现「用户上传」的论文 —— 不能只看列表（列表本身可能就是 bug 的一部分） */
   const parsed = await waitFor(
@@ -323,13 +328,13 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
       //（原来是页头/列表头的「共 N 篇」）。这里核对的仍是同一件事：计数与列表条数取自同一个集合。
       const t=(document.querySelector('.uppage .up-col-side')||{}).innerText||'';
       const m=t.match(/(\\d+)\\s*个文件/);
-      const n=document.querySelectorAll('.main-inner .up-row').length;
+      const n=document.querySelectorAll('.main-inner .filecard').length;
       return !!m && Number(m[1]) === n;
     })()`),
   );
   if (ddpmIn >= 0) {
     // 2026-10-09 改版：方法提取页不再有「每篇详情」，点这篇 → 跳到论文集合看详情
-    await ev(`(() => { const it=[...document.querySelectorAll('.main-inner .up-row')][${ddpmIn}]; if(it) it.click(); return true; })()`);
+    await ev(`(() => { const it=[...document.querySelectorAll('.main-inner .filecard')][${ddpmIn}]; const nb=it&&it.querySelector('.fc-name'); if(nb) nb.click(); else if(it) it.click(); return true; })()`);
     await sleep(900);
   }
   // 在论文集合里定位那篇（标题含 denoising/diffusion），读它的标题 / 按钮 / 标题待确认标记
@@ -376,18 +381,21 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
 
   // ---- S3：损坏 PDF → 失败可见 → 重新选择并真正重新解析 ----
   const setBad = await setFileInput(send, [BAD_PDF]);
+  await sleep(900);
+  await click(ev, '开始梳理脉络');
+  await sleep(1500);
   check('可以放入损坏的 PDF', setBad === 'OK', String(setBad));
   const failedVisible = await waitFor(
     ev,
-    `[...document.querySelectorAll('.main-inner .up-row .st')].some((s)=>/(解析失败|解析文本 · 失败)/.test(s.textContent))`,
+    `[...document.querySelectorAll('.main-inner .filecard .fc-status')].some((s)=>/(解析失败|解析文本 · 失败)/.test(s.textContent))`,
     60000,
     '损坏 PDF 报错',
   );
   check('损坏 PDF 解析失败后可见（状态显示「解析失败」）', failedVisible);
-  const failedIdx = await ev(`(() => [...document.querySelectorAll('.main-inner .up-row')].findIndex((x)=>/(解析失败|解析文本 · 失败)/.test(((x.querySelector('.st')||{}).textContent||''))))()`);
+  const failedIdx = await ev(`(() => [...document.querySelectorAll('.main-inner .filecard')].findIndex((x)=>/(解析失败|解析文本 · 失败)/.test(((x.querySelector('.fc-status')||{}).textContent||''))))()`);
   if (failedIdx >= 0) {
     // 2026-10-09 改版：点失败的这篇 → 跳到论文集合看详情与重解析入口
-    await ev(`(() => { const it=[...document.querySelectorAll('.main-inner .up-row')][${failedIdx}]; if(it) it.click(); return true; })()`);
+    await ev(`(() => { const it=[...document.querySelectorAll('.main-inner .filecard')][${failedIdx}]; const nb=it&&it.querySelector('.fc-name'); if(nb) nb.click(); else if(it) it.click(); return true; })()`);
     await sleep(800);
   }
   // 重解析按钮在论文集合失败行的 .lrow 里（.lrow-r1 常驻显示）
@@ -428,14 +436,13 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
   const toOwn = await click(ev, '查看我上传的');
   await sleep(1200);
   check('点「查看我上传的 N 篇论文」可以切到自传论文范围', toOwn);
-  const ownList = await uploadList(ev);
-  console.log(`   切到自传范围后列表：${ownList.names.map((n) => n.slice(0, 24)).join(' | ')}`);
-  check('自传范围里能看到之前导入的论文（含失败的那篇）', ownList.count >= 2 && ownList.states.some((s) => /(解析失败|解析文本 · 失败)/.test(s)), `${ownList.count} 篇：${ownList.states.join(' / ')}`);
-  const failIdx2 = await ev(`(() => [...document.querySelectorAll('.main-inner .up-row')].findIndex((x)=>/(解析失败|解析文本 · 失败)/.test(((x.querySelector('.st')||{}).textContent||''))))()`);
-  if (failIdx2 >= 0) {
-    await ev(`(() => { const it=[...document.querySelectorAll('.main-inner .up-row')][${failIdx2}]; if(it) it.click(); return true; })()`);
-    await sleep(900);
-  }
+  // 2026-10-10 适配草稿逻辑：方法提取页的队列只装「本次会话攒下的文件」，刷新后必然是空的；
+  // 之前导入的论文与「重新解析」入口都在「论文集合」—— 改到那里核对。
+  await goMore(ev, '论文集合');
+  await sleep(1000);
+  const ownRows = await ev(`(() => { const rs=[...document.querySelectorAll('.lrows .lrow')]; return { count: rs.length, titles: rs.map((r)=>((r.querySelector('.paper-title')||{}).textContent||'').trim().slice(0,30)), hasFailed: rs.some((r)=>/重新解析|重新选择/.test(r.innerText)) }; })()`);
+  console.log(`   论文集合（自传范围）里 ${ownRows.count} 篇：${ownRows.titles.join(' | ')}`);
+  check('刷新后自传论文仍在论文集合里（含解析失败的那篇）', ownRows.count >= 2 && ownRows.hasFailed, `${ownRows.count} 篇`);
   const label2 = await ev(`(() => { const b=[...document.querySelectorAll('.lrows .lrow button')].find((x)=>/重新解析|重新选择/.test(x.textContent)); return b ? b.textContent.trim() : ''; })()`);
   check('刷新后按钮变成「重新选择 PDF 并重新解析」（诚实告知要重新选文件）', /重新选择/.test(label2), label2 || '(无)');
   await ev(`(() => { window.__picker = 0; document.addEventListener('click', (e)=>{ const t=e.target; if(t && t.tagName==='INPUT' && t.type==='file') window.__picker++; }, true); return true; })()`);
@@ -514,11 +521,15 @@ console.log('=== 阶段 B（独立数据目录 #2）：空数据 → 同一 PDF 
     return n;
   })()`;
   await setFileInput(send, [GOOD_PDF]);
+  await sleep(900);
+  await click(ev, '开始梳理脉络');
   await waitFor(ev, `(async () => { const n = await (${userCountExpr}); return n > 0; })()`, 180000, '第一次上传');
   await sleep(1500);
   const first = await uploadList(ev);
   const firstUser = await ev(userCountExpr);
   await setFileInput(send, [GOOD_PDF]);
+  await sleep(900);
+  await click(ev, '开始梳理脉络');
   await sleep(8000);
   const second = await uploadList(ev);
   const secondUser = await ev(userCountExpr);

@@ -943,3 +943,112 @@
   .up-main { padding-bottom: 96px; }
   .up-hero { margin-bottom: 40px; }
 }
+
+/* =========================================================================
+   方法提取页 · 草稿逻辑配套样式（2026-10-10）
+   - .filecard / .fc-*：草稿 .file-card 的文件卡（图标方块 + 文件名 + 大小 • PDF + 悬停删除）
+   - .upload-zone.is-dim：分析中把拖拽区变灰且不可点（草稿 startAnalysis 的行为）
+   - .btn-primary.is-running（转圈 + 分析中…）/ .is-done（草稿的 bg-green-600「分析完成」）
+   ========================================================================= */
+
+.filecard {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  box-shadow: var(--shadow-2);
+}
+.filecard.just { box-shadow: inset 3px 0 0 var(--accent), var(--shadow-2); }
+
+/* w-10 h-10 bg-[var(--bg-3)] rounded flex items-center justify-center text-[var(--accent)] shrink-0 */
+.fc-icon {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  background: var(--bg-3);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+.fc-icon svg { width: 20px; height: 20px; stroke: currentColor; }
+
+/* flex-1 min-w-0 */
+.fc-body { flex: 1 1 auto; min-width: 0; }
+
+/* p.text-sm.font-bold.truncate */
+.fc-name {
+  display: block;
+  font-size: 14px;
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--fg);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  font-family: inherit;
+}
+button.fc-name { cursor: pointer; }
+button.fc-name:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+
+/* p.text-[10px].text-[var(--fg-3)].uppercase */
+.fc-meta { font-size: 10px; line-height: 1.5; color: var(--fg-3); text-transform: uppercase; margin: 2px 0 0; }
+
+/* 草稿没有这一行：每个文件的**真实状态**必须如实给出 */
+.fc-status { font-size: 12px; line-height: 1.5; margin: 4px 0 0; }
+.fc-status.ok { color: #477A65; }
+.fc-status.bad { color: #A84F4F; }
+.fc-status.run { color: var(--accent); }
+.fc-status.mute { color: var(--fg-3); }
+
+/* 删除按钮：草稿是 opacity-0 + group-hover:opacity-100 */
+.fc-x {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--fg-3);
+  opacity: 0;
+  border-radius: 4px;
+  line-height: 0;
+  transition: opacity .2s ease, color .2s ease;
+}
+.fc-x svg { width: 18px; height: 18px; stroke: currentColor; }
+.filecard:hover .fc-x, .fc-x:focus-visible { opacity: 1; }
+.fc-x:hover:not(:disabled) { color: #dc2626; }
+.fc-x:disabled { cursor: not-allowed; }
+
+/* 分析中：拖拽区变灰 + 不可点（草稿 startAnalysis 里的 opacity .5 / pointer-events none） */
+.upload-zone.is-dim { opacity: .5; pointer-events: none; }
+
+/* 侧栏底部两个按钮占满整宽（草稿的 w-full） */
+.up-side-foot .btn-primary,
+.up-side-foot .btn-ghost { width: 100%; }
+
+/* 主按钮的「分析中…（转圈）」与「分析完成（绿）」（草稿：animate-spin-slow + bg-green-600） */
+.uppage .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.uppage .btn-primary .spin { width: 16px; height: 16px; stroke: currentColor; animation: up-spin 1s linear infinite; }
+@keyframes up-spin { to { transform: rotate(360deg); } }
+.uppage .btn-primary.is-done {
+  background-color: #16a34a;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, .18);
+}
+.uppage .btn-primary.is-done:disabled { opacity: 1; cursor: default; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .uppage .btn-primary .spin { animation: none; }
+}

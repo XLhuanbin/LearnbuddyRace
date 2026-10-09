@@ -413,6 +413,9 @@ if (existsSync(UPLOAD_PDF)) {
   const node = await cdp.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: '.main-inner input[type=file]' });
   if (node?.nodeId) {
     await cdp.send('DOM.setFileInputFiles', { nodeId: node.nodeId, files: [UPLOAD_PDF] });
+    // 2026-10-10 适配草稿逻辑：文件先进「待处理队列」，必须再点「开始梳理脉络」才真正分析
+    await sleep(600);
+    await clickBtn('开始梳理脉络');
     uploaded = true;
   }
 }
@@ -431,7 +434,7 @@ check('提示密钥只保存在本机浏览器', /只保存在本机浏览器|�
 await cdp.shot(join(OUT, 'B1-上传论文-解析完成.png'));
 
 // 2026-10-09 改版：方法提取页按 Superdesign 草稿重做，队列行的类名从 .pitem 改为 .up-row
-const paperCount = await cdp.ev(`document.querySelectorAll('.main-inner .up-row').length`);
+const paperCount = await cdp.ev(`document.querySelectorAll('.main-inner .filecard').length`);
 check(`上传后出现论文卡片（${paperCount} 张）`, paperCount >= 1);
 
 /**

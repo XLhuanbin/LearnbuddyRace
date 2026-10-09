@@ -321,35 +321,20 @@ for (const [tag, w, h] of VIEWPORTS) {
   await sleep(500);
   await shot(`地图-研究地图-${tag}.png`);
 
-  // ---------- 方法提取 ----------
+  // ---------- 方法提取（2026-10-10 按草稿逻辑重做：这里是「攒文件 → 一键分析」，不再列论文）----------
   await goMore('方法提取');
-  // 2026-10-09 改版：方法提取页按 Superdesign 草稿重做，队列行的类名从 .pitem 改为 .up-row
   const upload = await ev(`(() => ({
-  items: document.querySelectorAll('.main-inner .up-row').length,
-  names: [...document.querySelectorAll('.main-inner .up-row .nm')].map((e)=>e.textContent.trim().slice(0, 26)),
+  zone: !!document.querySelector('.main-inner .upload-zone'),
+  queued: document.querySelectorAll('.main-inner .filecard').length,
+  empty: (document.querySelector('.main-inner .up-empty') || {}).textContent || '',
+  start: (() => { const b = [...document.querySelectorAll('.main-inner button')].find((x)=>/开始梳理脉络/.test(x.textContent)); return b ? { text: b.textContent.trim(), disabled: b.disabled } : null; })(),
 }))()`);
-  check(`[${tag}] 方法提取页显示当前语料全部 5 篇论文`, upload.items === 5, `${upload.items} 篇：${upload.names.join(' / ')}`);
   check(
-    `[${tag}] 5 篇是视觉案例的论文（含 ResNet 与 ViT 的标题）`,
-    upload.names.some((n) => /Residual/.test(n)) && upload.names.some((n) => /IMAGE IS WORTH/i.test(n)),
-    upload.names.join(' | '),
+    `[${tag}] 方法提取页是上传页（拖拽区 + 待处理队列，队列为空）`,
+    upload.zone === true && upload.queued === 0 && /尚未选择任何文件/.test(upload.empty),
+    JSON.stringify(upload).slice(0, 160),
   );
-  // 2026-10-09 改版：方法提取页不再有「每篇详情」，点队列里的一篇 → 跳到论文集合看详情。
-  const openOne = async (re) =>
-    ev(`(() => {
-    const items = [...document.querySelectorAll('.main-inner .up-row')];
-    const it = items.find((x)=>/回归/.test(${JSON.stringify(re)}) ? true : new RegExp(${JSON.stringify(re)}, 'i').test(x.querySelector('.nm').textContent));
-    if (!it) return 'NOT_FOUND';
-    it.click();
-    return 'CLICKED';
-  })()`);
-  const c1 = await openOne('Residual');
-  await sleep(700);
-  const lib1 = await ev(`(document.body.innerText || '')`);
-  check(`[${tag}] 点队列里的论文会跳到论文集合（含该篇标题）`, c1 === 'CLICKED' && /论文集合/.test(lib1) && /Residual/i.test(lib1), String(lib1).slice(0, 60).replace(/\n/g, ' '));
-  // 回到方法提取页继续截图
-  await goMore('方法提取');
-  await sleep(500);
+  check(`[${tag}] 队列为空时「开始梳理脉络」不可点`, upload.start?.disabled === true, JSON.stringify(upload.start));
   await shot(`地图-方法提取-${tag}.png`);
 
   // ---------- 方法关系 ----------

@@ -3,15 +3,13 @@ import type { Method, Paper } from '../core/types';
 import type { JobState } from './Library';
 import { verifiedOf } from './Library';
 import { FIELD_KEYS_ORDER } from '../core/cache';
-import { buildMethodProfile, shortContribution } from '../core/grouping';
 import type { CorpusScope } from '../core/corpus';
-import { effectiveFieldValue } from '../core/effective';
 import { Status } from './common';
-import { titleNeedsConfirm } from '../core/rules';
+import type { ImportResult } from '../App';
 
 interface Props {
   papers: Paper[];
-  /** 当前分析范围（案例 = 当前语料全部论文；我上传 = 用户自传）。论文列表必须与它一致 */
+  /** 当前分析范围（案例 = 当前语料全部论文；我上传 = 用户自传）。计数必须与它一致 */
   scope: CorpusScope;
   methods: Method[];
   jobs: Record<string, JobState>;
@@ -21,15 +19,16 @@ interface Props {
   onTest: (c: { baseUrl: string; apiKey: string; model: string }) => void;
   testing: boolean;
   testResult?: string;
-  onImport: (files: FileList) => void;
   onPaste: (title: string, text: string) => void;
-  onExtract: (paperId: string, force: boolean) => void;
+  /**
+   * 草稿的前端逻辑：把攒好的文件一次性交给底层分析（导入解析 → 已配置模型时逐篇抽取），
+   * 返回**逐文件**的真实结果，队列据此按文件如实显示状态。
+   */
+  onAnalyze: (files: File[]) => Promise<ImportResult[]>;
   onEnterMap: () => void;
   /** 点队列里的一篇 → 跳去论文集合看详情（字段/证据/重解析/取消都在那） */
   onOpenPaper: (paperId: string) => void;
-  /** 刚刚导入的论文：默认高亮并给出醒目入口 */
   lastImportedId?: string | null;
-  /** 切到「我上传的论文」/「案例」范围（列表与计数会一起跟着走） */
   onUseOwnScope: () => void;
   onUseCaseScope: () => void;
   /** 页脚的真实导航（兼容新增：草稿页脚指向的「使用指南 / 法律条款」并不存在，改为真实入口） */
@@ -42,9 +41,7 @@ interface Step {
   no: string;
   name: string;
   desc: string;
-  /** 已经得到的结果（真实状态，不用百分比或转圈代替） */
   result: string;
-  /** 下一步会产生什么 */
   next: string;
   state: StepState;
 }
@@ -123,20 +120,28 @@ function stepsOf(p: Paper, m: Method | undefined, job: JobState | undefined, mod
   ];
 }
 
+/** 队列里的一项：占位 = 已攒下但还没分析的文件 */
+interface Queued {
+  id: string;
+  file: File;
+  /** 分析后拿到的真实结果（没有 = 还没分析） */
+  result?: ImportResult;
+}
+
+const uid = () => Math.random().toString(36).slice(2, 11);
+const sizeMB = (n: number) => (n / 1024 / 1024).toFixed(2);
+
 /**
- * 方法提取页。
+ * 方法提取页 —— **按 Superdesign 草稿 a6947252 的前端逻辑与美术实现**。
  *
- * **外观按 Superdesign 草稿 a6947252「论文上传与分析」逐元素严格复刻**：
- * 左侧 40px 细脊线、eyebrow + 超大衬线标题 + 一句说明的首屏、12 栅格 7/5 两栏、
- * 虚线拖拽区、白底分析进度卡（标题 + 步骤 + 大号百分比 + 进度条 + 底部两行小字）、
- * sticky 待处理队列卡、通栏页脚 —— 结构与数值都照草稿，不改外观组件。
+ * 草稿的逻辑（本页严格照此实现，底层已改来适配它）：
+ *   1. 拖拽/浏览 → 文件进入「待处理队列」（文件卡：图标 + 文件名 + 大小 • PDF + 悬停删除），计数「N 个文件」
+ *   2. 「开始梳理脉络」→ 按钮变「分析中…」+ 转圈，拖拽区变灰且禁用
+ *   3. 分析卡出现 → 进度条 + 大号百分比 + 步骤文案；完成时按钮变绿「分析完成」
  *
- * **只替换了与事实不符的内容**，并**移除了草稿没有、纯属重复的「每篇论文详情」**：
- * 字段/证据/重解析/取消等按篇功能都在「论文集合」页，本页只负责「上传 → 看进度 → 进队列」，
- * 点队列里的一篇会跳到论文集合看详情。
- *
- * 为兼容不得不加的部分（已注明）：顶栏是 sticky 而非草稿的 fixed，故 main 不照抄 pt-32；
- * 原页面的真实功能（粘贴正文、五步 FlowBar、模型配置）作为左栏追加卡片保留。
+ * 与草稿的唯一差别：草稿那 45% / 「预计剩余 1分20秒」是写死的假进度，
+ * 这里换成**真实的**步骤进度（同一套结构，只换数值来源）；
+ * 每个文件卡下面额外给一行**真实状态**（已解析 / 提取中 / 解析失败…），这行草稿没有、是必需的诚实信息。
  */
 export function UploadFlowView({
   papers,
@@ -149,9 +154,8 @@ export function UploadFlowView({
   onTest,
   testing,
   testResult,
-  onImport,
   onPaste,
-  onExtract,
+  onAnalyze,
   onEnterMap,
   onOpenPaper,
   lastImportedId,
@@ -160,54 +164,93 @@ export function UploadFlowView({
   onGo,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const [queue, setQueue] = useState<Queued[]>([]);
+  const [phase, setPhase] = useState<'idle' | 'running' | 'done'>('idle');
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteTitle, setPasteTitle] = useState('');
   const [pasteText, setPasteText] = useState('');
   const [draft, setDraft] = useState(config);
   const [dragOver, setDragOver] = useState(false);
 
-  /**
-   * 论文列表用**当前分析范围**的论文，和导航 / 地图 / 实验比较是同一个集合。
-   * 旧实现写成 papers.slice(-3)：案例模式下只显示最后 3 篇，既和页头总数不一致，
-   * 也让前两篇（ResNet / ViT）根本点不开 —— 这是一处静默的业务截断，已删除。
-   */
+  const running = phase === 'running';
+  const stayAsIs = phase !== 'idle';
+
   const casePapers = scope.presetPapers;
   const ownPapers = scope.ownPapers;
-  /**
-   * 列表范围规则（与全局分析范围保持一致）：
-   * - 只要进入过 own 范围（导入后 App 会切过去），就显示我上传的论文；
-   * - 案例里一篇都没有但用户有自传论文时，也显示自传论文（否则页面会是空的）；
-   * - 其余情况显示案例。
-   * 无论哪种，**列表 / 计数 / 抽取入口都取自同一个 `shown`**。
-   */
   const listMode: 'case' | 'own' = scope.mode === 'own' || (casePapers.length === 0 && ownPapers.length > 0) ? 'own' : 'case';
-  const shown = listMode === 'own' ? ownPapers : casePapers;
-  /** 自传论文存在但当前看的是案例列表 → 必须给出醒目入口（不能静默藏着） */
   const hiddenOwn = listMode === 'case' && ownPapers.length > 0 ? ownPapers.length : 0;
-  const pendingExtract = shown.filter((p) => p.parseStatus === 'ok' && !methods.some((m) => m.paperId === p.id));
   const hasMethod = (p: Paper) => methods.some((m) => m.paperId === p.id);
-  const doneCount = shown.filter(hasMethod).length;
-  const needModel = !modelReady && shown.some((p) => p.parseStatus === 'ok' && !hasMethod(p));
+  const needModel = !modelReady && papers.some((p) => p.parseStatus === 'ok' && !hasMethod(p));
 
-  /** 页面级总览：把每篇的状态合并成一条流程（取最靠后的真实进度） */
+  /** 把攒下的文件加进队列（按 名字+大小 去重，避免同一个文件重复占位） */
+  const addFiles = (files: FileList | File[]) => {
+    const list = Array.from(files);
+    if (!list.length) return;
+    setQueue((q) => {
+      const seen = new Set(q.map((x) => `${x.file.name}|${x.file.size}`));
+      const next = [...q];
+      for (const f of list) {
+        const key = `${f.name}|${f.size}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        next.push({ id: uid(), file: f });
+      }
+      return next;
+    });
+    if (phase === 'done') setPhase('idle');
+  };
+
+  const removeFile = (id: string) => {
+    if (running) return;
+    setQueue((q) => q.filter((x) => x.id !== id));
+  };
+
+  /** 「开始梳理脉络」：把没分析过的文件交给底层一次性分析，再把逐文件结果贴回队列 */
+  const start = async () => {
+    const todo = queue.filter((x) => !x.result);
+    if (!todo.length || running) return;
+    setPhase('running');
+    try {
+      const results = await onAnalyze(todo.map((x) => x.file));
+      setQueue((q) => {
+        const next = [...q];
+        let i = 0;
+        for (const item of next) {
+          if (item.result) continue;
+          next[next.indexOf(item)] = { ...item, result: results[i] };
+          i++;
+        }
+        return next;
+      });
+    } finally {
+      setPhase('done');
+    }
+  };
+
+  /** 队列里所有文件对应的论文（用于页级总览与到论文集合的跳转） */
+  const queuedPapers = queue.map((x) => x.result?.paper).filter(Boolean) as Paper[];
+  const stagePapers = queuedPapers.length ? queuedPapers : papers;
+
+  /** 页级总览：把每篇的状态合并成一条流程（取最靠后的真实进度） */
   const overview: { no: string; name: string; state: StepState; result: string }[] = (() => {
-    const anyUploaded = shown.length > 0;
-    const anyParsed = shown.some((p) => p.parseStatus === 'ok');
-    const allParseFailed = shown.length > 0 && shown.every((p) => p.parseStatus === 'failed');
-    const extracting = shown.some((p) => jobs[p.id]?.status === 'running');
-    const anyExtractFailed = shown.some((p) => jobs[p.id]?.status === 'failed');
-    const anyMethod = shown.some(hasMethod);
-    const anyVerified = shown.some((p) => {
+    const anyUploaded = stagePapers.length > 0;
+    const anyParsed = stagePapers.some((p) => p.parseStatus === 'ok');
+    const allParseFailed = stagePapers.length > 0 && stagePapers.every((p) => p.parseStatus === 'failed');
+    const extracting = stagePapers.some((p) => jobs[p.id]?.status === 'running');
+    const anyExtractFailed = stagePapers.some((p) => jobs[p.id]?.status === 'failed');
+    const anyMethod = stagePapers.some(hasMethod);
+    const anyVerified = stagePapers.some((p) => {
       const m = methods.find((x) => x.paperId === p.id);
       return m ? verifiedOf(m) > 0 : false;
     });
+    const doneCount = stagePapers.filter(hasMethod).length;
     return [
-      { no: '01', name: '上传论文', state: anyUploaded ? 'done' : 'waiting', result: anyUploaded ? `${shown.length} 篇` : '还没有论文' },
+      { no: '01', name: '上传论文', state: anyUploaded ? 'done' : 'waiting', result: anyUploaded ? `${stagePapers.length} 篇` : '还没有论文' },
       {
         no: '02',
         name: '解析文本',
         state: allParseFailed && !anyParsed ? 'failed' : anyParsed ? 'done' : anyUploaded ? 'running' : 'waiting',
-        result: anyParsed ? `${shown.filter((p) => p.parseStatus === 'ok').length} 篇已解析` : allParseFailed ? '全部失败' : '等待解析',
+        result: anyParsed ? `${stagePapers.filter((p) => p.parseStatus === 'ok').length} 篇已解析` : allParseFailed ? '全部失败' : '等待解析',
       },
       {
         no: '03',
@@ -225,12 +268,11 @@ export function UploadFlowView({
     ];
   })();
 
-  /** 进度卡的三个真实数值（结构与草稿一致，只是数值来自真实步骤而不是写死的 45%） */
   const stepTotal = overview.length;
   const stepDone = overview.filter((s) => s.state === 'done').length;
   const pct = Math.round((stepDone / stepTotal) * 100);
   const anyRunning = overview.some((s) => s.state === 'running');
-  const progTitle = pct === 100 ? '方法论梳理已完成' : anyRunning ? '正在深度分析方法论...' : '等待开始梳理';
+  const progTitle = phase === 'done' && pct === 100 ? '方法论梳理已完成' : anyRunning || running ? '正在深度分析方法论...' : '等待开始梳理';
   const curOv =
     overview.find((s) => s.state === 'running') ??
     overview.find((s) => s.state === 'failed') ??
@@ -239,8 +281,21 @@ export function UploadFlowView({
   const progStepLabel = `步骤: ${curOv.no} ${curOv.name} (${stepDone}/${stepTotal})`;
   const progNote = curOv.result.slice(0, 42);
 
-  /** 方法短名：与论文集合 / 研究地图使用同一套派生规则 */
-  const shortNameOf = (m: Method) => buildMethodProfile(m, papers.find((x) => x.id === m.paperId), papers).shortName;
+  /** 每个文件卡下面那行**真实状态**（草稿没有，但必须给） */
+  const statusOf = (q: Queued): { text: string; tone: 'ok' | 'bad' | 'run' | 'mute' } => {
+    const r = q.result;
+    if (!r) return { text: '等待分析', tone: 'mute' };
+    if (r.error) return { text: `异常：${r.error}`, tone: 'bad' };
+    if (r.skipped) return { text: r.skipped, tone: 'mute' };
+    const p = r.paper;
+    if (!p) return { text: '未入库', tone: 'bad' };
+    if (p.parseStatus === 'failed') return { text: `解析失败：${p.parseError || '未知原因'}`, tone: 'bad' };
+    const job = jobs[p.id];
+    if (job?.status === 'running') return { text: `提取中：${job.message || '等待模型响应'}`, tone: 'run' };
+    if (methods.some((m) => m.paperId === p.id)) return { text: '已完成：字段与证据已生成', tone: 'ok' };
+    if (job?.status === 'failed') return { text: `提取失败：${job.error || '模型调用失败'}`, tone: 'bad' };
+    return { text: modelReady ? '已解析，等待提取' : '已解析；未配置模型，不会产生替代结果', tone: 'mute' };
+  };
 
   const pickFiles = () => fileRef.current?.click();
 
@@ -250,18 +305,15 @@ export function UploadFlowView({
         {/* Editorial Accent（草稿原样） */}
         <div className="up-spine" aria-hidden="true" />
 
-        {/* Hero（草稿结构：eyebrow → h1 → 一句说明，flex col gap-4） */}
+        {/* Hero（草稿结构：eyebrow → h1 → 一句说明） */}
         <section className="up-hero">
           <div className="up-hero-in">
             <p className="up-eyebrow">方法提取 · Step 01 — 上传论文</p>
             <h1 className="up-title">上传并梳理你的论文</h1>
-            <p className="up-lede">
-              支持 PDF 批量导入。我们将自动识别方法论框架并生成你的研究地图。
-            </p>
+            <p className="up-lede">支持 PDF 批量导入。我们将自动识别方法论框架并生成你的研究地图。</p>
           </div>
         </section>
 
-        {/* 自传论文存在、但当前显示的是案例列表 → 醒目入口，绝不静默藏着 */}
         {hiddenOwn > 0 && (
           <div className="ownentry" role="status" style={{ marginBottom: 24 }}>
             <div>
@@ -276,18 +328,18 @@ export function UploadFlowView({
           </div>
         )}
 
-        {/* Main Upload Section：grid 12 gap-10 */}
         <section className="up-grid">
-          {/* Left: Upload Zone（col-span-7 space-y-8） */}
+          {/* Left: Upload Zone */}
           <div className="up-col-main">
-            {/* 拖拽区（草稿结构与类名原样，接真实文件输入） */}
             <div
-              className={`upload-zone${dragOver ? ' drag-over' : ''}`}
+              className={`upload-zone${dragOver ? ' drag-over' : ''}${running ? ' is-dim' : ''}`}
               role="button"
               tabIndex={0}
               aria-label="拖拽 PDF 至此，或点击浏览本地文件"
-              onClick={pickFiles}
+              aria-disabled={running}
+              onClick={() => !running && pickFiles()}
               onKeyDown={(e) => {
+                if (running) return;
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
                   pickFiles();
@@ -295,14 +347,15 @@ export function UploadFlowView({
               }}
               onDragOver={(e) => {
                 e.preventDefault();
-                setDragOver(true);
+                if (!running) setDragOver(true);
               }}
               onDragLeave={() => setDragOver(false)}
               onDrop={(e) => {
                 e.preventDefault();
                 setDragOver(false);
+                if (running) return;
                 const f = e.dataTransfer?.files;
-                if (f && f.length) onImport(f);
+                if (f && f.length) addFiles(f);
               }}
             >
               <div className="up-zone-icon" aria-hidden="true">
@@ -315,6 +368,7 @@ export function UploadFlowView({
               <p className="up-zone-sub">或点击此处浏览本地文件 (支持多选)</p>
               <button
                 className="btn-ghost"
+                disabled={running}
                 onClick={(e) => {
                   e.stopPropagation();
                   pickFiles();
@@ -329,37 +383,37 @@ export function UploadFlowView({
                 multiple
                 style={{ display: 'none' }}
                 onChange={(e) => {
-                  if (e.target.files?.length) onImport(e.target.files);
+                  if (e.target.files?.length) addFiles(e.target.files);
                   e.target.value = '';
                 }}
               />
             </div>
 
-            {/* 分析进度卡（草稿结构与样式原样；数值换成真实的步骤进度） */}
-            <div className="up-prog">
-              <div className="up-prog-head">
-                <div>
-                  <h4 className="up-prog-title">{progTitle}</h4>
-                  <p className="up-prog-step">{progStepLabel}</p>
+            {/* 分析进度卡：草稿是「开始时才出现」，这里同样只在分析中 / 已分析过时出现 */}
+            {stayAsIs && (
+              <div className="up-prog">
+                <div className="up-prog-head">
+                  <div>
+                    <h4 className="up-prog-title">{progTitle}</h4>
+                    <p className="up-prog-step">{progStepLabel}</p>
+                  </div>
+                  <span className="up-prog-pct">{pct}%</span>
                 </div>
-                <span className="up-prog-pct">{pct}%</span>
+                <div className="up-prog-track">
+                  <div className="up-prog-fill" style={{ width: `${pct}%` }} />
+                </div>
+                <div className="up-prog-foot">
+                  <span>{`共 ${stepTotal} 步 · 已完成 ${stepDone} 步`}</span>
+                  <span className="up-prog-note">
+                    <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round">
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M12 11v5M12 8h.01" />
+                    </svg>
+                    {progNote}
+                  </span>
+                </div>
               </div>
-              <div className="up-prog-track">
-                <div className="up-prog-fill" style={{ width: `${pct}%` }} />
-              </div>
-              <div className="up-prog-foot">
-                <span>{`共 ${stepTotal} 步 · 已完成 ${stepDone} 步`}</span>
-                <span className="up-prog-note">
-                  <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round">
-                    <circle cx="12" cy="12" r="9" />
-                    <path d="M12 11v5M12 8h.01" />
-                  </svg>
-                  {progNote}
-                </span>
-              </div>
-            </div>
-
-            {/* 五步流程已由上方进度卡承载；草稿没有独立的流程条，不再重复展示（2026-10-10 移除） */}
+            )}
 
             {/* 粘贴论文正文（原页面功能，兼容保留） */}
             {pasteOpen && (
@@ -399,27 +453,6 @@ export function UploadFlowView({
               </div>
             )}
 
-            {/* 刚导入的论文：明确告诉用户「在哪里、可以去论文集合看详情」 */}
-            {lastImportedId &&
-              (() => {
-                const just = shown.find((p) => p.id === lastImportedId);
-                if (!just) return null;
-                const t = just.title.length > 52 ? just.title.slice(0, 52) + '…' : just.title;
-                return (
-                  <div className="justbar" role="status">
-                    <Status kind="ok">刚刚导入</Status>
-                    <span className="small">
-                      已导入「<strong>{t}</strong>」，可在论文集合里查看详情与抽取。
-                    </span>
-                    {listMode === 'own' ? (
-                      <button className="btn ghost sm" onClick={onUseCaseScope}>
-                        切回{scope.meta.label}
-                      </button>
-                    ) : null}
-                  </div>
-                );
-              })()}
-
             {/* 模型配置（原页面功能，兼容保留） */}
             {needModel && (
               <div className="up-prog" style={{ borderColor: 'var(--warn-line)', background: 'var(--warn-soft)' }}>
@@ -457,68 +490,74 @@ export function UploadFlowView({
             )}
           </div>
 
-          {/* Right: File List & Action（col-span-5） */}
+          {/* Right: 待处理队列（草稿结构原样） */}
           <div className="up-col-side">
             <div className="up-side">
               <div className="up-side-head">
                 <h4 className="up-side-title">待处理队列</h4>
-                <span className="up-count">{`${shown.length} 个文件`}</span>
+                <span className="up-count">{`${queue.length} 个文件`}</span>
               </div>
 
               <div className="up-list">
-                {shown.length > 0 ? (
-                  shown.map((p) => {
-                    const m = methods.find((x) => x.paperId === p.id);
-                    const job = jobs[p.id];
-                    const steps = stepsOf(p, m, job, modelReady);
-                    const bad = steps.find((s) => s.state === 'failed');
-                    const c = steps.find((s) => s.state === 'running') ?? bad ?? steps.find((s) => s.state === 'waiting') ?? steps[4];
-                    const state = job?.status === 'running' ? 'running' : bad ? 'failed' : m ? 'done' : 'waiting';
+                {queue.length > 0 ? (
+                  queue.map((q) => {
+                    const st = statusOf(q);
+                    const p = q.result?.paper;
+                    const clickable = !!p;
                     return (
-                      <button
-                        key={p.id}
-                        className={`up-row${p.id === lastImportedId ? ' just' : ''}`}
-                        onClick={() => onOpenPaper(p.id)}
-                        title="在论文集合里查看详情"
-                      >
-                        <span className="nm">
-                          {p.title}
-                          {titleNeedsConfirm(p) && (
-                            <span className="titleflag" title="PDF 首页排版多变，这个标题是猜出来的，还没在原文里核验">
-                              标题待确认
-                            </span>
+                      <div key={q.id} className={`filecard${p && p.id === lastImportedId ? ' just' : ''}`}>
+                        <div className="fc-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 3v5h5" />
+                            <path d="M19 21H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h9l5 5v12a1 1 0 0 1-1 1Z" />
+                            <path d="M8 13h8M8 17h5" />
+                          </svg>
+                        </div>
+                        <div className="fc-body">
+                          {clickable ? (
+                            <button className="fc-name" onClick={() => onOpenPaper(p!.id)} title="在论文集合里查看详情">
+                              {q.file.name}
+                            </button>
+                          ) : (
+                            <p className="fc-name">{q.file.name}</p>
                           )}
-                        </span>
-                        <span className="mname">{m ? shortNameOf(m) : '尚未提取方法'}</span>
-                        <span className="idea">
-                          {m ? shortContribution(effectiveFieldValue(m, 'coreIdea')) || '尚未提取到核心思路' : '还没有方法结果'}
-                        </span>
-                        <span className="st">
-                          <i className={`dot ${state === 'done' ? 'ok' : state === 'failed' ? 'bad' : state === 'running' ? 'run' : 'mute'}`} />
-                          {m ? '已完成' : `${c.no} ${c.name} · ${STATE_TEXT[c.state]}`}
-                        </span>
-                      </button>
+                          <p className="fc-meta">{`${sizeMB(q.file.size)} MB • PDF`}</p>
+                          {/* 草稿没有这一行；每个文件的真实状态必须如实给出来 */}
+                          <p className={`fc-status ${st.tone}`}>{st.text}</p>
+                        </div>
+                        <button className="fc-x" onClick={() => removeFile(q.id)} disabled={running} aria-label={`移除 ${q.file.name}`} title="移除">
+                          <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round">
+                            <path d="M18 6 6 18M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
                     );
                   })
                 ) : (
                   <div className="up-empty">
                     <p>尚未选择任何文件</p>
-                    <p style={{ marginTop: 8, fontSize: 12 }}>
-                      解析失败会给出原因，不会静默返回空结果。
-                    </p>
                   </div>
                 )}
               </div>
 
               <div className="up-side-foot">
                 <button
-                  className="btn-primary"
-                  disabled={!pendingExtract.length}
-                  onClick={() => {
-                    if (pendingExtract.length) onExtract(pendingExtract[0].id, false);
-                  }}
+                  className={`btn-primary${running ? ' is-running' : ''}${phase === 'done' ? ' is-done' : ''}`}
+                  disabled={running || !queue.some((x) => !x.result)}
+                  onClick={() => void start()}
                 >
-                  开始梳理脉络
+                  {running ? (
+                    <>
+                      <svg className="spin" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round">
+                        <path d="M12 3a9 9 0 1 0 9 9" />
+                      </svg>
+                      分析中...
+                    </>
+                  ) : phase === 'done' ? (
+                    '分析完成'
+                  ) : (
+                    '开始梳理脉络'
+                  )}
                 </button>
                 <button className="btn-ghost" onClick={() => setPasteOpen((v) => !v)}>
                   粘贴论文正文
@@ -532,7 +571,6 @@ export function UploadFlowView({
         </section>
       </div>
 
-      {/* footer：border-t bg-white py-12（草稿结构原样） */}
       <footer className="up-foot">
         <div className="up-foot-in">
           <div className="up-foot-brand">
