@@ -480,35 +480,9 @@ export function UploadFlowView({
                     </p>
                   )}
 
-                  {/* 2026-10-09：'当前阶段 / 当前结果 / 已完成步骤' 三项已由上方进度卡覆盖，
-                      这里只保留进度卡没有的信息（字段数量 / 证据数量 / 下一步），避免重复。 */}
-                  <details className="fold">
-                    <summary>查看处理细节（字段与证据数量 · 下一步）</summary>
-                    <div className="fold-body">
-                      <dl className="kvlist">
-                        <div>
-                          <dt>字段数量</dt>
-                          <dd>{currentMethod ? `${withValue}/7 有值` : '尚未提取'}</dd>
-                        </div>
-                        <div>
-                          <dt>证据数量</dt>
-                          <dd>{currentMethod ? (verified > 0 ? `${verified}/7 已通过定位校验` : '未通过定位校验') : '暂无证据'}</dd>
-                        </div>
-                        <div>
-                          <dt>下一步</dt>
-                          <dd>
-                            {current.parseStatus === 'failed'
-                              ? '重新选择这份 PDF 重新解析（扫描件需要先做 OCR）'
-                              : !currentMethod
-                                ? modelReady
-                                  ? '开始提取方法字段'
-                                  : '配置模型后提取字段'
-                                : '进入研究地图，或打开论文集合看字段证据'}
-                          </dd>
-                        </div>
-                      </dl>
-                    </div>
-                  </details>
+                  {/* 2026-10-09：原先这里还有一个「查看处理细节」折叠区（当前阶段/当前结果/已完成步骤/
+                      字段数量/证据数量/下一步）。它的信息要么已由上方进度卡覆盖，要么后续在「论文集合」页
+                      按篇展示，属于重复内容 —— 按用户要求整体移除。 */}
 
                   <div className="row" style={{ gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
                     {current.parseStatus === 'ok' && !currentMethod && (

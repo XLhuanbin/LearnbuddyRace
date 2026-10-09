@@ -444,23 +444,16 @@
   mix-blend-mode: difference;
   gap: 16px;
 }
-.mapbrand.landingbar .logo { gap: 16px; color: #fff; }
+/* 2026-10-09：左上角标志与工作页（.mapbrand）**完全一致** —— 尺寸 / 圆角 / 字重 / 字体栈 / 字号 / 间距
+   全部由 map.css 的 .mapbrand 规则统一提供，这里只覆盖**配色**（首页是反相顶栏）。
+   ⚠️ 不要再在这里写 width/height/border-radius/font-* —— 那会让两处标志逐渐漂移。 */
+.mapbrand.landingbar .logo { color: #fff; }
 .mapbrand.landingbar .logo .mark {
-  width: 36px;
-  height: 36px;
-  flex: 0 0 36px;
-  border-radius: 2px;
   background: #fff;
   color: #16263D;
-  font-family: var(--v8-serif);
-  font-weight: 900;
 }
 .mapbrand.landingbar .brand-serif {
   color: #fff;
-  font-family: var(--v8-serif);
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -.025em;
 }
 .landing-nav { display: none; align-items: center; gap: 40px; margin-left: auto; }
 @media (min-width: 768px) { .landing-nav { display: flex; } }

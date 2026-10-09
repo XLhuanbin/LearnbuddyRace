@@ -243,13 +243,13 @@
   z-index: 20;
 }
 
-/* 2026-10-09：按 Superdesign 草稿的顶栏规格对齐（mark 32px / 圆角 2px / 衬线 900；
-   品牌名 20px / 700 / tracking-tight；logo 间距 12px）。这样工作页的方角重衬线方块
-   与宣传首页（36px / 圆角 2px / 900）是同一套标志，只是明暗顶栏各用各的配色。 */
+/* 2026-10-09：左上角标志与宣传首页**保持完全一致**（尺寸 / 圆角 / 字重 / 字体 / 字号 / 间距），
+   唯一允许的差异是配色（明暗顶栏各用各的）。
+   ⇒ 这里取首页那套规格：mark 36px / 圆角 2px / 衬线 900；品牌名 24px / 700 / tracking-tight；间距 16px。 */
 .mapbrand .logo {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   background: none;
   border: none;
   padding: 0;
@@ -258,9 +258,9 @@
 }
 
 .mapbrand .logo .mark {
-  width: 32px;
-  height: 32px;
-  flex: 0 0 32px;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
   border-radius: 2px;
   background: var(--accent);
   color: #fff;
@@ -276,7 +276,7 @@
 .mapbrand .brand-serif {
   font-family: var(--font-serif);
   font-weight: 700;
-  font-size: 20px;
+  font-size: 24px;
   letter-spacing: -.025em;
   white-space: nowrap;
 }
