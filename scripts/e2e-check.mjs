@@ -314,26 +314,37 @@ async function main() {
   check('主文案与主按钮都在首屏内', heroVisible);
 
   console.log('');
-  console.log('=== E0b 体验案例 → 研究地图工作区 ===');
+  console.log('=== E0b 体验案例 → 研究地图工作区（真实用户路径）===');
   await cdp.evaluate(`(() => { const b=[...document.querySelectorAll('button')].find((x)=>x.textContent.includes('体验视觉论文案例')); if (b) b.click(); })()`);
-  await sleep(5200);
+  await sleep(5600);
   const mapText = await cdp.evaluate(`(document.querySelector('.main-inner') || document.body).innerText`);
-  check('进入论文集合（无单选项案例页）', /论文集合/.test(mapText) && !/选择一个视觉论文案例/.test(mapText));
-  // 本轮起进入流程是「首页 → 论文集合」；这里再显式进入研究地图，后续断言才在地图页上
-  await goMore(cdp, '研究地图');
-  await sleep(1600);
-  const mapOnly = await cdp.evaluate(`(document.querySelector('.main-inner') || document.body).innerText`);
-  check('从论文集合可以进入研究地图', /研究地图/.test(mapOnly));
-  // 2026-10-08 改版：恢复三个视图的切换条 —— 此前「联系与区别 / 从哪里开始」只剩两条隐式深链，
-  // 且进入后没有回到「方法地图」的入口（点目录也不复位）。首屏仍是标题 + 一句解释 + 一行轻量视图切换
-  // + 一个继续阅读路线链接，没有主按钮墙。
+  // 2026-10-09 改版：主按钮直接进研究地图（不再先落「论文集合」）
   check(
-    '研究地图首屏是标题、一句解释、三个视图切换与一个继续阅读路线链接（无主按钮墙）',
+    '点「体验视觉论文案例」直接进入研究地图（不再先停论文集合）',
+    /研究地图 · 视觉方法演进案例/.test(mapText) && !/选择一个视觉论文案例/.test(mapText),
+    mapText.slice(0, 80).replace(/\n/g, ' '),
+  );
+  check(
+    '首屏就是画布（真实用户不用再找入口）',
+    (await cdp.evaluate(`document.querySelectorAll('.mapstage .mnode').length`)) === 5,
+    `节点 ${await cdp.evaluate(`document.querySelectorAll('.mapstage .mnode').length`)}`,
+  );
+  const mapOnly = mapText;
+  // 2026-10-08 改版：恢复三个视图的切换条 —— 此前子视图只剩两条隐式深链，且进入后没有回到
+  // 「方法地图」的入口（点目录也不复位）。2026-10-09：视图改名并显式给出返回入口。
+  check(
+    '研究地图首屏是标题、一句解释、三个视图切换与一个阅读起点链接（无主按钮墙）',
     /研究地图 · 视觉方法演进案例/.test(mapOnly) &&
-      /继续阅读路线/.test(mapOnly) &&
+      /阅读起点/.test(mapOnly) &&
       /方法地图/.test(mapOnly) &&
-      /联系与区别/.test(mapOnly) &&
-      /从哪里开始/.test(mapOnly),
+      /关系与比较/.test(mapOnly),
+  );
+  // 关系可见性三态常驻页头，默认「全部」——不再默认把大部分关系藏起来
+  check(
+    '关系可见性三态常驻（全部 / 可用 / 待核查），默认选中「全部」',
+    (await cdp.evaluate(
+      `(() => { const on=[...document.querySelectorAll('.relview .chip')].find((c)=>c.classList.contains('on')); return [!!on, on ? on.textContent.trim() : '', [...document.querySelectorAll('.relview .chip')].length]; })()`,
+    )).join('|') === 'true|全部10|3',
   );
   // 本轮改版：「数据来源与统计」移到页头折叠区；关系状态行直接可见；筛选与集合操作拆成两个入口
   const optsOpened = await cdp.evaluate(

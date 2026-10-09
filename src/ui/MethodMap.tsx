@@ -10,13 +10,13 @@ interface Props {
   onOpenEvidence: (ev: Evidence) => void;
   /** 选中两个方法后，进入次级入口做实验表现比较 */
   onCompareExperiments: (a: string, b: string) => void;
-  /** 显示选项（由工作区的「选项」弹层控制，避免工具栏堆开关） */
-  showPending: boolean;
-  showUnclear: boolean;
+  /**
+   * 关系可见性判定：由工作区（MapView）统一给出的**同一条**规则。
+   * 画布不自己再定一套（否则「页头计数」与「画布连线数」会不一致）。缺省＝全部可见。
+   */
+  relationVisible?: (r: Relation) => boolean;
   /** 打开两个方法的完整对照（当前 MapView 会传；旧版本没有） */
   onOpenPair?: (a: string, b: string) => void;
-  /** 只看有证据的关系（同上） */
-  onlyEvidence?: boolean;
   /** 图例旁的一句实话：当前集合的关系覆盖了哪几档证据状态（由 MapView 按真实数据算出） */
   legendNote?: string;
   /** 起点建议：画布上可点，直接选中该节点（数据来自阅读路线的第一篇或集合里的第一个方法） */
@@ -50,7 +50,7 @@ interface Placed {
  * 探索画布：泳道 = 方法家族（轻量分区），节点 = 短名称 + 一条短贡献，
  * 连线只画真实关系；标签默认不铺开，悬停/聚焦/选中时才出现。
  */
-export function MethodMap({ papers, methods, relations, onOpenEvidence, onCompareExperiments, showPending, showUnclear, onOpenPair, onlyEvidence = false, legendNote, startHint }: Props) {
+export function MethodMap({ papers, methods, relations, onOpenEvidence, onCompareExperiments, onOpenPair, relationVisible, legendNote, startHint }: Props) {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const [hoverEdge, setHoverEdge] = useState<string | null>(null);
@@ -92,13 +92,10 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onCompar
   const nameOf = (methodId: string) => profileById.get(methodId)?.shortName ?? methodId;
 
   const unclearRelations = useMemo(() => relations.filter((r) => r.type === 'unclear'), [relations]);
+  /** 画布画什么，完全由 MapView 给的那一条规则决定（计数与画布不会各说各话） */
   const visibleRelations = useMemo(
-    () =>
-      relations
-        .filter((r) => (showUnclear ? true : r.type !== 'unclear'))
-        .filter((r) => (showPending ? true : r.evidenceState !== 'candidate'))
-        .filter((r) => (onlyEvidence ? !!r.evidence : true)),
-    [relations, showPending, showUnclear, onlyEvidence],
+    () => relations.filter(relationVisible ?? (() => true)),
+    [relations, relationVisible],
   );
 
   const { placed, lanes, width, height } = useMemo(() => {
@@ -170,7 +167,7 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onCompar
   /**
    * 「比较实验表现」的对端：只用**真实关系的另一端**。
    * 旧代码写死 `methods[0]`，会把一个毫不相干的方法当成对照（甚至可能是它自己）。
-   * 没有明确对端时不猜，交给用户去「联系与区别」自己选。
+   * 没有明确对端时不猜，交给用户去「关系与比较」自己选。
    */
   const compareTarget = (() => {
     if (!selectedNode) return '';
@@ -538,10 +535,10 @@ export function MethodMap({ papers, methods, relations, onOpenEvidence, onCompar
               title={
                 compareTarget
                   ? '与有明确关系的那一端比较实验表现（次级入口，不是评分）'
-                  : '这个节点没有明确的对端：去「联系与区别」自己选两个方法'
+                  : '这个节点没有明确的对端：去「关系与比较」自己选两个方法'
               }
             >
-              {compareTarget ? '比较实验表现（与有关系的那一端）' : '去选择对照后比较实验表现'}
+              {compareTarget ? '比较实验表现（与有关系的那一端）' : '去「关系与比较」自己选两个方法'}
             </button>
           </div>
             </div>

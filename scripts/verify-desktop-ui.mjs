@@ -160,8 +160,12 @@ const check = (name, cond, extra = '') => {
 await send('Runtime.enable');
 await send('Page.enable');
 await sleep(3400);
+// 真实用户路径：主按钮「体验视觉论文案例」直接进研究地图（2026-10-09 起）。
+// 本脚本后续断言在论文集合页上，因此再显式从目录进入论文集合。
 await click('体验视觉论文案例');
-await waitFor(`document.querySelectorAll('.paper-title').length >= 5`, 45000, '视觉案例加载');
+await waitFor(`document.querySelectorAll('.mapstage .mnode').length >= 5`, 60000, '视觉案例加载');
+await goMore('论文集合');
+await waitFor(`document.querySelectorAll('.paper-title').length >= 5`, 45000, '论文集合渲染');
 await sleep(1200);
 
 const VIEWPORTS = [
@@ -235,14 +239,17 @@ for (const [tag, w, h] of VIEWPORTS) {
   check(`[${tag}] 选中后未选中节点仍可读（≥0.5）`, opacities.minNode >= 0.5, `最小 ${opacities.minNode}`);
   check(`[${tag}] 选中后未选中连线仍可读（≥0.45）`, opacities.minEdge >= 0.45, `最小 ${opacities.minEdge}`);
 
-  // 关系总数与当前显示数一致（默认筛选下两者相等）
+  // 关系可见性三态（2026-10-09 改版）：默认「全部」= 画布画出全部关系，不再默认藏起大部分
   await ev(`(() => { const x=document.querySelector('.mapdetail .dh .x'); if(x) x.click(); return true; })()`);
   await sleep(400);
-  const relLine = await ev(`(() => {
+  const measureRel = () => ev(`(() => {
   const t = (document.querySelector('.maphead-meta') || {}).innerText || '';
   const m = t.match(/关系\\s*(\\d+)\\s*条\\s*·\\s*当前显示\\s*(\\d+)\\s*条/);
   const hid = t.match(/隐藏\\s*(\\d+)\\s*条/);
+  const on = document.querySelector('.relview .chip.on');
   return {
+    chip: on ? on.textContent.trim() : '',
+    chipCount: document.querySelectorAll('.relview .chip').length,
     total: m ? Number(m[1]) : -1,
     visible: m ? Number(m[2]) : -1,
     hidden: hid ? Number(hid[1]) : -1,
@@ -250,16 +257,43 @@ for (const [tag, w, h] of VIEWPORTS) {
     reasonText: (t.match(/隐藏\\s*\\d+\\s*条：[^—\\n]*/) || [''])[0].trim(),
   };
 })()`);
+  const relDefault = await measureRel();
   check(
-    `[${tag}] 状态行的「当前显示数」与画布上真实连线数一致`,
-    relLine.visible > 0 && relLine.visible === relLine.edges,
-    `显示 ${relLine.visible} / 连线 ${relLine.edges}`,
+    `[${tag}] 关系可见性默认「全部」，画布画出全部关系（不再默认隐藏大部分）`,
+    /^全部/.test(relDefault.chip) &&
+      relDefault.total > 0 &&
+      relDefault.visible === relDefault.total &&
+      relDefault.edges === relDefault.visible,
+    `默认=${relDefault.chip}｜总数 ${relDefault.total} / 显示 ${relDefault.visible} / 连线 ${relDefault.edges}`,
   );
   check(
-    `[${tag}] 隐藏数 = 总数 − 显示数，并写清隐藏原因`,
-    relLine.hidden === relLine.total - relLine.visible && /关系不明确|待核查|无引文/.test(relLine.reasonText),
-    `总数 ${relLine.total} − 显示 ${relLine.visible} = 隐藏 ${relLine.hidden}（${relLine.reasonText}）`,
+    `[${tag}] 存在「全部 / 可用 / 待核查」三态控件`,
+    relDefault.chipCount === 3,
+    `控件数 ${relDefault.chipCount}`,
   );
+  // 切到「可用」收窄：隐藏数必须 = 总数 − 显示数，并写清原因
+  await ev(
+    `(() => { const c=[...document.querySelectorAll('.relview .chip')].find((x)=>/^可用/.test(x.textContent.trim())); if(c) c.click(); return true; })()`,
+  );
+  await sleep(800);
+  const relFiltered = await measureRel();
+  check(
+    `[${tag}] 切到「可用」后：隐藏数 = 总数 − 显示数，并写清隐藏原因`,
+    /^可用/.test(relFiltered.chip) &&
+      relFiltered.hidden === relFiltered.total - relFiltered.visible &&
+      /关系不明确|待核查|无引文/.test(relFiltered.reasonText),
+    `总数 ${relFiltered.total} − 显示 ${relFiltered.visible} = 隐藏 ${relFiltered.hidden}（${relFiltered.reasonText}）`,
+  );
+  check(
+    `[${tag}] 收窄后画布连线数与状态行一致`,
+    relFiltered.edges === relFiltered.visible,
+    `显示 ${relFiltered.visible} / 连线 ${relFiltered.edges}`,
+  );
+  // 回到「全部」，后续截图是默认态
+  await ev(
+    `(() => { const c=[...document.querySelectorAll('.relview .chip')].find((x)=>/^全部/.test(x.textContent.trim())); if(c) c.click(); return true; })()`,
+  );
+  await sleep(700);
   await shot(`地图-研究地图-${tag}.png`);
 
   // ---------- 方法提取 ----------

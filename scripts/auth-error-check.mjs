@@ -345,7 +345,27 @@ async function main() {
     /失败|鉴权|401/.test(panel) || /失败|鉴权|401/.test(pageText),
     String(panel || pageText).slice(-200),
   );
-  check('失败后没有生成任何结构化结果（不假报成功）', !(await cdp.evaluate(`document.body.innerText.includes('可核验')`)));
+  /**
+   * 收窄范围（2026-10-09）：
+   * 原来是整页级 `!document.body.innerText.includes('可核验')` —— 只要页面上出现**合法的**同名文案
+   * （例如载入了预置案例的缓存字段、或走查路径变了让页面停到别处）就会误判，
+   * 而它真正要守的是「这次失败的操作不许产出结构化结果」。
+   * 现在只看**本次上传的那篇论文所在的论文行**（当事区域），并要求确实找到了该行，
+   * 避免范围落空后断言空转通过。
+   */
+  const failScope = await cdp.evaluate(`(() => {
+  const rows = [...document.querySelectorAll('.lrows .lrow')];
+  if (!rows.length) return { rows: 0, ok: false, verified: false, done: false, text: '（没找到论文行，断言范围落空）' };
+  const text = rows.map((r) => r.innerText).join('\\n');
+  const verified = /可核验/.test(text);
+  const done = /分析完成|字段已生成/.test(text);
+  return { rows: rows.length, ok: !verified && !done, verified, done, text: text.replace(/\\n+/g, ' | ').slice(0, 200) };
+})()`);
+  check(
+    '失败后本次上传的论文没有生成结构化结果（不假报成功）',
+    failScope.ok,
+    `论文行 ${failScope.rows} 条｜含「可核验」${failScope.verified}｜含完成字样 ${failScope.done}｜${failScope.text}`,
+  );
   check('提示中不回显凭据', !panel.includes(wrongKey));
   check('无未处理前端异常', cdp.pageErrors.filter((e) => !/favicon/i.test(e)).length === 0);
 
@@ -373,7 +393,7 @@ async function main() {
       '',
       '- 鉴权失败时给出可读提示（401 / API Key 提示）',
       '- 日志记录失败原因，不是静默失败',
-      '- 失败后不生成结构化结果（不假报成功）',
+      '- 失败后不生成结构化结果（只看本次上传那篇论文的论文行，不是整页匹配）',
       '- 提示中不回显凭据',
       '- 无未处理前端异常',
       '',

@@ -185,8 +185,11 @@ console.log('=== 阶段 A（独立数据目录 #1）：加载案例 → 修字�
   const { ev, send, child } = await openBrowser('a', 9531);
   mkdirSync(SHOTS, { recursive: true });
   await sleep(3400);
+  // 真实用户路径：主按钮直接进研究地图；本脚本后续在论文集合/其它页上操作
   await click(ev, '体验视觉论文案例');
-  await waitFor(ev, `document.querySelectorAll('.paper-title').length >= 5`, 60000, '视觉案例加载');
+  await waitFor(ev, `document.querySelectorAll('.mapstage .mnode').length >= 5`, 60000, '视觉案例加载');
+  await goMore(ev, '论文集合');
+  await waitFor(ev, `document.querySelectorAll('.paper-title').length >= 5`, 60000, '论文集合渲染');
   await sleep(1200);
 
   const base = await ev(READ_DB);
@@ -372,7 +375,9 @@ console.log('=== 阶段 A（独立数据目录 #1）：加载案例 → 修字�
   await send('Page.reload');
   await sleep(6000);
   await click(ev, '体验视觉论文案例');
-  await waitFor(ev, `document.querySelectorAll('.paper-title').length >= 5`, 60000, '刷新后加载');
+  await waitFor(ev, `document.querySelectorAll('.mapstage .mnode').length >= 5`, 60000, '刷新后加载');
+  await goMore(ev, '论文集合');
+  await waitFor(ev, `document.querySelectorAll('.paper-title').length >= 5`, 60000, '论文集合渲染');
   await sleep(1500);
   const afterRefresh = await ev(READ_DB);
   const resnetMethod3 = afterRefresh.methods.find((m) => m.id === resnetMethod0.id);

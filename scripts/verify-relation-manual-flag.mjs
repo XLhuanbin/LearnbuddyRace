@@ -221,8 +221,11 @@ check(
 await send('Page.reload');
 await sleep(5000);
 
+// 真实用户路径：主按钮直接进研究地图；本脚本后续断言在论文集合页上
 await click('体验视觉论文案例');
-await waitFor(`document.querySelectorAll('.paper-title').length >= 5`, 60000, '视觉案例加载');
+await waitFor(`document.querySelectorAll('.mapstage .mnode').length >= 5`, 60000, '视觉案例加载');
+await goMore('论文集合');
+await waitFor(`document.querySelectorAll('.paper-title').length >= 5`, 60000, '论文集合渲染');
 await sleep(1500);
 
 const dbBase = await ev(READ_RELS);
@@ -313,7 +316,9 @@ check('内存（关系图）：只有那 1 条被标成「·人工」', memAfter
 await send('Page.reload');
 await sleep(6000);
 await click('体验视觉论文案例');
-await waitFor(`document.querySelectorAll('.paper-title').length >= 5`, 60000, '刷新后加载');
+await waitFor(`document.querySelectorAll('.mapstage .mnode').length >= 5`, 60000, '刷新后加载');
+await goMore('论文集合');
+await waitFor(`document.querySelectorAll('.paper-title').length >= 5`, 60000, '论文集合渲染');
 await sleep(1500);
 const dbRefresh = await ev(READ_RELS);
 const manualRefresh = dbRefresh.find((r) => r.id === manualId);

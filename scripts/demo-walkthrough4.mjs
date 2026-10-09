@@ -1,7 +1,7 @@
 /**
  * 本轮验收：两条真实路径
- *   A 体验案例：首页 → 体验视觉论文案例 → 看懂方法（分组+卡片）→ 联系与区别（真实关系+时间线声明）
- *               → 选两篇看差异 → 从哪里开始 → 阅读路线
+ *   A 体验案例：首页 → 体验视觉论文案例 → 看懂方法（分组+卡片）→ 关系与比较（真实关系+时间线声明）
+ *               → 选两篇看差异 → 阅读起点 → 阅读路线
  *   B 用我自己的论文：首页 → 上传我的论文 → 选择真实 PDF（CDP 注入）→ 解析结果 → 单篇提示
  *                    → 未配置模型时就地提示 → 进入研究地图（单篇理解）
  *
@@ -182,7 +182,7 @@ check('点击「体验视觉论文案例」', await clickBtn('体验视觉论文
 await sleep(5000);
 const mapText = await mainText();
 check('直接进入研究地图（无单选项案例页）', /研究地图/.test(mapText) && !/选择一个视觉论文案例/.test(mapText));
-check('工作区显示论文集合与三个视图', /研究地图 · 视觉方法演进案例/.test(mapText) && /方法地图/.test(mapText) && /联系与区别/.test(mapText) && /从哪里开始/.test(mapText));
+check('工作区显示论文集合与三个视图', /研究地图 · 视觉方法演进案例/.test(mapText) && /方法地图/.test(mapText) && /关系与比较/.test(mapText) && /阅读起点/.test(mapText));
 check('首屏主体是图形（不是概览段落或论文卡片列表）', !/领域概览\n/.test(mapText) && !/逐篇方法卡片/.test(mapText));
 check(
   '默认给出一个具体的探索问题 + 入口（问题来自现有关系）',
@@ -291,12 +291,12 @@ await cdp.ev(`
 })()`);
 await sleep(500);
 
-check('切换到「联系与区别」', await clickBtn('联系与区别'));
+check('切换到「关系与比较」', await clickBtn('关系与比较'));
 await sleep(1200);
 const rel = await mainText();
 check('关系明细表只有真实关系，方向以数据为准', /起点方法/.test(rel) && /指向方法/.test(rel) && /说明（按同一方向描述）/.test(rel));
 check('时间线明确标注不代表技术继承', /发表顺序（时间线）/.test(rel) && /仅表示发表先后，不代表技术继承/.test(rel));
-await cdp.shot(join(OUT, 'A7-联系与区别.png'));
+await cdp.shot(join(OUT, 'A7-关系与比较.png'));
 
 await cdp.ev(`
 (async () => {
@@ -323,7 +323,7 @@ check('实验表现保留真实状态（不能直接比较 / 仍需确认 / 条�
 check('说明它不是评分', /不是.*系统给论文的评分/.test(expText));
 await cdp.shot(join(OUT, 'A8-两方法对照.png'));
 
-check('切换到「从哪里开始」', await clickBtn('从哪里开始'));
+check('切换到「阅读起点」', await clickBtn('阅读起点'));
 await sleep(1000);
 check('阅读目标不追问算力', !/可用的计算资源/.test(await mainText()));
 check('未配置模型时入口明确叫「查看示例路线」', await clickBtn('查看示例路线'));
@@ -374,7 +374,7 @@ check(
   /我上传的论文/.test(single) && /还没有方法分析结果|方法字段尚未生成|加更多论文|只有 1 篇/.test(single),
   String(single).replace(/\n/g, ' | ').slice(0, 220),
 );
-await clickBtn('联系与区别');
+await clickBtn('关系与比较');
 await sleep(900);
 const singleRel = await mainText();
 check('单篇时不出现任何编造的关系', /还没有可核验的方法关系|暂无关系/.test(singleRel));
@@ -388,7 +388,7 @@ console.log('=== 七个验证问题（可自动核对的部分） ===');
 check('① 产品定位能说清为「梳理论文方法与阅读路线」', /研究地图/.test(land) && /阅读路线/.test(land) && !/给论文打分|排行榜/.test(land));
 check('② 不进入实验比较也能获得方法理解（家族泳道 + 节点贡献 + 节点详情）', svgInfo.texts.some((t) => /卷积网络|视觉 Transformer/.test(t)) && /核心做法/.test(nodeDetail));
 check('③ 技术关系来自证据（关系表带证据状态与引文列）', /证据状态/.test(rel) && /原文依据/.test(rel));
-check('④ 阅读建议是普通用户可见的主能力（三个视图之一）', /从哪里开始/.test(mapText));
+check('④ 阅读建议是普通用户可见的主能力（三个视图之一）', /阅读起点/.test(mapText));
 check('⑤ 原文依据一到两次点击可达', evOpened && /p\.\d+/.test(evText));
 
 await clickNav('更多');
@@ -423,7 +423,7 @@ const lines = [
   '## 路径 A（体验案例）',
   '',
   '首页 → 体验视觉论文案例 → 研究地图（看懂方法：领域概览 + 方法分组 + 方法卡片）→ 展开局限与原文依据',
-  '→ 联系与区别（真实关系表 + 发表顺序时间线声明 + 选两篇对照 + 可选实验表现比较）→ 从哪里开始 → 阅读路线。',
+  '→ 关系与比较（真实关系表 + 发表顺序时间线声明 + 选两篇对照 + 可选实验表现比较）→ 阅读起点 → 阅读路线。',
   '',
   '## 路径 B（上传自己的论文）',
   '',
@@ -439,7 +439,7 @@ const lines = [
   '| 节点原文依据 | A4-节点原文依据.png | — |',
   '| 点击连线（方向 + 证据状态） | A5-点击连线-联系.png | — |',
   '| 打开「关系不明确」的配对 | A6-打开关系不明确.png | — |',
-  '| 联系与区别（明细 + 时间线声明） | A7-联系与区别.png | — |',
+  '| 关系与比较（明细 + 时间线声明） | A7-关系与比较.png | — |',
   '| 两方法对照（含实验表现） | A8-两方法对照.png | — |',
   '| 阅读路线 | A9-阅读路线.png | — |',
   '| 上传我的论文 | B1-上传论文-解析完成.png | — |',

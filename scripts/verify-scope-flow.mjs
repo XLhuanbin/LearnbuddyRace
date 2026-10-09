@@ -121,8 +121,11 @@ await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, dev
 await sleep(3200);
 
 console.log('=== S0 载入正式案例 ===');
+// 真实用户路径：主按钮直接进研究地图（本段断言读 IndexedDB，进门即可）
 await click('体验视觉论文案例');
-await waitFor(`document.querySelectorAll('.paper-title').length >= 5`, 45000, '案例加载');
+await waitFor(`document.querySelectorAll('.mapstage .mnode').length >= 5`, 60000, '案例加载');
+await goMore('论文集合');
+await waitFor(`document.querySelectorAll('.paper-title').length >= 5`, 45000, '论文集合渲染');
 await sleep(1200);
 const papers0 = await ev(READ_STORE('papers'));
 const methods0 = await ev(READ_STORE('methods'));

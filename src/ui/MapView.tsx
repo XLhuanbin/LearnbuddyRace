@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Evidence, Method, Paper, ReadingPlan, Relation, RelationEvidenceState, UserProfile } from '../core/types';
 import { relationsInScope, type CorpusKey, type CorpusScope, type ScopeMode } from '../core/corpus';
 import { Crumb, Status } from './common';
@@ -34,7 +34,7 @@ interface Props {
   onGoLibrary?: () => void;
   /**
    * 从顶栏「目录」再次点进研究地图时递增。
-   * 三个子视图是同一页面的内部状态：不重置的话会出现「点了研究地图却还停在联系与区别」，
+   * 三个子视图是同一页面的内部状态：不重置的话会出现「点了研究地图却还停在某个子视图」，
    * 用户只能退出去再进来，等于一条死路。
    */
   resetSignal?: number;
@@ -73,14 +73,19 @@ export function MapView({
   const [sub, setSub] = useState<SubView>('map');
   /**
    * 对照对的三态：
-   *   null → 没指定（「联系与区别」自己挑一对值得看的）
+   *   null → 没指定（「关系与比较」自己挑一对值得看的）
    *   []   → 用户点了「去选择对照」，要求他自己选
    *   [a,b] → 明确的对照两端
    */
   const [pair, setPair] = useState<string[] | null>(null);
-  const [showPending, setShowPending] = useState(false);
-  const [showUnclear, setShowUnclear] = useState(false);
-  /** 只看绑定了可核验引文的关系 */
+  /**
+   * 关系可见性三态（默认「全部」）：
+   *   all     = 画布上显示全部关系（含待核查与「关系不明确」）—— 默认值，避免默认就把大部分关系藏起来
+   *   usable  = 有可用证据状态的关系（原文明示 + 系统推断）
+   *   pending = 还不能当结论用的（待核查 + 关系不明确）
+   */
+  const [relView, setRelView] = useState<'all' | 'usable' | 'pending'>('all');
+  /** 只看绑定了可核验引文的关系（与三态正交的额外收窄，默认关） */
   const [onlyEvidence, setOnlyEvidence] = useState(false);
   /** 筛选与集合操作是两个独立弹层（不再混在一个「选项」里） */
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -91,16 +96,6 @@ export function MapView({
   useEffect(() => {
     setSub('map');
   }, [resetSignal]);
-
-  /**
-   * 一次性把被默认隐藏的关系显示到画布上。
-   * 只改「画布显示什么」，不改任何证据状态与判定（隐藏逻辑本身是证据纪律，必须保留）。
-   */
-  const showAllRelations = () => {
-    setOnlyEvidence(false);
-    setShowPending(true);
-    setShowUnclear(true);
-  };
 
   /**
    * 当前集合的数据：案例 = 当前语料预置；我的论文 = 用户自传。
@@ -132,26 +127,64 @@ export function MapView({
 
   const presetCached = view.papers.some((p) => p.cached);
 
-  /** 关系计数：总数 / 当前筛选后可见数（与画布用完全相同的筛选条件） */
+  /**
+   * 三态归类（只决定「画布显示什么」，不改任何证据状态与判定）：
+   *   usable  —— 有可用证据状态：原文明示 / 系统推断
+   *   pending —— 还不能当结论用：待核查（candidate）+ 关系不明确（unclear）
+   */
+  const bucketOf = (r: Relation): 'usable' | 'pending' =>
+    r.type === 'unclear' || r.evidenceState === 'candidate' ? 'pending' : 'usable';
+
+  /**
+   * 画布「画什么」的**唯一**规则：先按三态收窄，再按「只看有证据」收窄。
+   * relStats（页头计数）与 MethodMap（画布连线）都用它，两者不可能各说各话。
+   */
+  const relVisible = useCallback(
+    (r: Relation) => (relView === 'all' || bucketOf(r) === relView) && (!onlyEvidence || Boolean(r.evidence)),
+    [relView, onlyEvidence],
+  );
+
+  /** 关系计数：总数 / 三态各自条数 / 当前可见数（与画布用完全相同的筛选条件） */
   const relStats = useMemo(() => {
     let visible = 0;
-    let hiddenUnclear = 0;
-    let hiddenPending = 0;
+    let usable = 0;
+    let pendingCandidate = 0;
+    let pendingUnclear = 0;
     let hiddenNoEvidence = 0;
     let withEvidence = 0;
     for (const r of view.relations) {
       if (r.evidence) withEvidence += 1;
-      const show =
-        (showUnclear || r.type !== 'unclear') &&
-        (showPending || r.evidenceState !== 'candidate') &&
-        (!onlyEvidence || Boolean(r.evidence));
-      if (show) visible += 1;
-      else if (onlyEvidence && !r.evidence) hiddenNoEvidence += 1;
-      else if (!showUnclear && r.type === 'unclear') hiddenUnclear += 1;
-      else if (!showPending && r.evidenceState === 'candidate') hiddenPending += 1;
+      const bucket = bucketOf(r);
+      if (bucket === 'usable') usable += 1;
+      else if (r.type === 'unclear') pendingUnclear += 1;
+      else pendingCandidate += 1;
+      if (relVisible(r)) visible += 1;
+      else if (bucket === relView && onlyEvidence && !r.evidence) hiddenNoEvidence += 1;
     }
-    return { total: view.relations.length, visible, hiddenUnclear, hiddenPending, hiddenNoEvidence, withEvidence };
-  }, [view.relations, showPending, showUnclear, onlyEvidence]);
+    const pending = pendingCandidate + pendingUnclear;
+    return {
+      total: view.relations.length,
+      visible,
+      usable,
+      pending,
+      pendingCandidate,
+      pendingUnclear,
+      hiddenNoEvidence,
+      withEvidence,
+    };
+  }, [view.relations, relVisible]);
+
+  /** 被隐藏的原因：按三态与「只看有证据」的实际组成写清楚，不含糊其辞 */
+  const hiddenReasons = useMemo(() => {
+    const out: string[] = [];
+    if (relView === 'usable') {
+      if (relStats.pendingCandidate) out.push(`待核查 ${relStats.pendingCandidate} 条`);
+      if (relStats.pendingUnclear) out.push(`关系不明确 ${relStats.pendingUnclear} 条`);
+    }
+    if (relView === 'pending' && relStats.usable) out.push(`可用 ${relStats.usable} 条`);
+    if (relStats.hiddenNoEvidence) out.push(`无引文（只看有证据）${relStats.hiddenNoEvidence} 条`);
+    return out.length ? out : ['已按上方筛选收起'];
+  }, [relView, relStats]);
 
   const overview = useMemo(
     () => buildMethodOverview(view.methods.map((m) => ({ method: m, paper: view.papers.find((p) => p.id === m.paperId) })), view.relations),
@@ -191,8 +224,8 @@ export function MapView({
 
   const tabs: { id: SubView; name: string }[] = [
     { id: 'map', name: '方法地图' },
-    { id: 'relations', name: '联系与区别' },
-    { id: 'start', name: '从哪里开始' },
+    { id: 'relations', name: '关系与比较' },
+    { id: 'start', name: '阅读起点' },
   ];
 
   return (
@@ -223,27 +256,41 @@ export function MapView({
               <Status kind={relStats.visible ? 'info' : 'pending'}>
                 关系 {relStats.total} 条 · 当前显示 {relStats.visible} 条
               </Status>
-              {relStats.visible < relStats.total && (
-                <>
-                  <span className="small dim">
-                    隐藏 {relStats.total - relStats.visible} 条：
-                    {[
-                      relStats.hiddenUnclear ? `关系不明确 ${relStats.hiddenUnclear} 条` : '',
-                      relStats.hiddenPending ? `待核查 ${relStats.hiddenPending} 条` : '',
-                      relStats.hiddenNoEvidence ? `无引文（只看有证据）${relStats.hiddenNoEvidence} 条` : '',
-                    ]
-                      .filter(Boolean)
-                      .join('、')}
-                  </span>
-                  {/* 把「为什么看不到关系」变成一步可点的动作：只改画布显示，不改数据与判定 */}
+              {/*
+                关系可见性三态（常驻可见，默认「全部」）。
+                之前只有「待核查 / 关系不明确」两个默认关闭的开关，结果是首屏只画 2/10 条关系 ——
+                现在默认全部显示，三态只是让用户按证据强弱收窄，而不是替他藏起来。
+              */}
+              <div className="relview" role="group" aria-label="关系可见性">
+                {(
+                  [
+                    ['all', '全部', relStats.total, '显示全部关系，含待核查与「关系不明确」'],
+                    ['usable', '可用', relStats.usable, '只看有可用证据状态的关系：原文明示 + 系统推断'],
+                    [
+                      'pending',
+                      '待核查',
+                      relStats.pending,
+                      `还不能当结论用的关系：待核查 ${relStats.pendingCandidate} 条 + 关系不明确 ${relStats.pendingUnclear} 条`,
+                    ],
+                  ] as const
+                ).map(([id, label, n, tip]) => (
                   <button
-                    className="mapreveal"
-                    onClick={showAllRelations}
-                    title="在画布上显示这些关系；只影响显示，不改任何证据状态与结论"
+                    key={id}
+                    className={`chip${relView === id ? ' on' : ''}`}
+                    aria-pressed={relView === id}
+                    title={tip}
+                    onClick={() => setRelView(id)}
                   >
-                    在画布上显示这 {relStats.total - relStats.visible} 条
+                    {label}
+                    <span className="n">{n}</span>
                   </button>
-                </>
+                ))}
+              </div>
+              {relStats.visible < relStats.total && (
+                <span className="small dim">
+                  隐藏 {relStats.total - relStats.visible} 条：
+                  {hiddenReasons.join('、')}
+                </span>
               )}
               {onlyEvidence && <Status kind="pending">已开启「只看有证据关系」</Status>}
               <details className="fold" style={{ flex: '1 1 100%', marginTop: 6 }}>
@@ -271,8 +318,9 @@ export function MapView({
           </div>
 
           <div className="maphead-links">
+            {/* 与「阅读起点」视图同名，避免出现两个相似但不同的说法 */}
             <button className="linkbtn" onClick={() => setSub('start')}>
-              继续阅读路线 →
+              阅读起点 →
             </button>
             {mode === 'own' && (
               <button className="btn ghost sm" onClick={() => onModeChange('case')}>
@@ -292,24 +340,17 @@ export function MapView({
               {filtersOpen && (
                 <div className="pop card tight" style={{ marginBottom: 0 }}>
                   <div className="pophead">筛选（只影响画布显示，不改数据）</div>
+                  <p className="small dim" style={{ margin: '0 0 8px' }}>
+                    关系可见性在页头常驻的
+                    <b>「全部 / 可用 / 待核查」</b>
+                    三态里切换；这里只做一次额外收窄。
+                  </p>
                   <label className="small row" style={{ gap: 8 }}>
                     <input type="checkbox" checked={onlyEvidence} onChange={(e) => setOnlyEvidence(e.target.checked)} />
                     只看有证据关系
                     <span className="dim">
                       （当前 {relStats.withEvidence} 条绑定了可核验引文，显示 {relStats.visible} 条）
                     </span>
-                  </label>
-                  <label className="small row" style={{ gap: 8, marginTop: 8 }}>
-                    <input type="checkbox" checked={showPending} onChange={(e) => setShowPending(e.target.checked)} />
-                    显示待核查关系
-                    <span className="dim">
-                      （{view.relations.filter((r) => r.evidenceState === 'candidate' && r.type !== 'unclear').length} 条）
-                    </span>
-                  </label>
-                  <label className="small row" style={{ gap: 8, marginTop: 8 }}>
-                    <input type="checkbox" checked={showUnclear} onChange={(e) => setShowUnclear(e.target.checked)} />
-                    显示「关系不明确」的配对
-                    <span className="dim">（{view.relations.filter((r) => r.type === 'unclear').length} 对）</span>
                   </label>
                 </div>
               )}
@@ -350,7 +391,7 @@ export function MapView({
       </div>
 
       {/* 三个视图是同一份关系数据的三个视角：显式切换条，且任何时候都能回到「方法地图」。
-          之前这条切换条被删掉后，联系与区别 / 从哪里开始 只剩两条隐式深链，进去也回不来。 */}
+          之前这条切换条被删掉后，关系与比较 / 阅读起点 只剩两条隐式深链，进去也回不来。 */}
       <div className="mapviews" role="tablist" aria-label="研究地图视图">
         {tabs.map((t) => (
           <button
@@ -401,19 +442,19 @@ export function MapView({
                 setPair(next);
                 setSub('relations');
               }}
-              showPending={showPending}
-              showUnclear={showUnclear}
-              onlyEvidence={onlyEvidence}
+              relationVisible={relVisible}
               legendNote={legendNote}
               startHint={startHint}
             />
           )}
           {sub === 'relations' && (
+            /* 明细视图列出**全部**关系（不随画布的可见性筛选变动）——筛选只作用于画布，避免表格被静默删行 */
             <MapRelationsView
               papers={view.papers}
               methods={view.methods}
               relations={view.relations}
               onOpenEvidence={onOpenEvidence}
+              onBackToMap={() => setSub('map')}
               initialPair={pair ?? undefined}
               requireChoice={pair !== null && pair.length === 0}
             />
@@ -429,6 +470,7 @@ export function MapView({
               onGenerate={onGenerate}
               onOpenEvidence={onOpenEvidence}
               questions={questions}
+              onBackToMap={() => setSub('map')}
             />
           )}
         </>

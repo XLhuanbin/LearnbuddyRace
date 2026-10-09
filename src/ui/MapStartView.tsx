@@ -14,6 +14,8 @@ interface Props {
   onOpenEvidence: (ev: Evidence) => void;
   /** 有证据支持的少量待调查问题（可空） */
   questions?: { id: string; text: string; basis?: string; evidence?: Evidence[] }[];
+  /** 明确返回「方法地图」的入口（三个视图共用页头切换条，这里再给一个就近的） */
+  onBackToMap?: () => void;
 }
 
 const BACKGROUNDS = ['刚接触这个方向', '有一定基础', '比较熟悉这个方向'];
@@ -22,11 +24,11 @@ const GOALS = ['先快速理解方法', '想复现某篇论文', '想在自己�
 const isTrainingGoal = (goal: string) => /复现|微调|训练/.test(goal);
 
 /**
- * 视图三：从哪里开始。
+ * 视图三：阅读起点。
  * 首次只问「当前基础」与「想解决的问题」；只有复现/微调/训练才继续问时间与算力。
  * 单纯阅读不会被预训练算力门槛阻断。
  */
-export function MapStartView({ papers, methods, plan, modelReady, busy, onCancel, onGenerate, onOpenEvidence, questions }: Props) {
+export function MapStartView({ papers, methods, plan, modelReady, busy, onCancel, onGenerate, onOpenEvidence, questions, onBackToMap }: Props) {
   const [background, setBackground] = useState(BACKGROUNDS[0]);
   const [goal, setGoal] = useState(GOALS[0]);
   const [time, setTime] = useState('');
@@ -58,8 +60,15 @@ export function MapStartView({ papers, methods, plan, modelReady, busy, onCancel
 
   return (
     <div>
-      <h2 className="page">从哪里开始</h2>
+      <h2 className="page">阅读起点</h2>
       <p className="lead">结合你的目标，你应该先读什么、重点看什么？</p>
+      {onBackToMap && (
+        <p style={{ margin: '0 0 12px' }}>
+          <button className="linkbtn" onClick={onBackToMap}>
+            ← 返回方法地图
+          </button>
+        </p>
+      )}
 
       <div className="card">
         <div className="grid2">
@@ -193,7 +202,7 @@ export function MapStartView({ papers, methods, plan, modelReady, busy, onCancel
             {submitted
               ? modelReady
                 ? '没有生成成功：可能是接口不可用或当前论文不足。可以稍后重试；上面的示例路线仍可参考（已标注为示例）。'
-                : '未配置模型：暂时看不到示例路线（这份案例可能没有预置）。可以先看研究地图与联系与区别。'
+                : '未配置模型：暂时看不到示例路线（这份案例可能没有预置）。可以先看研究地图与关系与比较。'
               : modelReady
                 ? '选好基础与目标后点「生成个性化路线」，这里会给出先读哪篇、顺序、重点与理由。'
                 : '未配置模型时点「查看示例路线」，会显示案例自带的示例顺序（并标明不是按你的条件生成的）。'}

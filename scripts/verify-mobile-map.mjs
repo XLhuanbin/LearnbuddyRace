@@ -104,14 +104,10 @@ await send('Runtime.enable');
 await send('Page.enable');
 await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
 await sleep(3400);
+// 真实用户路径：主按钮「体验视觉论文案例」直接进研究地图，不需要再手动找入口
 await click('体验视觉论文案例');
-await waitFor(`document.querySelectorAll('.paper-title').length >= 5`, 45000);
-await sleep(1000);
-// 进入研究地图
-await ev(`(() => { const b=document.querySelector('.mapbrand .dirbtn'); if(b) b.click(); return true; })()`);
-await sleep(900);
-await click('研究地图');
-await sleep(1600);
+await waitFor(`document.querySelectorAll('.mapstage .mnode').length >= 5`, 60000);
+await sleep(1200);
 
 const noOverflow = !(await ev(`document.documentElement.scrollWidth > window.innerWidth + 1`));
 check('窄屏研究地图无整页横向溢出', noOverflow);

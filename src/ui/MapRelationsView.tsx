@@ -14,13 +14,15 @@ interface Props {
   /** 从地图选中两个方法后进入时预置的对照；[] = 用户要求自己选（不要替他挑） */
   initialPair?: string[];
   requireChoice?: boolean;
+  /** 明确返回「方法地图」的入口（三个视图共用页头的切换条，这里再给一个就近的） */
+  onBackToMap?: () => void;
 }
 
 const STATE_LABEL: Record<string, string> = { explicit: '原文已说明', inferred: '系统推断', candidate: '待核查' };
 const STATE_KIND: Record<string, string> = { explicit: 'ok', inferred: 'info', candidate: 'pending' };
 
 /**
- * 联系与区别：关系的**明细视图**（与地图同一份数据）。
+ * 关系与比较：关系的**明细视图**（与地图同一份数据）。
  *
  * 版面顺序（本轮调整）：
  *   1. 两方法对照 —— 先回答「这两个方法到底有什么不同」（默认给出关系证据最明确的一对）
@@ -29,8 +31,9 @@ const STATE_KIND: Record<string, string> = { explicit: 'ok', inferred: 'info', c
  *
  * 约定：方向以「起点 → 指向」为准，从任一端查看都不会讲反；对称关系不声明方向；
  * 证据状态一律标注，无引文的关系明确写「无引文」；「比较实验表现」是可展开的次级入口，不是评分。
+ * 注意：本视图列出**全部**关系，不随画布上「全部 / 可用 / 待核查」的可见性筛选变动。
  */
-export function MapRelationsView({ papers, methods, relations, onOpenEvidence, initialPair, requireChoice }: Props) {
+export function MapRelationsView({ papers, methods, relations, onOpenEvidence, initialPair, requireChoice, onBackToMap }: Props) {
   const [pair, setPair] = useState<string[]>(initialPair ?? []);
   // requireChoice：从「比较实验表现」进来但没有明确对端 → 保持"用户已动过手"，不自动替他挑一对
   const [pairTouched, setPairTouched] = useState(Boolean(initialPair?.length) || Boolean(requireChoice));
@@ -109,8 +112,16 @@ export function MapRelationsView({ papers, methods, relations, onOpenEvidence, i
 
   return (
     <div>
-      <h2 className="page">联系与区别</h2>
+      <h2 className="page">关系与比较</h2>
       <p className="lead">这些方法如何关联？它们到底有什么不同？（与地图是同一份关系数据）</p>
+      {/* 就近的返回入口：三个视图共用页头切换条之外，再给一个不用往上找的 */}
+      {onBackToMap && (
+        <p style={{ margin: '0 0 12px' }}>
+          <button className="linkbtn" onClick={onBackToMap}>
+            ← 返回方法地图
+          </button>
+        </p>
+      )}
 
       <div className="card tight" style={{ marginBottom: 12 }}>
         <div className="row" style={{ gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>

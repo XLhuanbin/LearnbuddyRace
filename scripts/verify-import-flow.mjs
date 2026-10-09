@@ -221,8 +221,11 @@ const shot = async (send, name) => {
   writeFileSync(join(SHOTS, name), Buffer.from(r.data, 'base64'));
 };
 const loadVisionCase = async (ev) => {
+  // 真实用户路径：主按钮直接进研究地图；本脚本后续在论文集合/方法提取页上操作，故再显式进入论文集合
   await click(ev, '体验视觉论文案例');
-  await waitFor(ev, `document.querySelectorAll('.paper-title').length >= 5`, 60000, '视觉案例加载');
+  await waitFor(ev, `document.querySelectorAll('.mapstage .mnode').length >= 5`, 60000, '视觉案例加载');
+  await goMore(ev, '论文集合');
+  await waitFor(ev, `document.querySelectorAll('.paper-title').length >= 5`, 60000, '论文集合渲染');
   await sleep(1000);
 };
 /** 直读 IndexedDB：这是「到底有没有导入成功」的唯一地面真相 */
@@ -396,7 +399,7 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
   await send('Page.reload');
   await sleep(6000);
   await click(ev, '体验视觉论文案例');
-  await sleep(4000);
+  await waitFor(ev, `document.querySelectorAll('.mapstage .mnode').length >= 5`, 60000, '视觉案例加载');
   await goMore(ev, '方法提取');
   const banner = await ev(`(() => {
     const b=document.querySelector('.ownentry');

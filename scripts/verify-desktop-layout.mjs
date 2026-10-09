@@ -204,8 +204,11 @@ async function main() {
   await sleep(3400);
 
   // 载入正式视觉案例
+  // 真实用户路径：主按钮直接进研究地图；本脚本的排版测量在论文集合页上，故再显式进入
   await click('体验视觉论文案例');
-  await waitFor(`document.querySelectorAll('.paper-title').length >= 5`, 45000, '视觉案例加载');
+  await waitFor(`document.querySelectorAll('.mapstage .mnode').length >= 5`, 60000, '视觉案例加载');
+  await goMore('论文集合');
+  await waitFor(`document.querySelectorAll('.paper-title').length >= 5`, 45000, '论文集合渲染');
   await sleep(1200);
 
   /** 单页测量 */

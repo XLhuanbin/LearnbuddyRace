@@ -103,7 +103,7 @@ export default function App() {
   });
   /**
    * 每次从顶栏「目录」点进研究地图就自增一次，用来把研究地图的子视图复位到「方法地图」。
-   * 不带 signal 的话，「联系与区别 / 从哪里开始」是页面内部状态，再点一次目录也回不去。
+   * 不带 signal 的话，子视图（关系与比较 / 阅读起点）是页面内部状态，再点一次目录也回不去。
    */
   const [mapResetSeq, setMapResetSeq] = useState(0);
   /** 统一入口：去研究地图就带上复位信号，其余页面直接切 */
@@ -1347,8 +1347,13 @@ export default function App() {
           {tab === 'landing' && (
             <LandingView
               onExperienceCase={async () => {
+                /**
+                 * 主按钮「体验视觉论文案例」= 真实用户路径：加载案例 → **直接进研究地图**。
+                 * 落在「论文集合」会先给一屏论文清单，与按钮承诺的「把一组论文变成研究地图」不符，
+                 * 且该页通往地图的入口不易发现。
+                 */
                 if (scope.experimentCount === 0) await loadSample(corpus);
-                setTab('library');
+                goTab('map');
               }}
               onUploadOwn={() => setTab('upload')}
               onGo={async (t) => {
