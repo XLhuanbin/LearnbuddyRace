@@ -157,20 +157,36 @@ const clickNode = (shortName) =>
 
 const mainText = () => cdp.ev(`(document.querySelector('.main-inner') || document.body).innerText`);
 const clickBtn = (t) => cdp.ev(`(() => { const b=[...document.querySelectorAll('button')].find((x)=>x.textContent.includes(${JSON.stringify(t)})); if(!b) return false; b.click(); return true; })()`);
-const clickNav = (t) => cdp.ev(`(() => { const b=[...document.querySelectorAll('button.nav')].find((x)=>x.textContent.includes(${JSON.stringify(t)})); if(!b) return false; b.click(); return true; })()`);
+/**
+ * 顶栏「目录」下拉。2026-09-25（c647794）起导航从左侧栏改为目录浮层，
+ * 旧的 `button.nav`（AppSideNav）已不再渲染 —— 这里按当前结构点 .dirbtn → .diritem。
+ */
+const clickNav = async (t) => {
+  await cdp.ev(`(() => { const b=document.querySelector('.dirbtn'); if(b) b.click(); return true; })()`);
+  await sleep(500);
+  const ok = await cdp.ev(
+    `(() => { const it=[...document.querySelectorAll('.diritem')].find(x=>x.textContent.includes(${JSON.stringify(t)})); if(!it) return false; it.click(); return true; })()`,
+  );
+  await sleep(1400);
+  return ok;
+};
 
 /* ================= 定位纠偏：首页 ================= */
 console.log('');
 console.log('=== 首页：产品定位（梳理论文方法 + 阅读路线，而不是给论文打分） ===');
 const land = await mainText();
 check('主标题是「把一组论文，变成你看得懂的研究地图。」', /把一组论文，变成你看得懂的研究地图/.test(land));
-check('副标题说明看懂方法/发展/先读哪篇 + 原文依据', /看懂各类方法解决了什么、彼此如何发展，以及你应该先读哪篇。关键结论都能回到原文/.test(land));
-check('三个关键词是方法/关系/阅读', /看懂方法差异/.test(land) && /理清技术关系/.test(land) && /决定先读什么/.test(land));
+check('一句话说清产品定位（读懂方法演进、知道先读哪一篇）', /读懂方法演进，知道先读哪一篇/.test(land));
+check('三块概念说明齐备（论文集合 / 研究地图 / 阅读路线），每块各有一句说明',
+  /先把论文按技术路线放在一起，再看每篇具体解决了什么/.test(land) &&
+  /看清方法之间的联系、区别和证据状态/.test(land) &&
+  /先读哪篇，以及读每篇时重点看什么/.test(land));
 check('主按钮「体验视觉论文案例」', /体验视觉论文案例/.test(land));
 check('次按钮「上传我的论文」', /上传我的论文/.test(land));
-check('示意图是「论文 → 分组与关联 → 阅读路线」', /一组论文/.test(land) && /方法分组与关联/.test(land) && /阅读路线/.test(land));
-check('首页标明内容来源与状态（预置案例 / 按证据状态标注 / 非实时）',
-  /预置视觉案例/.test(land) && /证据状态标注/.test(land) && /不是本次操作触发的实时分析/.test(land));
+check('首页配图明确标注为概念示意、不代表真实数量',
+  /一组论文/.test(land) && /概念示意，不代表当前案例的真实关系数量/.test(land));
+check('首页标明内容来源（真实分组/关系/阅读顺序在地图与阅读路线页按证据展示）',
+  /不代表当前案例的真实关系数量与证据状态/.test(land) && /在研究地图与阅读路线页按证据展示/.test(land));
 check('首页不再以准确率对比或「不能比较」为主视觉', !/Top-1|准确率|不能直接比较|能直接比较吗/.test(land));
 await cdp.shot(join(OUT, 'A1-首页.png'));
 await cdp.shot(join(OUT, 'A1-首页-窄屏.png'), 390, 844);
@@ -184,9 +200,19 @@ const mapText = await mainText();
 check('直接进入研究地图（无单选项案例页）', /研究地图/.test(mapText) && !/选择一个视觉论文案例/.test(mapText));
 check('工作区显示论文集合与三个视图', /研究地图 · 视觉方法演进案例/.test(mapText) && /方法地图/.test(mapText) && /关系与比较/.test(mapText) && /阅读起点/.test(mapText));
 check('首屏主体是图形（不是概览段落或论文卡片列表）', !/领域概览\n/.test(mapText) && !/逐篇方法卡片/.test(mapText));
+// 2026-10-09：画布上给出一个具体的起点建议（数据取自阅读路线的第 1 篇），替代早先的「先看这个 / 看这个对比」提问块
 check(
-  '默认给出一个具体的探索问题 + 入口（问题来自现有关系）',
-  /先看这个/.test(mapText) && /相比/.test(mapText) && /看这个对比/.test(mapText),
+  '画布给出具体的起点建议（不是泛泛的说明）',
+  /建议从这里开始：/.test(mapText) && /阅读路线的第 1 篇/.test(mapText),
+  mapText.match(/建议从这里开始：[^\n]*/)?.[0] ?? '（没找到起点建议）',
+);
+// 2026-10-09：关系可见性改为常驻三态，默认「全部」——不再默认把大部分关系藏起来
+check(
+  '关系可见性三态常驻且默认「全部」',
+  (await cdp.ev(
+    `(() => { const chips=[...document.querySelectorAll('.relview .chip')]; const on=chips.find(c=>c.classList.contains('on')); return JSON.stringify({ n: chips.length, on: on ? on.textContent.trim() : '' }); })()`,
+  )) === JSON.stringify({ n: 3, on: '全部10' }),
+  String(await cdp.ev(`[...document.querySelectorAll('.relview .chip')].map(c=>c.textContent.trim()).join('|')`)),
 );
 
 const svgInfo = await cdp.ev(`
@@ -200,17 +226,22 @@ check('泳道 = 方法家族（卷积网络 / Transformer 架构，忠实命名�
 check(`五个正式案例的方法全部画在地图上（节点 ${svgInfo.nodeCount} 个）`, svgInfo.nodeCount === 5, String(svgInfo.nodeCount));
 check('节点名称可读（ResNet / ViT / DeiT / Swin / ConvNeXt）', ['ResNet', 'ViT', 'DeiT', 'Swin', 'ConvNeXt'].every((n) => svgInfo.texts.some((t) => t === n || t.startsWith(n + '　') || t.startsWith(n + ' '))), JSON.stringify(svgInfo.texts.filter((t) => /ResNet|ViT|DeiT|Swin|ConvNeXt/.test(t))));
 check('节点带一句话贡献（不是空话或空节点）', svgInfo.texts.some((t) => /残差|Transformer|蒸馏|窗口|卷积/.test(t)));
-const optsToggles = await cdp.ev(`
-(() => {
-  const b=[...document.querySelectorAll('button')].find((x)=>x.textContent.includes('选项'));
-  if (b) b.click();
-  return new Promise((r) => setTimeout(() => {
-    const t = (document.querySelector('.mapopts .pop') || document.body).innerText;
-    if (b) b.click();
-    r(t);
-  }, 400));
+// 2026-10-09：关系可见性移到页头常驻三态；「筛选」弹层只保留与三态正交的「只看有证据关系」
+const filterPop = await cdp.ev(`
+(async () => {
+  const b=[...document.querySelectorAll('.mapopts button')].find((x)=>/筛选/.test(x.textContent));
+  if (!b) return '（没有筛选入口）';
+  b.click();
+  await new Promise((r) => setTimeout(r, 400));
+  const t = (document.querySelector('.mapopts .pop') || document.body).innerText;
+  b.click();
+  return t;
 })()`);
-  check('待核查 / 关系不明确的开关收进「选项」弹层', /显示待核查关系/.test(optsToggles) && /关系不明确/.test(optsToggles));
+check(
+  '「筛选」弹层保留「只看有证据关系」，并说明可见性在页头三态里切换',
+  /只看有证据关系/.test(filterPop) && /全部 \/ 可用 \/ 待核查/.test(filterPop),
+  String(filterPop).replace(/\n/g, ' | ').slice(0, 120),
+);
 check(`默认可见真实关系连线（${svgInfo.edgeCount} 条）`, svgInfo.edgeCount >= 1);
 check('图例用线型 + 文字区分证据状态', /原文明示/.test(mapText) && /系统推断/.test(mapText) && /待核查/.test(mapText));
 await cdp.shot(join(OUT, 'A2-方法地图.png'));
@@ -220,10 +251,19 @@ await cdp.shot(join(OUT, 'A2-方法地图-窄屏.png'), 390, 844);
 check('点击 DeiT 节点', await clickNode('DeiT'));
 await sleep(800);
 const nodeDetail = await cdp.ev(`(document.querySelector('.mapdetail') || document.body).innerText`);
-check('点击节点第一层显示「一句话贡献 / 核心做法 / 与相关方法的联系」', /一句话贡献/.test(nodeDetail) && /核心做法/.test(nodeDetail) && /与相关方法的联系/.test(nodeDetail));
-check('节点详情给出方法家族与策略（策略在深入解释里）', /Transformer 架构|卷积网络（CNN）/.test(nodeDetail));
-check('节点详情的关系说明方向正确（ViT 是前置方法）', /ViT 是 DeiT 的前置方法|DeiT 在 ViT 的基础上继续发展/.test(nodeDetail));
+check('点击节点首层给「一句话贡献」，核心做法与联系收在折叠里（渐进披露）',
+  /一句话贡献/.test(nodeDetail) && /查看核心做法 · 局限 · 原文依据/.test(nodeDetail));
+check('节点详情给出方法家族（策略在深入解释里）', /Transformer 架构|卷积网络（CNN）/.test(nodeDetail));
 await cdp.shot(join(OUT, 'A3-点击节点-详情.png'));
+
+// 展开节点详情的折叠区：核心做法、与相关方法的联系、原文依据都应出现
+await cdp.ev(`(() => { const d=document.querySelector('.mapdetail details.fold'); if (d) d.open = true; })()`);
+await sleep(600);
+const nodeDetailOpen = await cdp.ev(`(document.querySelector('.mapdetail') || document.body).innerText`);
+check('展开后给出核心做法与「与相关方法的联系」',
+  /核心做法/.test(nodeDetailOpen) && /与相关方法的联系/.test(nodeDetailOpen));
+check('节点详情的关系说明方向正确（ViT 是 DeiT 的前置方法）',
+  /ViT 是 DeiT 的前置方法|DeiT 在 ViT 的基础上继续发展/.test(nodeDetailOpen));
 
 // 原文依据：验证证据属于正确论文
 const evOpened = await cdp.ev(`
@@ -253,8 +293,8 @@ await cdp.ev(`
 await sleep(800);
 const edgeDetail = await cdp.ev(`(document.querySelector('.mapdetail') || document.body).innerText`);
 check(
-  '点击连线先给「一句话回答」，再给方向、证据状态与具体变化与下一步',
-  /一句话回答/.test(edgeDetail) && /具体变化/.test(edgeDetail) && /系统推断|原文已说明|待核查/.test(edgeDetail) && /下一步/.test(edgeDetail),
+  '点击连线给出关系描述、证据状态与「具体联系 / 变化」',
+  /方法联系/.test(edgeDetail) && /具体联系 \/ 变化/.test(edgeDetail) && /系统推断|原文已说明|待核查/.test(edgeDetail),
 );
 await cdp.ev(`(() => { const d = document.querySelector('.mapdetail details.fold'); if (d) d.open = true; })()`);
   await sleep(500);
@@ -262,34 +302,41 @@ await cdp.ev(`(() => { const d = document.querySelector('.mapdetail details.fold
   check('缺少可核验引文时如实说明（不用确定性口吻）', /没有绑定可核验引文|查看原文引文/.test(edgeEv), String(edgeEv).slice(-160));
 await cdp.shot(join(OUT, 'A5-点击连线-联系.png'));
 
-// 待核查与「关系不明确」开关
-const toggleInfo = await cdp.ev(`
-(async () => {
-  const ob = [...document.querySelectorAll('button')].find((x) => x.textContent.includes('选项'));
-  if (ob) ob.click();
-  await new Promise((r) => setTimeout(r, 400));
-  const boxes = [...document.querySelectorAll('input[type=checkbox]')];
-  const pending = boxes.find((b) => b.closest('label') && /显示待核查关系/.test(b.closest('label').textContent));
-  const unclear = boxes.find((b) => b.closest('label') && /关系不明确/.test(b.closest('label').textContent));
-  const before = [...document.querySelectorAll('svg path')].filter((p) => p.getAttribute('marker-end')).length;
-  if (unclear) unclear.click();
-  return { hasPending: !!pending, hasUnclear: !!unclear, before };
+/**
+ * 2026-10-09：原先「待核查 / 关系不明确」两个默认关闭的开关已被页头常驻三态取代。
+ * 这里改为实测三态的实际口径：默认「全部」画出全部关系；切「可用」只留有可用证据状态的；
+ * 切「待核查」看还不能当结论用的那部分（待核查 + 关系不明确）。
+ */
+const relViewSnap = async () =>
+  cdp.ev(`(() => {
+  const on = document.querySelector('.relview .chip.on');
+  const t = document.querySelector('.maphead-meta').innerText;
+  const line = (t.match(/关系\\s*\\d+\\s*条\\s*·\\s*当前显示\\s*\\d+\\s*条/) || [''])[0];
+  const hidden = (t.match(/隐藏\\s*[^\\n]*/) || ['（无隐藏行）'])[0];
+  return { chip: on ? on.textContent.trim() : '', line, hidden, edges: [...document.querySelectorAll('.mapstage svg path')].filter((p) => p.getAttribute('marker-end')).length };
 })()`);
-await sleep(700);
-const afterEdges = await cdp.ev(`[...document.querySelectorAll('svg path')].filter((p) => p.getAttribute('marker-end')).length`);
-check('待核查 / 关系不明确的开关在「选项」弹层里', toggleInfo.hasPending && toggleInfo.hasUnclear);
-check(`打开「关系不明确」后连线数量增加（${toggleInfo.before} → ${afterEdges}）`, afterEdges > toggleInfo.before);
-await cdp.shot(join(OUT, 'A6-打开关系不明确.png'));
-await cdp.ev(`
-(async () => {
-  const ob = [...document.querySelectorAll('button')].find((x) => x.textContent.includes('选项'));
-  if (ob) ob.click();
-  await new Promise((r) => setTimeout(r, 400));
-  const boxes = [...document.querySelectorAll('input[type=checkbox]')];
-  const unclear = boxes.find((b) => b.closest('label') && /关系不明确/.test(b.closest('label').textContent));
-  if (unclear) unclear.click();
-})()`);
-await sleep(500);
+const relView = { all: await relViewSnap() };
+check(`默认「全部」画出全部关系（${relView.all.edges} 条，且没有隐藏行）`,
+  /^全部/.test(relView.all.chip) && relView.all.edges >= 8 && relView.all.hidden === '（无隐藏行）',
+  JSON.stringify(relView.all));
+
+const setRelView = async (prefix) => {
+  await cdp.ev(`(() => { const c=[...document.querySelectorAll('.relview .chip')].find((x)=>x.textContent.trim().startsWith(${JSON.stringify(prefix)})); if (c) c.click(); return true; })()`);
+  await sleep(900);
+  return relViewSnap();
+};
+relView.usable = await setRelView('可用');
+check(`切「可用」后只剩有可用证据状态的关系，并写清隐藏了什么（${relView.usable.edges} 条：${relView.usable.hidden}）`,
+  /^可用/.test(relView.usable.chip) && relView.usable.edges < relView.all.edges && /待核查|关系不明确/.test(relView.usable.hidden),
+  JSON.stringify(relView.usable));
+await cdp.shot(join(OUT, 'A6-关系可见性-可用.png'));
+
+relView.pending = await setRelView('待核查');
+check(`切「待核查」后看到还不能当结论用的关系（${relView.pending.edges} 条：${relView.pending.hidden}）`,
+  /^待核查/.test(relView.pending.chip) && relView.pending.edges > relView.usable.edges,
+  JSON.stringify(relView.pending));
+
+await setRelView('全部');
 
 check('切换到「关系与比较」', await clickBtn('关系与比较'));
 await sleep(1200);
@@ -319,7 +366,10 @@ check('实验表现是可展开的次级入口', /比较实验表现（次级）
 await clickBtn('比较实验表现（次级）');
 await sleep(900);
 const expText = await mainText();
-check('实验表现保留真实状态（不能直接比较 / 仍需确认 / 条件不同）', /不能直接比较|仍需确认|条件不同/.test(expText));
+// 2026-10-09：可比才并排数字；不可比就说明为什么不并列（含「已抽取结果里没有可比对记录」这一支）
+check('实验表现保留真实状态（可比才并排数字 / 不可比就说明为什么不并列）',
+  /仍需确认|条件不同|不并列数字|不做表现比较|不能直接比较/.test(expText),
+  String(expText).replace(/\n/g, ' | ').slice(-200));
 check('说明它不是评分', /不是.*系统给论文的评分/.test(expText));
 await cdp.shot(join(OUT, 'A8-两方法对照.png'));
 
@@ -338,18 +388,27 @@ console.log('=== 路径 B：上传我的论文（真实 PDF，先清空站点数
 await cdp.send('Storage.clearDataForOrigin', { origin: new URL(url).origin, storageTypes: 'all' });
 await cdp.send('Page.reload', {});
 await sleep(3500);
-await clickNav('首页');
-await sleep(600);
-await sleep(800);
+// 清空站点数据后应用会回到宣传首页；点品牌回首页只是保险（落地页与工作页都有 .logo）
+await cdp.ev(`(() => { const b=document.querySelector('.logo'); if(b) b.click(); return true; })()`);
+await sleep(900);
 check('点击「上传我的论文」', await clickBtn('上传我的论文'));
-await sleep(1200);
+await sleep(1400);
 const upEmpty = await mainText();
-check('进入上传流程（含解析说明与两种入口）', /上传我的论文/.test(upEmpty) && /选择 PDF 文件/.test(upEmpty) && /粘贴论文正文/.test(upEmpty));
+check(
+  '进入上传流程（含解析说明与两种入口）',
+  /方法提取/.test(upEmpty) && /选择 PDF 文件/.test(upEmpty) && /粘贴论文正文/.test(upEmpty) && /尚未提取方法|还没有上传论文/.test(upEmpty),
+  upEmpty.replace(/\n+/g, ' | ').slice(0, 140),
+);
 
 let uploaded = false;
 if (existsSync(UPLOAD_PDF)) {
+  /**
+   * 精确定位上传控件：`.main-inner` 里的那个 file input。
+   * 页面里有多个隐藏 file input（App 根节点上还有一个「重新选择 PDF」用的），
+   * 取全局第一个会塞到没接线的那个上 —— 之前这里就是这么失败的（实测注入后 0 篇论文）。
+   */
   const doc = await cdp.send('DOM.getDocument', { depth: -1 });
-  const node = await cdp.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: 'input[type=file]' });
+  const node = await cdp.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: '.main-inner input[type=file]' });
   if (node?.nodeId) {
     await cdp.send('DOM.setFileInputFiles', { nodeId: node.nodeId, files: [UPLOAD_PDF] });
     uploaded = true;
@@ -357,45 +416,73 @@ if (existsSync(UPLOAD_PDF)) {
 }
 check('已注入真实 PDF 并触发解析', uploaded);
 await sleep(6000);
+// 「N 页 · N 字符」收在论文详情/处理细节的折叠区里（默认收起）—— 先展开再断言
+await cdp.ev(`(() => { document.querySelectorAll('.main-inner details').forEach((d) => { d.open = true; }); return true; })()`);
+await sleep(800);
 const upText = await mainText();
-check('显示解析结果（页数 / 字符数）', /\d+ 页/.test(upText) && /\d+ 字符/.test(upText));
+check(
+  '显示解析结果（页数 / 字符数）',
+  /\d+ 页 · \d+ 字符/.test(upText),
+  upText.match(/\d+ 页 · \d+ 字符/)?.[0] ?? '（没找到「N 页 · N 字符」）',
+);
 check('未配置模型时就地提示配置（不让用户先去找设置）', /需要模型接口/.test(upText) && /接口地址/.test(upText) && /密钥/.test(upText));
 check('提示密钥只保存在本机浏览器', /只保存在本机浏览器|不会写入任何产物/.test(upText));
 await cdp.shot(join(OUT, 'B1-上传论文-解析完成.png'));
 
-const paperCount = await cdp.ev(`document.querySelectorAll('.paper').length`);
+const paperCount = await cdp.ev(`document.querySelectorAll('.main-inner .pitem').length`);
 check(`上传后出现论文卡片（${paperCount} 张）`, paperCount >= 1);
-const canEnter = await clickBtn('进入研究地图');
-await sleep(2000);
-const single = await mainText();
-check('可以进入同一个研究地图工作区', canEnter && /研究地图/.test(single));
-check(
-  '单篇时地图自动切到「我上传的论文」并如实说明（不编造）',
-  /我上传的论文/.test(single) && /还没有方法分析结果|方法字段尚未生成|加更多论文|只有 1 篇/.test(single),
-  String(single).replace(/\n/g, ' | ').slice(0, 220),
+
+/**
+ * 2026-10-09：原来这里假定「上传一篇就能直接进研究地图看单篇理解」，与当前产品行为不符 ——
+ * 未配置模型 ⇒ 抽取无法进行 ⇒ 「进入研究地图」是**故意禁用**的（处理时间线写明「需先完成提取」）。
+ * 这里改为断言这个诚实的克制行为：不放行就不放行，并且说明原因，而不是让用户点进一个空地图。
+ */
+const enterBtns = await cdp.ev(
+  `JSON.stringify([...document.querySelectorAll('.main-inner button')].filter((b)=>/进入研究地图/.test(b.textContent)).map((b)=>({t:b.textContent.trim().slice(0,18),dis:b.disabled})))`,
 );
-await clickBtn('关系与比较');
-await sleep(900);
-const singleRel = await mainText();
-check('单篇时不出现任何编造的关系', /还没有可核验的方法关系|暂无关系/.test(singleRel));
-await clickBtn('看懂方法');
-await sleep(700);
-await cdp.shot(join(OUT, 'B2-单篇论文的研究地图.png'));
+const timeline = await cdp.ev(
+  `(()=>{const d=document.querySelector('details.stepline');return d?d.innerText.replace(/\\n+/g,' | '):'';})()`,
+);
+check(
+  '未提取出方法时不放行进地图：入口禁用，并在处理时间线写明「需先完成提取」',
+  !/"dis":false/.test(enterBtns) && /需先完成提取/.test(timeline),
+  `${enterBtns}｜${String(timeline).slice(0, 120)}`,
+);
+check('解析已完成这一步如实标为完成（1 篇已解析）', /解析文本 · 1 篇已解析/.test(timeline), String(timeline).slice(0, 160));
+await cdp.shot(join(OUT, 'B2-上传论文-待提取.png'));
 
 /* ================= 验证问题 ================= */
 console.log('');
 console.log('=== 七个验证问题（可自动核对的部分） ===');
 check('① 产品定位能说清为「梳理论文方法与阅读路线」', /研究地图/.test(land) && /阅读路线/.test(land) && !/给论文打分|排行榜/.test(land));
-check('② 不进入实验比较也能获得方法理解（家族泳道 + 节点贡献 + 节点详情）', svgInfo.texts.some((t) => /卷积网络|视觉 Transformer/.test(t)) && /核心做法/.test(nodeDetail));
+check('② 不进入实验比较也能获得方法理解（家族泳道 + 节点贡献 + 节点详情）', svgInfo.texts.some((t) => /卷积网络|视觉 Transformer/.test(t)) && /核心做法/.test(nodeDetailOpen));
 check('③ 技术关系来自证据（关系表带证据状态与引文列）', /证据状态/.test(rel) && /原文依据/.test(rel));
 check('④ 阅读建议是普通用户可见的主能力（三个视图之一）', /阅读起点/.test(mapText));
 check('⑤ 原文依据一到两次点击可达', evOpened && /p\.\d+/.test(evText));
 
-await clickNav('更多');
+/**
+ * 2026-09-25（c647794）起导航改为顶栏「目录」浮层，原「更多」页已不再渲染。
+ * 语料集切换入口移到「论文集合」页默认收起的「管理论文与案例」折叠里。
+ */
+await cdp.ev(`(() => { const b=document.querySelector('.dirbtn'); if(b) b.click(); return true; })()`);
+await sleep(600);
+const dirItems = await cdp.ev(`[...document.querySelectorAll('.diritem')].map((x)=>x.textContent.trim()).join('|')`);
+check('⑥ 正式案例与开发回归样例隔离（目录里不出现语料切换）',
+  /论文集合/.test(dirItems) && /研究地图/.test(dirItems) && !/回归样例|NLP/.test(dirItems),
+  dirItems);
+check('目录保留论文集合 / 开发状态 / 设置等入口',
+  /论文集合/.test(dirItems) && /开发状态/.test(dirItems) && /设置/.test(dirItems),
+  dirItems);
+await cdp.ev(`(() => { const b=document.querySelector('.dirbtn'); if(b) b.click(); return true; })()`);
+await sleep(400);
+await clickNav('论文集合');
 await sleep(1000);
-const more = await mainText();
-check('⑥ 正式案例与旧 NLP 样例隔离（切换入口只在更多里）', /切换到开发回归样例|切换到正式视觉案例/.test(more));
-check('更多里保留论文库 / 全部结果 / 开发状态 / 设置', /论文库（原始字段）/.test(more) && /开发状态与记录/.test(more) && /设置/.test(more));
+await cdp.ev(`(() => { const d=document.querySelector('details.libmanage'); if(d) d.open = true; return true; })()`);
+await sleep(600);
+const libManage = await mainText();
+check('语料切换入口在「论文集合」的管理区（换成开发回归样例 / 换成正式视觉案例）',
+  /换成开发回归样例|换成正式视觉案例/.test(libManage),
+  libManage.replace(/\n+/g, ' | ').slice(0, 120));
 
 await clickNav('研究地图');
 await sleep(1000);
