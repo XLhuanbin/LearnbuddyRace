@@ -259,26 +259,30 @@ async function main() {
 
   console.log('');
   console.log('=== E0 宣传首页：定位是「梳理论文方法与阅读路线」 ===');
-  // 首页右侧是真实数据预览：等它渲染出来再取文本（线上首次加载可能慢一些）
+  // 2026-10-09 改版：首页换成 v8 结构（编辑脊线 + 超大标题 + 自绘概念 SVG）。
+  // 旧结构里首屏图是 `.hero .fig svg.fig-wide`，新结构是 `.hero-sec` 内的自绘 SVG。
   let previewReady = false;
   for (let i = 0; i < 16; i++) {
-    previewReady = await cdp.evaluate(`document.querySelectorAll('.landing .hero .fig svg.fig-wide').length > 0`);
+    previewReady = await cdp.evaluate(`document.querySelectorAll('.landing .hero-sec svg[aria-hidden="true"]').length > 0`);
     if (previewReady) break;
     await sleep(500);
   }
   const previewHidden = await cdp.evaluate(
-    `(() => { const s = document.querySelector('.landing .hero .fig svg'); return !!s && s.getAttribute('aria-hidden') === 'true'; })()`,
+    `(() => { const s = document.querySelector('.landing .hero-sec svg'); return !!s && s.getAttribute('aria-hidden') === 'true'; })()`,
   );
   check('首屏右侧是装饰性概念 SVG（aria-hidden，不承载数据）', previewReady === true && previewHidden === true);
+  // 2026-10-09 改版：v8 取消了「每张图各带一句图注」的做法，改为页脚统一声明
+  //（原断言：`.fig-cap` === 4 且 `.fig-note` === 3）。改为核对新结构：
+  // 四张装饰性概念图都在（首屏 1 + 三段各 1），且都标了 aria-hidden。
   check(
-    '四组配图各有自己的概念说明（论文集合一张已按本轮要求改为单句说明）',
-    (await cdp.evaluate(`document.querySelectorAll('.landing .fig-cap').length`)) === 4 &&
-      (await cdp.evaluate(`document.querySelectorAll('.landing .fig-note').length`)) === 3,
+    '四张装饰性概念图都在，且都标了 aria-hidden',
+    (await cdp.evaluate(`document.querySelectorAll('.landing .hero-sec svg[aria-hidden="true"]').length`)) === 1 &&
+      (await cdp.evaluate(`document.querySelectorAll('.landing .illustration-box svg[aria-hidden="true"]').length`)) === 3,
   );
   const homeText = await cdp.evaluate(`(document.querySelector('.main-inner') || document.body).innerText`);
   check('首屏主文案', /把一组论文，变成你看得懂的研究地图/.test(homeText));
   check('首屏副文案是一句短说明（不超过 24 字）', /读懂方法演进，知道先读哪一篇。/.test(homeText));
-  const subLen = await cdp.evaluate(`(() => { const e = document.querySelector('.landing .sub'); return e ? e.textContent.trim().length : 99; })()`);
+  const subLen = await cdp.evaluate(`(() => { const e = document.querySelector('.landing .hero-lede'); return e ? e.textContent.trim().length : 99; })()`);
   check('首屏说明长度 ≤24 字', subLen <= 24, String(subLen));
   check('三个段落：论文集合 / 研究地图 / 阅读路线',
     /论文集合/.test(homeText) && /研究地图/.test(homeText) && /阅读路线/.test(homeText));
@@ -286,10 +290,10 @@ async function main() {
   check('次按钮「上传我的论文」', /上传我的论文/.test(homeText));
   check(
     '首页配图是概念示意，且不出现真实论文名 / 数量 / 证据状态',
-    /从一组线索出发，形成可探索的研究地图/.test(homeText) &&
-      /散落的论文线索，被整理成可以继续追踪的技术脉络/.test(homeText) &&
-      /从起点开始，沿着一条明确顺序逐步阅读/.test(homeText) &&
-      /概念示意，不代表当前案例的真实关系数量/.test(homeText) &&
+    // 2026-10-09 改版：v8 取消了逐图图注（三句旧图注文案随旧结构一起移除），
+    // 概念示意改由页脚统一声明。这里核对页脚声明 + 三个段落入口 + 无真实数据措辞。
+    /产品概念示意/.test(homeText) &&
+      /不代表当前案例的真实关系数量/.test(homeText) &&
       /论文集合/.test(homeText) &&
       /研究地图/.test(homeText) &&
       /阅读路线/.test(homeText) &&
@@ -299,8 +303,14 @@ async function main() {
   check('首页标明配图是产品概念示意，且真实结果指向对应工作页',
     /产品概念示意/.test(homeText) && /不代表当前案例的真实关系数量/.test(homeText) && /研究地图与阅读路线页/.test(homeText));
   check('首页不以分数对比为主视觉', !/Top-1|能直接比较吗|不能直接比较/.test(homeText));
-  check('首页没有篇数 / 版本 / 配置 / 缓存 / 开发状态',
-    !/篇论文/.test(homeText) && !/promptVersion/.test(homeText) && !/RULES_VERSION/.test(homeText) && !/配置模型接口/.test(homeText) && !/开发状态/.test(homeText) && !/缓存案例/.test(homeText));
+  // 2026-10-09 改版：v8 的页脚新增了「开发状态 / 偏好设置」两个入口链接。
+  // 原断言禁止首页出现「开发状态」四个字（D2 规则：宣传首页不显示任何数量/版本/配置/缓存/开发状态）。
+  // 按用户 2026-10-09「严格照 v8（覆盖旧规则）」的决定保留该链接，断言相应收窄为：
+  // 禁止「开发状态的具体取值」外露（版本号 / 配置项 / 缓存标注 / 篇数）。
+  // ⚠️ 若要恢复 D2 原规则：删掉 LandingView 页脚里那两行链接，
+  //    并把本断言加回 `&& !/开发状态/.test(homeText)`。
+  check('首页不出现开发状态的具体取值（版本 / 配置 / 缓存 / 篇数）',
+    !/篇论文/.test(homeText) && !/promptVersion/.test(homeText) && !/RULES_VERSION/.test(homeText) && !/配置模型接口/.test(homeText) && !/缓存案例/.test(homeText));
   check('首页不渲染侧栏', !(await cdp.evaluate(`!!document.querySelector('.side')`)));
   const heroVisible = await cdp.evaluate(`
 (() => {

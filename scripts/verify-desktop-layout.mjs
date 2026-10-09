@@ -218,7 +218,10 @@ async function main() {
   const inner = document.querySelector('.main-inner');
   const r = inner ? inner.getBoundingClientRect() : null;
   const inView = (el) => { const b = el.getBoundingClientRect(); return b.width > 0 && b.height > 0 && b.bottom > 0 && b.top < window.innerHeight; };
-  const primaries = [...document.querySelectorAll('.main-inner button.btn.primary, .main-inner button.primary')].filter(inView);
+  // 2026-10-09 改版：宣传首页换成 v8 结构，实心主按钮类名从 btn.primary 改为 btn-primary
+  //（v8 的按钮自带一套样式，不复用全局 .btn），所以把新类名一并计入，避免首页误报「主按钮 0」。
+  // ⚠️ 本函数整体在模板串里，注释中不得出现反引号。
+  const primaries = [...document.querySelectorAll('.main-inner button.btn.primary, .main-inner button.primary, .main-inner button.btn-primary')].filter(inView);
   // 页面主标题：论文集合/方法提取/实验可比性/阅读路线用 .pgtitle，研究地图用自己的 .maphead 里的大标题，
   // 两者都是 h2 —— 统一按 h2 取，避免「地图页找不到标题」这种假失败。
   const title = document.querySelector('.main-inner h2');

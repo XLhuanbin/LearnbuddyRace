@@ -48,6 +48,14 @@ function NavIcon({ name }: { name: string }) {
   );
 }
 
+/** 宣传首页（v8）顶栏右侧的页内锚点：滚动到首页对应 section，不切页 */
+const LANDING_NAV: [string, string][] = [
+  ['library', '方法梳理'],
+  ['map', '研究地图'],
+  ['features', '功能特性'],
+  ['route', '关于'],
+];
+
 /** 顶部品牌栏（所有非宣传页共用）：左侧品牌 + 目录，右侧案例名与返回入口；侧栏入口全部收进目录浮层 */
 export function AppBrandBar({
   corpusLabel,
@@ -120,7 +128,7 @@ export function AppBrandBar({
   );
 
   return (
-    <header className="mapbrand">
+    <header className={`mapbrand${minimal ? ' landingbar' : ''}`}>
       <button className="logo" onClick={onHome} title="回到首页">
         <span className="mark" aria-hidden="true">
           R
@@ -148,6 +156,25 @@ export function AppBrandBar({
       )}
 
       <span className="spacer" />
+
+      {/* 宣传首页（v8）：顶栏改成固定 + mix-blend-difference 形态，右侧是页内锚点导航 */}
+      {minimal && (
+        <nav className="landing-nav" aria-label="首页导航">
+          {LANDING_NAV.map(([id, label]) => (
+            <a
+              key={id}
+              href={`#${id}`}
+              id={`nav-${id}-link`}
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
+      )}
 
       {!minimal && (
         <>

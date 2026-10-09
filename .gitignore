@@ -24,6 +24,9 @@ scripts/_*
 .build*/
 *.log
 
+# Superdesign 设计探索上下文（AI 生成的仓库分析产物，本地再生，不进仓库）
+.superdesign/
+
 # 走查截图只保留在本机：仓库不收录（文字报告仍保留在 docs/*.md）
 # 截图属于过程证据；赛事要求的是与 LearnBuddy 的对话记录，不依赖仓库内截图
 docs/**/*.png
