@@ -418,12 +418,12 @@ if (existsSync(UPLOAD_PDF)) {
 }
 check('已注入真实 PDF 并触发解析', uploaded);
 await sleep(6000);
-// 2026-10-09 改版：方法提取页不再展示每篇的「N 页 · N 字符」（已移到论文集合的论文详情里）。
-// 这里改验「解析已完成」这一真实结果在方法提取页可见（进度卡 / 五步流程里）。
+// 2026-10-09/10 改版：方法提取页只剩「进度卡」承载真实流程（去掉了与进度卡重复的五步 FlowBar）。
+// 进度卡如实显示已完成步数 / 百分比 / 当前步骤，这里据实断言。
 const upText = await mainText();
 check(
-  '解析完成后在方法提取页可见（1 篇已解析）',
-  /1 篇已解析|解析文本/.test(upText),
+  '解析完成后在方法提取页如实可见（进度卡显示已完成步数）',
+  /已完成 \d+ 步/.test(upText),
   upText.replace(/\n+/g, ' | ').slice(0, 120),
 );
 check('未配置模型时就地提示配置（不让用户先去找设置）', /需要模型接口/.test(upText) && /接口地址/.test(upText) && /密钥/.test(upText));
@@ -435,24 +435,18 @@ const paperCount = await cdp.ev(`document.querySelectorAll('.main-inner .up-row'
 check(`上传后出现论文卡片（${paperCount} 张）`, paperCount >= 1);
 
 /**
- * 2026-10-09：原来这里假定「上传一篇就能直接进研究地图看单篇理解」，与当前产品行为不符 ——
- * 未配置模型 ⇒ 抽取无法进行 ⇒ 「进入研究地图」是**故意禁用**的（处理时间线写明「需先完成提取」）。
- * 这里改为断言这个诚实的克制行为：不放行就不放行，并且说明原因，而不是让用户点进一个空地图。
+ * 2026-10-09/10：未配置模型 ⇒ 抽取无法进行 ⇒ 不该给用户「进入研究地图」的空地图入口。
+ * 方法提取页已没有「进入研究地图」按钮（详情/入口都在论文集合），这里断言这个诚实的克制行为。
  */
 const enterBtns = await cdp.ev(
   `JSON.stringify([...document.querySelectorAll('.main-inner button')].filter((b)=>/进入研究地图/.test(b.textContent)).map((b)=>({t:b.textContent.trim().slice(0,18),dis:b.disabled})))`,
 );
-// 2026-10-09 改版：方法提取页的流程条从「折叠的 details.stepline」改为常驻可见的处理状态卡
-// （.uppage .flowbar），断言改读新容器 —— 这里核对的仍然是同一件事：真实五步流程的文案。
-const timeline = await cdp.ev(
-  `(()=>{const d=document.querySelector('.uppage .flowbar');return d?d.innerText.replace(/\\n+/g,' | '):'';})()`,
-);
 check(
-  '未提取出方法时不放行进地图：入口禁用，并在处理时间线写明「需先完成提取」',
-  !/"dis":false/.test(enterBtns) && /需先完成提取/.test(timeline),
-  `${enterBtns}｜${String(timeline).slice(0, 120)}`,
+  '未提取出方法时不给「进入研究地图」入口（不放进空地图）',
+  !/进入研究地图/.test(upText) && !/"dis":false/.test(enterBtns),
+  enterBtns,
 );
-check('解析已完成这一步如实标为完成（1 篇已解析）', /解析文本 · 1 篇已解析/.test(timeline), String(timeline).slice(0, 160));
+check('进度卡不会把等待显示成「已完成」（如实标等待）', /等待开始梳理/.test(upText) && !/方法论梳理已完成/.test(upText), String(upText).match(/等待开始梳理|方法论梳理已完成/)?.[0] ?? '');
 await cdp.shot(join(OUT, 'B2-上传论文-待提取.png'));
 
 /* ================= 验证问题 ================= */

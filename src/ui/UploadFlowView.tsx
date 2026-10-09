@@ -6,7 +6,7 @@ import { FIELD_KEYS_ORDER } from '../core/cache';
 import { buildMethodProfile, shortContribution } from '../core/grouping';
 import type { CorpusScope } from '../core/corpus';
 import { effectiveFieldValue } from '../core/effective';
-import { FlowBar, Status } from './common';
+import { Status } from './common';
 import { titleNeedsConfirm } from '../core/rules';
 
 interface Props {
@@ -359,10 +359,7 @@ export function UploadFlowView({
               </div>
             </div>
 
-            {/* 五步真实流程（原页面功能，兼容保留；草稿没有等价物） */}
-            <div className="up-prog">
-              <FlowBar steps={overview} />
-            </div>
+            {/* 五步流程已由上方进度卡承载；草稿没有独立的流程条，不再重复展示（2026-10-10 移除） */}
 
             {/* 粘贴论文正文（原页面功能，兼容保留） */}
             {pasteOpen && (
