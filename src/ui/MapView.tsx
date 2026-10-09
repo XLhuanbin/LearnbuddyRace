@@ -85,7 +85,7 @@ export function MapView({
    *   pending = 还不能当结论用的（待核查 + 关系不明确）
    */
   const [relView, setRelView] = useState<'all' | 'usable' | 'pending'>('all');
-  /** 只看绑定了可核验引文的关系（与三态正交的额外收窄，默认关） */
+  /** 只看**已核验**引文的关系（`evidence.verified === true`；与三态正交的额外收窄，默认关） */
   const [onlyEvidence, setOnlyEvidence] = useState(false);
   /** 筛选与集合操作是两个独立弹层（不再混在一个「选项」里） */
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -136,11 +136,19 @@ export function MapView({
     r.type === 'unclear' || r.evidenceState === 'candidate' ? 'pending' : 'usable';
 
   /**
+   * 「只看有证据关系」的判据：`evidence` 存在**且已通过定位校验**（`verified === true`）。
+   * 不能用 `Boolean(r.evidence)` —— 那只是「有个 evidence 对象」，引文没定位成功、或校验没通过的也算数，
+   * 与「已核验」的说法不符。证据只有三种合法来源：buildEvidence 的校验结果 / 缓存里已核验的旧值 / 没有。
+   */
+  const hasVerifiedEvidence = (r: Relation) => r.evidence?.verified === true;
+
+  /**
    * 画布「画什么」的**唯一**规则：先按三态收窄，再按「只看有证据」收窄。
    * relStats（页头计数）与 MethodMap（画布连线）都用它，两者不可能各说各话。
    */
   const relVisible = useCallback(
-    (r: Relation) => (relView === 'all' || bucketOf(r) === relView) && (!onlyEvidence || Boolean(r.evidence)),
+    (r: Relation) =>
+      (relView === 'all' || bucketOf(r) === relView) && (!onlyEvidence || hasVerifiedEvidence(r)),
     [relView, onlyEvidence],
   );
 
@@ -151,15 +159,21 @@ export function MapView({
     let pendingCandidate = 0;
     let pendingUnclear = 0;
     let hiddenNoEvidence = 0;
-    let withEvidence = 0;
+    let withVerified = 0;
     for (const r of view.relations) {
-      if (r.evidence) withEvidence += 1;
       const bucket = bucketOf(r);
       if (bucket === 'usable') usable += 1;
       else if (r.type === 'unclear') pendingUnclear += 1;
       else pendingCandidate += 1;
+      /**
+       * 「在不在当前三态范围内」要单独算：`relView === 'all'` 时它恒为真。
+       * 之前这里写成 `bucket === relView`，于是「全部 + 只看有证据」下 hiddenNoEvidence 永远是 0，
+       * 隐藏数对不上任何原因（只会退化成「已按上方筛选收起」）。这是本轮要修的统计 bug。
+       */
+      const inBucket = relView === 'all' || bucket === relView;
+      if (inBucket && hasVerifiedEvidence(r)) withVerified += 1;
       if (relVisible(r)) visible += 1;
-      else if (bucket === relView && onlyEvidence && !r.evidence) hiddenNoEvidence += 1;
+      else if (inBucket && onlyEvidence && !hasVerifiedEvidence(r)) hiddenNoEvidence += 1;
     }
     const pending = pendingCandidate + pendingUnclear;
     return {
@@ -170,7 +184,7 @@ export function MapView({
       pendingCandidate,
       pendingUnclear,
       hiddenNoEvidence,
-      withEvidence,
+      withVerified,
     };
   }, [view.relations, relVisible]);
 
@@ -182,7 +196,8 @@ export function MapView({
       if (relStats.pendingUnclear) out.push(`关系不明确 ${relStats.pendingUnclear} 条`);
     }
     if (relView === 'pending' && relStats.usable) out.push(`可用 ${relStats.usable} 条`);
-    if (relStats.hiddenNoEvidence) out.push(`无引文（只看有证据）${relStats.hiddenNoEvidence} 条`);
+    if (relStats.hiddenNoEvidence)
+      out.push(`无引文或未通过校验（只看有证据）${relStats.hiddenNoEvidence} 条`);
     return out.length ? out : ['已按上方筛选收起'];
   }, [relView, relStats]);
 
@@ -349,7 +364,7 @@ export function MapView({
                     <input type="checkbox" checked={onlyEvidence} onChange={(e) => setOnlyEvidence(e.target.checked)} />
                     只看有证据关系
                     <span className="dim">
-                      （当前 {relStats.withEvidence} 条绑定了可核验引文，显示 {relStats.visible} 条）
+                      （当前范围 {relStats.withVerified} 条有已核验引文，现显示 {relStats.visible} 条）
                     </span>
                   </label>
                 </div>

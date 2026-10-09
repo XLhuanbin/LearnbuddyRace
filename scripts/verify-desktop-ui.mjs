@@ -289,11 +289,36 @@ for (const [tag, w, h] of VIEWPORTS) {
     relFiltered.edges === relFiltered.visible,
     `显示 ${relFiltered.visible} / 连线 ${relFiltered.edges}`,
   );
-  // 回到「全部」，后续截图是默认态
+  // 回到「全部」，再验「只看有证据关系」这条正交收窄
   await ev(
     `(() => { const c=[...document.querySelectorAll('.relview .chip')].find((x)=>/^全部/.test(x.textContent.trim())); if(c) c.click(); return true; })()`,
   );
   await sleep(700);
+  /**
+   * 2026-10-09 修：判据从 `Boolean(r.evidence)` 改为 `evidence.verified === true`（引文必须已通过定位校验）；
+   * 同时修掉「全部 + 只看有证据」下隐藏原因统计为 0 的 bug（原判断写成 `bucket === relView`，
+   * 而 relView === 'all' 时该式恒假）。
+   */
+  await ev(`(() => { const b=[...document.querySelectorAll('.mapopts button')].find((x)=>/筛选/.test(x.textContent)); if(b) b.click(); return true; })()`);
+  await sleep(500);
+  await ev(`(() => { const cb=document.querySelector('.mapopts input[type=checkbox]'); if(cb && !cb.checked) cb.click(); return true; })()`);
+  await sleep(900);
+  const relOnly = await measureRel();
+  check(
+    `[${tag}] 「全部 + 只看有证据」：隐藏数 = 总数 − 显示数，且写明是「无引文或未通过校验」`,
+    relOnly.hidden === relOnly.total - relOnly.visible && /无引文或未通过校验/.test(relOnly.reasonText),
+    `总数 ${relOnly.total} − 显示 ${relOnly.visible} = 隐藏 ${relOnly.hidden}（${relOnly.reasonText}）`,
+  );
+  check(
+    `[${tag}] 「只看有证据」后画布连线数与状态行一致`,
+    relOnly.visible > 0 && relOnly.edges === relOnly.visible,
+    `显示 ${relOnly.visible} / 连线 ${relOnly.edges}`,
+  );
+  // 关掉收窄、收起弹层，回到默认态再截图
+  await ev(`(() => { const cb=document.querySelector('.mapopts input[type=checkbox]'); if(cb && cb.checked) cb.click(); return true; })()`);
+  await sleep(700);
+  await ev(`(() => { const b=[...document.querySelectorAll('.mapopts button')].find((x)=>/筛选/.test(x.textContent)); if(b) b.click(); return true; })()`);
+  await sleep(500);
   await shot(`地图-研究地图-${tag}.png`);
 
   // ---------- 方法提取 ----------
