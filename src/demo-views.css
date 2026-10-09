@@ -668,3 +668,249 @@
   .casepage h1 { font-size: 24px; }
   .rnode { flex: 0 0 148px; }
 }
+
+/* =========================================================================
+   方法提取页 · 按 Superdesign 草稿 a6947252「论文上传与分析」的视觉严格落实
+   -------------------------------------------------------------------------
+   原则（用户 2026-10-09 明确）：**前端视觉严格复刻草稿，内容替换为我们的真实功能与文案**。
+   草稿里属于占位的编造内容一律不采纳：
+     ✗ 「支持 Word 及主流学术格式」→ 我们只支持 PDF
+     ✗ 「结构化解析 (2/4) 45% / 预计剩余 1分20秒」→ 我们不显示假百分比，用真实五步状态
+     ✗ 「所有上传文件将进行加密处理」→ 改为可证实的「解析在本机浏览器完成」
+     ✗ 「数据使用协议 / 法律条款 / 使用指南」→ 这些页面不存在
+   已复刻的草稿视觉：.upload-zone（虚线 2px + drag-over 高亮放大）、.file-card、
+   .btn-primary / .btn-ghost、.text-link、左侧 40px 细脊线 .up-spine、两栏 7/5 栅格、通栏页脚。
+   ========================================================================= */
+
+/* ---------- 两栏栅格（草稿：grid-cols-12 gap-10，lg 起左移 80px 给脊线让位） ---------- */
+.up-main { position: relative; }
+.up-spine {
+  display: none;
+  position: absolute;
+  left: 40px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: var(--line-2);
+  z-index: 0;
+}
+@media (min-width: 1024px) { .up-spine { display: block; } }
+
+.up-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 40px;
+  align-items: start;
+}
+.up-col-main { grid-column: span 12 / span 12; display: flex; flex-direction: column; gap: 32px; }
+.up-col-side { grid-column: span 12 / span 12; }
+@media (min-width: 1024px) {
+  .up-hero, .up-grid { margin-left: 80px; }
+  .up-col-main { grid-column: span 7 / span 7; }
+  .up-col-side { grid-column: span 5 / span 5; }
+}
+
+/* ---------- 首屏（草稿：eyebrow + serif 大标题 + 一句说明） ---------- */
+.up-hero { margin-bottom: 64px; }
+.up-hero-in { display: flex; flex-direction: column; gap: 16px; }
+.up-eyebrow {
+  color: var(--fg-3);
+  letter-spacing: .3em;
+  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 700;
+  margin: 0;
+}
+.up-title {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  letter-spacing: -.025em;
+  color: var(--fg);
+  font-size: 36px;
+  line-height: 1.2;
+  margin: 0;
+}
+@media (min-width: 768px) { .up-title { font-size: 48px; } }
+.up-lede {
+  color: var(--fg-2);
+  font-size: 18px;
+  line-height: 1.625;
+  max-width: 42rem;
+  margin: 0;
+}
+
+/* ---------- 按钮（草稿的 .btn-primary / .btn-ghost，本页按草稿的尺寸） ---------- */
+.uppage .btn-primary { padding: 12px 28px; }
+.uppage .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--line-2);
+  color: var(--fg-2);
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  font-size: 15.5px;
+  cursor: pointer;
+  transition: all .2s;
+  font-family: inherit;
+}
+.btn-ghost:hover:not(:disabled) { background: var(--bg-3); border-color: var(--fg-3); color: var(--fg); }
+.btn-ghost:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ---------- 拖拽区（草稿的 .upload-zone，原样复刻） ---------- */
+.upload-zone {
+  border: 2px dashed var(--accent-line);
+  border-radius: 20px;
+  background: var(--bg-2);
+  padding: 48px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all .3s ease;
+}
+@media (min-width: 768px) { .upload-zone { padding: 80px 48px; } }
+.upload-zone.drag-over {
+  border-color: var(--accent);
+  background-color: var(--accent-soft);
+  transform: scale(1.01);
+}
+.upload-zone:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.up-zone-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  transition: transform .3s ease;
+}
+.upload-zone:hover .up-zone-icon { transform: scale(1.1); }
+.up-zone-icon svg { width: 36px; height: 36px; stroke: var(--accent); }
+.up-zone-title { font-family: var(--font-serif); font-weight: 700; font-size: 24px; line-height: 1.3; margin: 0 0 12px; }
+.up-zone-sub { color: var(--fg-3); margin: 0 0 32px; font-size: 15.5px; }
+
+/* ---------- 卡（草稿的 .file-card / 白底圆角卡） ---------- */
+.up-card {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 32px;
+}
+.up-card-sm {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: var(--shadow-2);
+  transition: transform .2s ease;
+}
+.up-sticky { position: sticky; top: 96px; }
+.up-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; gap: 12px; }
+.up-card-title { font-family: var(--font-serif); font-weight: 700; font-size: 20px; margin: 0; }
+.up-count {
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--accent-soft);
+  color: var(--accent);
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* ---------- 队列列表（草稿：max-h + 内滚 + 上方留白） ---------- */
+.up-list { display: flex; flex-direction: column; gap: 12px; max-height: 420px; overflow-y: auto; margin-bottom: 32px; padding-right: 4px; }
+.up-list::-webkit-scrollbar { width: 6px; }
+.up-list::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 3px; }
+.up-empty { text-align: center; padding: 40px 0; }
+.up-empty p { color: var(--fg-3); font-size: 14px; margin: 0; }
+
+.up-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: var(--shadow-2);
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform .2s ease, border-color .2s ease;
+}
+.up-row:hover { transform: translateY(-2px); }
+.up-row.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.up-row.just { box-shadow: inset 3px 0 0 var(--accent), var(--shadow-2); }
+.up-row .nm { display: block; font-weight: 600; font-size: 15px; color: var(--fg); line-height: 1.4; }
+.up-row .mname { display: block; font-size: 13.5px; color: var(--accent); margin-top: 4px; }
+.up-row .idea { display: block; font-size: 13.5px; color: var(--fg-2); margin-top: 4px; line-height: 1.5; }
+.up-row .st { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fg-3); margin-top: 8px; }
+
+/* ---------- 队列卡底部（草稿：border-t + 主操作 + 小字） ---------- */
+.up-foot-act { padding-top: 24px; border-top: 1px solid var(--line); }
+.up-actions { display: flex; flex-direction: column; gap: 12px; }
+.up-actions .btn-primary, .up-actions .btn-ghost { width: 100%; }
+.up-fineprint {
+  font-size: 12px;
+  color: var(--fg-3);
+  text-align: center;
+  line-height: 1.625;
+  padding: 0 16px;
+  margin: 16px 0 0;
+}
+
+/* ---------- 真实流程状态（替代草稿的假进度条） ---------- */
+.up-flow { margin-top: 24px; }
+.up-stage {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.up-stage h4 { font-size: 18px; font-weight: 700; margin: 0; }
+.up-stage .sub { font-size: 13.5px; color: var(--fg-3); margin: 4px 0 0; }
+.up-stage-dot { font-size: 13.5px; color: var(--accent); font-weight: 700; white-space: nowrap; }
+
+/* ---------- 通栏页脚（草稿结构，内容换成真实链接） ---------- */
+.up-foot {
+  border-top: 1px solid var(--line);
+  background: #fff;
+  padding: 48px 0;
+  margin-top: 96px;
+}
+.up-foot-in {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+@media (min-width: 768px) { .up-foot-in { flex-direction: row; } }
+.up-foot-brand { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.up-foot-brand .b { font-family: var(--font-serif); font-weight: 700; }
+.up-foot-tag {
+  font-size: 12px;
+  color: var(--fg-3);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  border-left: 1px solid var(--line);
+  padding-left: 16px;
+}
+.up-foot-links { display: flex; gap: 32px; font-size: 14px; flex-wrap: wrap; }
+.up-foot-links button { font-family: inherit; font-size: 14px; }
+
+@media (max-width: 1023px) {
+  .up-hero { margin-bottom: 40px; }
+  .up-title { font-size: 32px; }
+  .up-lede { font-size: 16px; }
+  .up-card { padding: 24px; }
+}

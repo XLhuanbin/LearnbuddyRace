@@ -323,9 +323,10 @@ for (const [tag, w, h] of VIEWPORTS) {
 
   // ---------- 方法提取 ----------
   await goMore('方法提取');
+  // 2026-10-09 改版：方法提取页按 Superdesign 草稿重做，队列行的类名从 .pitem 改为 .up-row
   const upload = await ev(`(() => ({
-  items: document.querySelectorAll('.main-inner .pitem').length,
-  names: [...document.querySelectorAll('.main-inner .pitem .nm')].map((e)=>e.textContent.trim().slice(0, 26)),
+  items: document.querySelectorAll('.main-inner .up-row').length,
+  names: [...document.querySelectorAll('.main-inner .up-row .nm')].map((e)=>e.textContent.trim().slice(0, 26)),
 }))()`);
   check(`[${tag}] 方法提取页显示当前语料全部 5 篇论文`, upload.items === 5, `${upload.items} 篇：${upload.names.join(' / ')}`);
   check(
@@ -336,7 +337,7 @@ for (const [tag, w, h] of VIEWPORTS) {
   // 打开 ResNet 与 ViT
   const openOne = async (re) =>
     ev(`(() => {
-    const items = [...document.querySelectorAll('.main-inner .pitem')];
+    const items = [...document.querySelectorAll('.main-inner .up-row')];
     const it = items.find((x)=>/回归/.test(${JSON.stringify(re)}) ? true : new RegExp(${JSON.stringify(re)}, 'i').test(x.querySelector('.nm').textContent));
     if (!it) return 'NOT_FOUND';
     it.click();
@@ -344,11 +345,11 @@ for (const [tag, w, h] of VIEWPORTS) {
   })()`);
   const c1 = await openOne('Residual');
   await sleep(500);
-  const t1 = await ev(`(document.querySelector('.work2-detail .detail-head h3') || {}).textContent || ''`);
+  const t1 = await ev(`(document.querySelector('.uppage .detail-head h3') || {}).textContent || ''`);
   check(`[${tag}] 可以打开 ResNet 那一篇（详情标题随之变化）`, c1 === 'CLICKED' && /Residual/i.test(t1), String(t1).slice(0, 40));
   const c2 = await openOne('IMAGE IS WORTH');
   await sleep(500);
-  const t2 = await ev(`(document.querySelector('.work2-detail .detail-head h3') || {}).textContent || ''`);
+  const t2 = await ev(`(document.querySelector('.uppage .detail-head h3') || {}).textContent || ''`);
   check(`[${tag}] 可以打开 ViT 那一篇`, c2 === 'CLICKED' && /IMAGE IS WORTH/i.test(t2), String(t2).slice(0, 40));
   await shot(`地图-方法提取-${tag}.png`);
 

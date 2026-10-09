@@ -429,7 +429,8 @@ check('未配置模型时就地提示配置（不让用户先去找设置）', /
 check('提示密钥只保存在本机浏览器', /只保存在本机浏览器|不会写入任何产物/.test(upText));
 await cdp.shot(join(OUT, 'B1-上传论文-解析完成.png'));
 
-const paperCount = await cdp.ev(`document.querySelectorAll('.main-inner .pitem').length`);
+// 2026-10-09 改版：方法提取页按 Superdesign 草稿重做，队列行的类名从 .pitem 改为 .up-row
+const paperCount = await cdp.ev(`document.querySelectorAll('.main-inner .up-row').length`);
 check(`上传后出现论文卡片（${paperCount} 张）`, paperCount >= 1);
 
 /**
@@ -440,8 +441,10 @@ check(`上传后出现论文卡片（${paperCount} 张）`, paperCount >= 1);
 const enterBtns = await cdp.ev(
   `JSON.stringify([...document.querySelectorAll('.main-inner button')].filter((b)=>/进入研究地图/.test(b.textContent)).map((b)=>({t:b.textContent.trim().slice(0,18),dis:b.disabled})))`,
 );
+// 2026-10-09 改版：方法提取页的流程条从「折叠的 details.stepline」改为常驻可见的处理状态卡
+// （.uppage .flowbar），断言改读新容器 —— 这里核对的仍然是同一件事：真实五步流程的文案。
 const timeline = await cdp.ev(
-  `(()=>{const d=document.querySelector('details.stepline');return d?d.innerText.replace(/\\n+/g,' | '):'';})()`,
+  `(()=>{const d=document.querySelector('.uppage .flowbar');return d?d.innerText.replace(/\\n+/g,' | '):'';})()`,
 );
 check(
   '未提取出方法时不放行进地图：入口禁用，并在处理时间线写明「需先完成提取」',

@@ -222,9 +222,10 @@ async function main() {
   //（v8 的按钮自带一套样式，不复用全局 .btn），所以把新类名一并计入，避免首页误报「主按钮 0」。
   // ⚠️ 本函数整体在模板串里，注释中不得出现反引号。
   const primaries = [...document.querySelectorAll('.main-inner button.btn.primary, .main-inner button.primary, .main-inner button.btn-primary')].filter(inView);
-  // 页面主标题：论文集合/方法提取/实验可比性/阅读路线用 .pgtitle，研究地图用自己的 .maphead 里的大标题，
-  // 两者都是 h2 —— 统一按 h2 取，避免「地图页找不到标题」这种假失败。
-  const title = document.querySelector('.main-inner h2');
+  // 页面主标题：论文集合/实验可比性/阅读路线用 .pgtitle（h2），研究地图用 .maphead 里的大标题（h2），
+  // 2026-10-09 起方法提取页改用 h1.pgtitle（按 Superdesign 草稿重做）—— 所以 h1 与 h2 都要接受，
+  // 字号一致性仍按同一个 .pgtitle 口径比较。
+  const title = document.querySelector('.main-inner h1, .main-inner h2');
   const wide = [...document.querySelectorAll('.main-inner *')].filter((el) => {
     const b = el.getBoundingClientRect();
     return b.width > 0 && b.right > de.clientWidth + 1;

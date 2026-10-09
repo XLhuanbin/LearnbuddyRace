@@ -260,7 +260,8 @@ const logText = (ev) => ev(`(() => { const l = document.querySelector('.log, .lo
 /** 方法提取页的论文列表快照 */
 const uploadList = (ev) =>
   ev(`(() => {
-  const items = [...document.querySelectorAll('.main-inner .pitem')];
+  // 2026-10-09 改版：方法提取页按 Superdesign 草稿重做，队列行的类名从 .pitem 改为 .up-row
+  const items = [...document.querySelectorAll('.main-inner .up-row')];
   return {
     count: items.length,
     names: items.map((x)=>((x.querySelector('.nm')||{}).textContent||'').trim()),
@@ -318,20 +319,20 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
   check(
     '列表/页头计数指向同一范围（列表条数 = 页头「共 N 篇」）',
     await ev(`(() => {
-      const t=(document.querySelector('.work2-list')||{}).innerText||'';
+      const t=(document.querySelector('.uppage .up-col-side')||{}).innerText||'';
       const m=t.match(/共\\s*(\\d+)\\s*篇/);
-      const n=document.querySelectorAll('.main-inner .pitem').length;
+      const n=document.querySelectorAll('.main-inner .up-row').length;
       return !!m && Number(m[1]) === n;
     })()`),
   );
   if (ddpmIn >= 0) {
-    await ev(`(() => { const it=[...document.querySelectorAll('.main-inner .pitem')][${ddpmIn}]; if(it) it.click(); return true; })()`);
+    await ev(`(() => { const it=[...document.querySelectorAll('.main-inner .up-row')][${ddpmIn}]; if(it) it.click(); return true; })()`);
     await sleep(900);
   }
   const detail = await ev(`(() => {
-    const h=(document.querySelector('.work2-detail .detail-head h3')||{}).textContent||'';
-    const btns=[...document.querySelectorAll('.work2-detail button')].map((b)=>b.textContent.trim());
-    return { head: h.trim(), btns, inner: (document.querySelector('.work2-detail')||{}).innerText||'' };
+    const h=(document.querySelector('.uppage .up-detail .detail-head h3')||{}).textContent||'';
+    const btns=[...document.querySelectorAll('.uppage .up-detail button')].map((b)=>b.textContent.trim());
+    return { head: h.trim(), btns, inner: (document.querySelector('.uppage .up-detail')||{}).innerText||'' };
   })()`);
   check('可以打开刚导入的论文（右侧详情标题 = 该论文）', PDF_MATCH.test(detail.head), detail.head.slice(0, 40));
   check(
@@ -344,7 +345,7 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
   const fresh = (dbAfter.papers || []).find((p) => p.corpusId === 'user-import');
   const storedTitle = fresh ? fresh.title : '';
   const titleUi = await ev(`(() => {
-    const h=(document.querySelector('.work2-detail .detail-head')||{}).innerText||'';
+    const h=(document.querySelector('.uppage .up-detail .detail-head')||{}).innerText||'';
     return { text: h.slice(0, 160), badge: /标题待确认|标题未确认/.test(h) };
   })()`);
   const titleIsSentence = /[.?!;]\s+[A-Za-z(]/.test(storedTitle) || storedTitle.length > 160;
@@ -362,23 +363,23 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
   check('可以放入损坏的 PDF', setBad === 'OK', String(setBad));
   const failedVisible = await waitFor(
     ev,
-    `[...document.querySelectorAll('.main-inner .pitem .st')].some((s)=>/(解析失败|解析文本 · 失败)/.test(s.textContent))`,
+    `[...document.querySelectorAll('.main-inner .up-row .st')].some((s)=>/(解析失败|解析文本 · 失败)/.test(s.textContent))`,
     60000,
     '损坏 PDF 报错',
   );
   check('损坏 PDF 解析失败后可见（状态显示「解析失败」）', failedVisible);
-  const failedIdx = await ev(`(() => [...document.querySelectorAll('.main-inner .pitem')].findIndex((x)=>/(解析失败|解析文本 · 失败)/.test(((x.querySelector('.st')||{}).textContent||''))))()`);
+  const failedIdx = await ev(`(() => [...document.querySelectorAll('.main-inner .up-row')].findIndex((x)=>/(解析失败|解析文本 · 失败)/.test(((x.querySelector('.st')||{}).textContent||''))))()`);
   if (failedIdx >= 0) {
-    await ev(`(() => { const it=[...document.querySelectorAll('.main-inner .pitem')][${failedIdx}]; if(it) it.click(); return true; })()`);
+    await ev(`(() => { const it=[...document.querySelectorAll('.main-inner .up-row')][${failedIdx}]; if(it) it.click(); return true; })()`);
     await sleep(800);
   }
   const failDetail = await ev(`(() => {
-    const d=(document.querySelector('.work2-detail')||{}).innerText||'';
-    return { text: d.slice(0, 400), btns: [...document.querySelectorAll('.work2-detail button')].map((b)=>b.textContent.trim()) };
+    const d=(document.querySelector('.uppage .up-detail')||{}).innerText||'';
+    return { text: d.slice(0, 400), btns: [...document.querySelectorAll('.uppage .up-detail button')].map((b)=>b.textContent.trim()) };
   })()`);
   const retryLabel = failDetail.btns.find((b) => /解析|重试|重新选择/.test(b)) || '';
   check('失败详情给出的按钮是「重新解析 / 重新选择 PDF」，不是模型抽取', /重新解析|重新选择|重新导入/.test(retryLabel), retryLabel || '(无相关按钮)');
-  const detailText = (v) => ev(`(() => { const d=(document.querySelector('.work2-detail')||{}).innerText||''; return { text: d.slice(0, 500), model: /未配置模型|模型接口|apiKey|接口地址/.test(d), pdfErr: /文本层|无法打开|解析/.test(d) }; })()`);
+  const detailText = (v) => ev(`(() => { const d=(document.querySelector('.uppage .up-detail')||{}).innerText||''; return { text: d.slice(0, 500), model: /未配置模型|模型接口|apiKey|接口地址/.test(d), pdfErr: /文本层|无法打开|解析/.test(d) }; })()`);
 
   // ---- 分支 1：文件还在本次会话的内存里 → 直接重解析，不该再弹一次选择框 ----
   check('按钮文案与真实行为一致（文件还在内存里 → 直接重新解析）', /重新解析这份 PDF/.test(retryLabel), retryLabel);
@@ -413,12 +414,12 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
   const ownList = await uploadList(ev);
   console.log(`   切到自传范围后列表：${ownList.names.map((n) => n.slice(0, 24)).join(' | ')}`);
   check('自传范围里能看到之前导入的论文（含失败的那篇）', ownList.count >= 2 && ownList.states.some((s) => /(解析失败|解析文本 · 失败)/.test(s)), `${ownList.count} 篇：${ownList.states.join(' / ')}`);
-  const failIdx2 = await ev(`(() => [...document.querySelectorAll('.main-inner .pitem')].findIndex((x)=>/(解析失败|解析文本 · 失败)/.test(((x.querySelector('.st')||{}).textContent||''))))()`);
+  const failIdx2 = await ev(`(() => [...document.querySelectorAll('.main-inner .up-row')].findIndex((x)=>/(解析失败|解析文本 · 失败)/.test(((x.querySelector('.st')||{}).textContent||''))))()`);
   if (failIdx2 >= 0) {
-    await ev(`(() => { const it=[...document.querySelectorAll('.main-inner .pitem')][${failIdx2}]; if(it) it.click(); return true; })()`);
+    await ev(`(() => { const it=[...document.querySelectorAll('.main-inner .up-row')][${failIdx2}]; if(it) it.click(); return true; })()`);
     await sleep(900);
   }
-  const label2 = await ev(`(() => { const b=[...document.querySelectorAll('.work2-detail button')].find((x)=>/解析|重新选择/.test(x.textContent)); return b ? b.textContent.trim() : ''; })()`);
+  const label2 = await ev(`(() => { const b=[...document.querySelectorAll('.uppage .up-detail button')].find((x)=>/解析|重新选择/.test(x.textContent)); return b ? b.textContent.trim() : ''; })()`);
   check('刷新后按钮变成「重新选择 PDF 并重新解析」（诚实告知要重新选文件）', /重新选择/.test(label2), label2 || '(无)');
   await ev(`(() => { window.__picker = 0; document.addEventListener('click', (e)=>{ const t=e.target; if(t && t.tagName==='INPUT' && t.type==='file') window.__picker++; }, true); return true; })()`);
   await click(ev, label2 || '重新选择');
