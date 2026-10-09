@@ -670,20 +670,31 @@
 }
 
 /* =========================================================================
-   方法提取页 · 按 Superdesign 草稿 a6947252「论文上传与分析」的视觉严格落实
+   方法提取页 · 按 Superdesign 草稿 a6947252「论文上传与分析」**逐元素严格复刻**
    -------------------------------------------------------------------------
-   原则（用户 2026-10-09 明确）：**前端视觉严格复刻草稿，内容替换为我们的真实功能与文案**。
-   草稿里属于占位的编造内容一律不采纳：
-     ✗ 「支持 Word 及主流学术格式」→ 我们只支持 PDF
-     ✗ 「结构化解析 (2/4) 45% / 预计剩余 1分20秒」→ 我们不显示假百分比，用真实五步状态
-     ✗ 「所有上传文件将进行加密处理」→ 改为可证实的「解析在本机浏览器完成」
-     ✗ 「数据使用协议 / 法律条款 / 使用指南」→ 这些页面不存在
-   已复刻的草稿视觉：.upload-zone（虚线 2px + drag-over 高亮放大）、.file-card、
-   .btn-primary / .btn-ghost、.text-link、左侧 40px 细脊线 .up-spine、两栏 7/5 栅格、通栏页脚。
+   规则（用户 2026-10-09 明确）：
+     ✅ 外观组件（版面 / 结构 / 字号 / 间距 / 控件样式）**一律照草稿，不改**
+     ✅ 只替换「与事实不符的内容」（例：草稿写「支持 PDF、Word」→ 我们改成「只支持 PDF」）
+     ✅ 除非为兼容不得不改（例如本应用外壳是 sticky 而非 fixed，不能照抄 pt-32 的固定头偏移）
+   本文件把草稿的 Tailwind 工具类逐条翻译成原生 CSS，数值按 Tailwind 默认尺度换算。
+   ⚠️ 不引入草稿里的 tailwindcss CDN / Google Fonts / iconify（作品是纯静态自包含 SPA）。
    ========================================================================= */
 
-/* ---------- 两栏栅格（草稿：grid-cols-12 gap-10，lg 起左移 80px 给脊线让位） ---------- */
-.up-main { position: relative; }
+/* 本页沿用草稿的宽版内容宽度（草稿 main 是 max-w-[var(--content-max)]，即 1160px） */
+.main.uploadmain .main-inner { max-width: var(--content-max); }
+
+.uppage { position: relative; }
+
+/* main：max-w-1160 mx-auto px-6 pt-32 pb-64 relative
+   （pt 例外：草稿顶栏是 fixed 需 128px 让位；本应用顶栏是 sticky 在流内，故 pt 取常规值，其余照抄） */
+.up-main {
+  position: relative;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 8px 24px 256px;
+}
+
+/* .editorial-spine-thin（草稿原样：left 40px / 1px / line-2 / lg 起显示） */
 .up-spine {
   display: none;
   position: absolute;
@@ -696,41 +707,34 @@
 }
 @media (min-width: 1024px) { .up-spine { display: block; } }
 
-.up-grid {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 40px;
-  align-items: start;
-}
-.up-col-main { grid-column: span 12 / span 12; display: flex; flex-direction: column; gap: 32px; }
-.up-col-side { grid-column: span 12 / span 12; }
-@media (min-width: 1024px) {
-  .up-hero, .up-grid { margin-left: 80px; }
-  .up-col-main { grid-column: span 7 / span 7; }
-  .up-col-side { grid-column: span 5 / span 5; }
-}
-
-/* ---------- 首屏（草稿：eyebrow + serif 大标题 + 一句说明） ---------- */
+/* Hero：mb-16 ml-0 lg:ml-20 / 内层 flex flex-col gap-4 */
 .up-hero { margin-bottom: 64px; }
 .up-hero-in { display: flex; flex-direction: column; gap: 16px; }
+
+/* eyebrow：text-[var(--fg-3)] tracking-[0.3em] uppercase text-xs font-bold */
 .up-eyebrow {
   color: var(--fg-3);
   letter-spacing: .3em;
   text-transform: uppercase;
   font-size: 12px;
+  line-height: 1rem;
   font-weight: 700;
   margin: 0;
 }
+
+/* h1：text-4xl md:text-5xl font-serif font-bold tracking-tight text-[var(--fg)] */
 .up-title {
+  font-size: 36px;
+  line-height: 1.2;
   font-family: var(--font-serif);
   font-weight: 700;
   letter-spacing: -.025em;
   color: var(--fg);
-  font-size: 36px;
-  line-height: 1.2;
   margin: 0;
 }
 @media (min-width: 768px) { .up-title { font-size: 48px; } }
+
+/* lede：text-[var(--fg-2)] text-lg max-w-2xl leading-relaxed */
 .up-lede {
   color: var(--fg-2);
   font-size: 18px;
@@ -739,9 +743,66 @@
   margin: 0;
 }
 
-/* ---------- 按钮（草稿的 .btn-primary / .btn-ghost，本页按草稿的尺寸） ---------- */
-.uppage .btn-primary { padding: 12px 28px; }
-.uppage .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+/* section：grid grid-cols-12 gap-10 ml-0 lg:ml-20 */
+.up-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 40px;
+  align-items: start;
+}
+/* 左：col-span-12 lg:col-span-7 space-y-8 */
+.up-col-main { grid-column: span 12 / span 12; display: flex; flex-direction: column; gap: 32px; }
+/* 右：col-span-12 lg:col-span-5 */
+.up-col-side { grid-column: span 12 / span 12; }
+@media (min-width: 1024px) {
+  .up-hero, .up-grid { margin-left: 80px; }
+  .up-col-main { grid-column: span 7 / span 7; }
+  .up-col-side { grid-column: span 5 / span 5; }
+}
+
+/* ---------- 拖拽区：.upload-zone rounded-[20px] p-12 md:p-20 text-center flex flex-col items-center justify-center cursor-pointer ---------- */
+.upload-zone {
+  border: 2px dashed var(--accent-line);
+  border-radius: 20px;
+  background: var(--bg-2);
+  padding: 48px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all .3s ease;
+}
+@media (min-width: 768px) { .upload-zone { padding: 80px; } }
+.upload-zone.drag-over {
+  border-color: var(--accent);
+  background-color: var(--accent-soft);
+  transform: scale(1.01);
+}
+.upload-zone:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* w-20 h-20 bg-[var(--accent-soft)] rounded-full … mb-6 group-hover:scale-110 transition-transform */
+.up-zone-icon {
+  width: 80px;
+  height: 80px;
+  background: var(--accent-soft);
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  transition: transform .2s ease;
+}
+.upload-zone:hover .up-zone-icon { transform: scale(1.1); }
+.up-zone-icon svg { width: 36px; height: 36px; stroke: var(--accent); }
+
+/* h3：text-2xl font-serif font-bold mb-3 */
+.up-zone-title { font-size: 24px; line-height: 2rem; font-family: var(--font-serif); font-weight: 700; margin: 0 0 12px; }
+/* p：text-[var(--fg-3)] mb-8 */
+.up-zone-sub { color: var(--fg-3); margin: 0 0 32px; font-size: 15.5px; }
+
+/* .btn-ghost（草稿原样） */
 .btn-ghost {
   background: transparent;
   border: 1px solid var(--line-2);
@@ -756,133 +817,107 @@
 }
 .btn-ghost:hover:not(:disabled) { background: var(--bg-3); border-color: var(--fg-3); color: var(--fg); }
 .btn-ghost:disabled { opacity: .5; cursor: not-allowed; }
+/* 本页的 .btn-primary 用草稿尺寸（12px 28px），与首页的 14px 32px 区分 */
+.uppage .btn-primary { padding: 12px 28px; }
+.uppage .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 
-/* ---------- 拖拽区（草稿的 .upload-zone，原样复刻） ---------- */
-.upload-zone {
-  border: 2px dashed var(--accent-line);
+/* ---------- 分析进度卡：bg-white rounded-[20px] border p-8 shadow-sm ---------- */
+.up-prog {
+  background: #fff;
   border-radius: 20px;
-  background: var(--bg-2);
-  padding: 48px 24px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all .3s ease;
+  border: 1px solid var(--line);
+  padding: 32px;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05);
 }
-@media (min-width: 768px) { .upload-zone { padding: 80px 48px; } }
-.upload-zone.drag-over {
-  border-color: var(--accent);
-  background-color: var(--accent-soft);
-  transform: scale(1.01);
-}
-.upload-zone:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.up-zone-icon {
-  width: 80px;
-  height: 80px;
-  border-radius: 999px;
-  background: var(--accent-soft);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 24px;
-  transition: transform .3s ease;
-}
-.upload-zone:hover .up-zone-icon { transform: scale(1.1); }
-.up-zone-icon svg { width: 36px; height: 36px; stroke: var(--accent); }
-.up-zone-title { font-family: var(--font-serif); font-weight: 700; font-size: 24px; line-height: 1.3; margin: 0 0 12px; }
-.up-zone-sub { color: var(--fg-3); margin: 0 0 32px; font-size: 15.5px; }
+/* flex justify-between items-center mb-4 */
+.up-prog-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 16px; }
+/* h4 text-lg font-bold / p text-sm text-[var(--fg-3)] */
+.up-prog-title { font-size: 18px; line-height: 1.75rem; font-weight: 700; margin: 0; }
+.up-prog-step { font-size: 14px; line-height: 1.25rem; color: var(--fg-3); margin: 0; }
+/* span text-2xl font-serif font-black text-[var(--accent)] */
+.up-prog-pct { font-size: 24px; line-height: 2rem; font-family: var(--font-serif); font-weight: 900; color: var(--accent); white-space: nowrap; }
+/* w-full bg-[var(--bg-3)] h-2 rounded-full overflow-hidden mb-4 */
+.up-prog-track { width: 100%; background: var(--bg-3); height: 8px; border-radius: 999px; overflow: hidden; margin-bottom: 16px; }
+/* .progress-bar-inner bg-[var(--accent)] h-full */
+.up-prog-fill { width: 0; background: var(--accent); height: 100%; transition: width .5s ease-in-out; }
+/* flex justify-between text-xs text-[var(--fg-3)] */
+.up-prog-foot { display: flex; justify-content: space-between; font-size: 12px; color: var(--fg-3); gap: 12px; flex-wrap: wrap; }
+/* span flex items-center gap-1 italic */
+.up-prog-note { display: flex; align-items: center; gap: 4px; font-style: italic; }
+.up-prog-note svg { width: 12px; height: 12px; stroke: currentColor; flex: 0 0 12px; }
 
-/* ---------- 卡（草稿的 .file-card / 白底圆角卡） ---------- */
-.up-card {
+/* ---------- 右栏：bg-[var(--bg-2)] border rounded-[20px] p-8 sticky top-32 ---------- */
+.up-side {
   background: var(--bg-2);
   border: 1px solid var(--line);
   border-radius: 20px;
   padding: 32px;
+  position: sticky;
+  top: 128px;
 }
-.up-card-sm {
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: var(--shadow-2);
-  transition: transform .2s ease;
-}
-.up-sticky { position: sticky; top: 96px; }
-.up-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; gap: 12px; }
-.up-card-title { font-family: var(--font-serif); font-weight: 700; font-size: 20px; margin: 0; }
+/* flex justify-between items-center mb-6 */
+.up-side-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; gap: 12px; }
+/* h4 font-serif font-bold text-xl */
+.up-side-title { font-family: var(--font-serif); font-weight: 700; font-size: 20px; line-height: 1.75rem; margin: 0; }
+/* span text-xs font-bold bg-[var(--accent-soft)] text-[var(--accent)] px-2 py-1 rounded */
 .up-count {
   font-size: 12px;
   font-weight: 700;
   background: var(--accent-soft);
   color: var(--accent);
-  padding: 2px 8px;
+  padding: 4px 8px;
   border-radius: 4px;
   white-space: nowrap;
 }
-
-/* ---------- 队列列表（草稿：max-h + 内滚 + 上方留白） ---------- */
-.up-list { display: flex; flex-direction: column; gap: 12px; max-height: 420px; overflow-y: auto; margin-bottom: 32px; padding-right: 4px; }
+/* #file-list space-y-4 max-h-[400px] overflow-y-auto mb-8 pr-2 */
+.up-list { display: flex; flex-direction: column; gap: 16px; max-height: 400px; overflow-y: auto; margin-bottom: 32px; padding-right: 8px; }
 .up-list::-webkit-scrollbar { width: 6px; }
 .up-list::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 3px; }
+/* #empty-state text-center py-10 / p text-[var(--fg-3)] text-sm */
 .up-empty { text-align: center; padding: 40px 0; }
 .up-empty p { color: var(--fg-3); font-size: 14px; margin: 0; }
-
+/* .file-card：bg-white border rounded-[.radius-sm] p-4 shadow-2 —— 队列里的每一行 */
 .up-row {
   display: block;
   width: 100%;
   text-align: left;
   background: #fff;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 16px;
   box-shadow: var(--shadow-2);
+  transition: transform .2s ease;
   cursor: pointer;
   font-family: inherit;
-  transition: transform .2s ease, border-color .2s ease;
 }
 .up-row:hover { transform: translateY(-2px); }
-.up-row.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.up-row.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow-2); }
 .up-row.just { box-shadow: inset 3px 0 0 var(--accent), var(--shadow-2); }
-.up-row .nm { display: block; font-weight: 600; font-size: 15px; color: var(--fg); line-height: 1.4; }
+.up-row .nm { display: block; font-weight: 600; font-size: 15px; color: var(--fg); line-height: 1.45; }
 .up-row .mname { display: block; font-size: 13.5px; color: var(--accent); margin-top: 4px; }
 .up-row .idea { display: block; font-size: 13.5px; color: var(--fg-2); margin-top: 4px; line-height: 1.5; }
 .up-row .st { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fg-3); margin-top: 8px; }
-
-/* ---------- 队列卡底部（草稿：border-t + 主操作 + 小字） ---------- */
-.up-foot-act { padding-top: 24px; border-top: 1px solid var(--line); }
-.up-actions { display: flex; flex-direction: column; gap: 12px; }
-.up-actions .btn-primary, .up-actions .btn-ghost { width: 100%; }
+/* pt-6 border-t space-y-4 */
+.up-side-foot { padding-top: 24px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 16px; }
+.up-side-act { display: flex; flex-direction: column; gap: 16px; }
+.up-side-act .btn-primary, .up-side-act .btn-ghost { width: 100%; }
+/* p text-[10px] text-[var(--fg-3)] text-center px-4 leading-relaxed */
 .up-fineprint {
-  font-size: 12px;
+  font-size: 10px;
   color: var(--fg-3);
   text-align: center;
-  line-height: 1.625;
   padding: 0 16px;
-  margin: 16px 0 0;
+  line-height: 1.625;
+  margin: 0;
+  font-weight: 400;
 }
 
-/* ---------- 真实流程状态（替代草稿的假进度条） ---------- */
-.up-flow { margin-top: 24px; }
-.up-stage {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 12px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-.up-stage h4 { font-size: 18px; font-weight: 700; margin: 0; }
-.up-stage .sub { font-size: 13.5px; color: var(--fg-3); margin: 4px 0 0; }
-.up-stage-dot { font-size: 13.5px; color: var(--accent); font-weight: 700; white-space: nowrap; }
-
-/* ---------- 通栏页脚（草稿结构，内容换成真实链接） ---------- */
+/* ---------- footer：border-t bg-white py-12 ---------- */
 .up-foot {
   border-top: 1px solid var(--line);
   background: #fff;
   padding: 48px 0;
-  margin-top: 96px;
+  margin-top: 0;
 }
 .up-foot-in {
   max-width: var(--content-max);
@@ -906,11 +941,12 @@
   padding-left: 16px;
 }
 .up-foot-links { display: flex; gap: 32px; font-size: 14px; flex-wrap: wrap; }
-.up-foot-links button { font-family: inherit; font-size: 14px; }
+.up-foot-links .dimlink { color: var(--fg-3); background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; font-size: 14px; }
+.up-foot-links .dimlink:hover { color: var(--fg); }
+.up-foot-links .dimlink:disabled { opacity: .5; cursor: not-allowed; }
 
+/* 窄屏：草稿只有 lg 断点的左移，其余交给栅格自然堆叠 */
 @media (max-width: 1023px) {
+  .up-main { padding-bottom: 96px; }
   .up-hero { margin-bottom: 40px; }
-  .up-title { font-size: 32px; }
-  .up-lede { font-size: 16px; }
-  .up-card { padding: 24px; }
 }

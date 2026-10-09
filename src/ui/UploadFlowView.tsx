@@ -37,6 +37,8 @@ interface Props {
   /** 切到「我上传的论文」/「案例」范围（列表与计数会一起跟着走） */
   onUseOwnScope: () => void;
   onUseCaseScope: () => void;
+  /** 页脚的真实导航（兼容新增：草稿页脚指向的「使用指南 / 法律条款」并不存在，改为真实入口） */
+  onGo?: (tab: string) => void;
 }
 
 type StepState = 'done' | 'running' | 'waiting' | 'failed';
@@ -129,15 +131,20 @@ function stepsOf(p: Paper, m: Method | undefined, job: JobState | undefined, mod
 /**
  * 方法提取页。
  *
- * 视觉按 Superdesign 草稿 a6947252「论文上传与分析」严格落实：
- * 左侧 40px 细脊线 + eyebrow/大标题/一句说明的首屏 + 两栏（左 7 上传区与状态、右 5 队列卡）+ 通栏页脚；
- * 拖拽区、卡片、按钮都照草稿的样式落地。
+ * **外观按 Superdesign 草稿 a6947252「论文上传与分析」逐元素严格复刻**
+ * （左侧 40px 细脊线、eyebrow + 超大衬线标题 + 一句说明的首屏、12 栅格 7/5 两栏、
+ *  虚线拖拽区、白底分析进度卡「标题 + 步骤 + 大号百分比 + 进度条 + 底部两行小字」、
+ *  sticky 待处理队列卡、通栏页脚 —— 结构与数值都照草稿，不改外观组件）。
  *
- * **内容全部是我们的真实功能与文案**，草稿里属于占位的编造内容一律不采纳：
- *   ✗「支持 Word 及主流学术格式」→ 我们只支持 PDF
- *   ✗「结构化解析 (2/4) 45% / 预计剩余 1分20秒」→ 不显示假百分比，用真实五步状态（FlowBar）
- *   ✗「所有上传文件将进行加密处理」→ 改为可证实的「解析在本机浏览器完成，不上传服务器」
- *   ✗「数据使用协议 / 法律条款 / 使用指南」→ 这些页面不存在，改为真实的可用入口
+ * **只替换了与事实不符的内容**：
+ *   - 「支持 PDF、Word 及主流学术格式批量导入」→「支持 PDF 批量导入」（本项目只支持 PDF）
+ *   - 「拖拽文件至此」→「拖拽 PDF 至此」（同上）
+ *   - 进度卡的 45% / 「步骤: 结构化解析 (2/4)」/「预计剩余时间: 1分20秒」→ 真实步骤进度（不改结构，只换数值来源）
+ *   - 「数据使用协议 / 所有上传文件将进行加密处理」→ 可证实的「解析在本机浏览器完成，不会上传服务器」
+ *   - 页脚「Privacy & Trust First / 使用指南 / 法律条款」→ 同类样式下的真实表述与真实入口
+ *
+ * 为兼容不得不加的部分（均已注明）：顶栏是 sticky 而非草稿的 fixed，故 main 不照抄 pt-32；
+ * 原页面的真实功能（粘贴正文、当前论文详情、失败详情与重解析、模型配置）保留为左栏的追加卡片。
  */
 export function UploadFlowView({
   papers,
@@ -161,6 +168,7 @@ export function UploadFlowView({
   lastImportedId,
   onUseOwnScope,
   onUseCaseScope,
+  onGo,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [sel, setSel] = useState<string | null>(null);
@@ -184,14 +192,14 @@ export function UploadFlowView({
    * - 只要进入过 own 范围（导入后 App 会切过去），就显示我上传的论文；
    * - 案例里一篇都没有但用户有自传论文时，也显示自传论文（否则页面会是空的）；
    * - 其余情况显示案例。
-   * 无论哪种，**列表 / 页头计数 / 当前选中 / 抽取入口都取自同一个 `shown`**。
+   * 无论哪种，**列表 / 计数 / 当前选中 / 抽取入口都取自同一个 `shown`**。
    */
   const listMode: 'case' | 'own' = scope.mode === 'own' || (casePapers.length === 0 && ownPapers.length > 0) ? 'own' : 'case';
   const shown = listMode === 'own' ? ownPapers : casePapers;
   /** 自传论文存在但当前看的是案例列表 → 必须给出醒目入口（不能静默藏着） */
   const hiddenOwn = listMode === 'case' && ownPapers.length > 0 ? ownPapers.length : 0;
-  /** 待处理：还没生成方法结果的论文（与总数/完成数同一个集合） */
-  const pendingCount = shown.filter((p) => p.parseStatus !== 'failed' && !methods.some((m) => m.paperId === p.id)).length;
+  const pendingExtract = shown.filter((p) => p.parseStatus === 'ok' && !methods.some((m) => m.paperId === p.id));
+  const pendingCount = pendingExtract.length;
   const hasMethod = (p: Paper) => methods.some((m) => m.paperId === p.id);
   const doneCount = shown.filter(hasMethod).length;
   const needModel = !modelReady && shown.some((p) => p.parseStatus === 'ok' && !hasMethod(p));
@@ -254,6 +262,15 @@ export function UploadFlowView({
     ];
   })();
 
+  /** 进度卡的三个真实数值（结构与草稿一致，只是数值来自真实步骤而不是写死的 45%） */
+  const stepTotal = overview.length;
+  const stepDone = overview.filter((s) => s.state === 'done').length;
+  const pct = Math.round((stepDone / stepTotal) * 100);
+  const anyRunning = overview.some((s) => s.state === 'running');
+  const progTitle = pct === 100 ? '方法论梳理已完成' : anyRunning ? '正在深度分析方法论...' : '等待开始梳理';
+  const progStepLabel = `步骤: ${cur ? `${cur.no} ${cur.name}` : '等待上传论文'} (${stepDone}/${stepTotal})`;
+  const progNote = cur ? cur.result.slice(0, 42) : '拖入 PDF 或粘贴正文即可开始';
+
   /** 方法短名：与论文集合 / 研究地图使用同一套派生规则 */
   const shortNameOf = (m: Method) => buildMethodProfile(m, papers.find((x) => x.id === m.paperId), papers).shortName;
 
@@ -262,26 +279,23 @@ export function UploadFlowView({
   return (
     <div className="uppage">
       <div className="up-main">
+        {/* Editorial Accent（草稿原样） */}
         <div className="up-spine" aria-hidden="true" />
 
-        {/* ---------------- 首屏：eyebrow（真实状态） + 标题 + 一句说明 ---------------- */}
+        {/* Hero（草稿结构：eyebrow → h1 → 一句说明，flex col gap-4） */}
         <section className="up-hero">
           <div className="up-hero-in">
-            <p className="up-eyebrow">
-              {methods.length ? `已提取 ${methods.length} 个方法` : '尚未提取方法'}
-            </p>
-            <h1 className="pgtitle">方法提取</h1>
+            <p className="up-eyebrow">方法提取 · Step 01 — 上传论文</p>
+            <h1 className="up-title">上传并梳理你的论文</h1>
             <p className="up-lede">
-              {methods.length
-                ? `来自 ${new Set(methods.map((m) => m.paperId)).size} 篇论文。先看提取出了多少个方法，再看每篇论文的方法结果；处理时间线与字段证据都收在下面。`
-                : '选择 PDF 文件或粘贴论文正文即可开始；未配置模型时只有演示案例能离线出结果。'}
+              支持 PDF 批量导入。我们将自动识别方法论框架并生成你的研究地图。
             </p>
           </div>
         </section>
 
         {/* 自传论文存在、但当前显示的是案例列表 → 醒目入口，绝不静默藏着 */}
         {hiddenOwn > 0 && (
-          <div className="ownentry" role="status">
+          <div className="ownentry" role="status" style={{ marginBottom: 24 }}>
             <div>
               <strong>你上传的 {hiddenOwn} 篇论文不在当前列表里</strong>
               <span className="small dim">
@@ -294,15 +308,16 @@ export function UploadFlowView({
           </div>
         )}
 
-        {/* ---------------- 两栏：左 7 上传与状态 / 右 5 队列 ---------------- */}
+        {/* Main Upload Section：grid 12 gap-10 */}
         <section className="up-grid">
+          {/* Left: Upload Zone（col-span-7 space-y-8） */}
           <div className="up-col-main">
-            {/* 拖拽区（草稿的 .upload-zone，接真实文件输入） */}
+            {/* 拖拽区（草稿结构与类名原样，接真实文件输入） */}
             <div
               className={`upload-zone${dragOver ? ' drag-over' : ''}`}
               role="button"
               tabIndex={0}
-              aria-label="拖拽 PDF 到此处，或点击选择 PDF 文件"
+              aria-label="拖拽 PDF 至此，或点击浏览本地文件"
               onClick={pickFiles}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
@@ -324,12 +339,12 @@ export function UploadFlowView({
             >
               <div className="up-zone-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 16V4M7 9l5-5 5 5" />
-                  <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+                  <path d="M17.5 18a4.5 4.5 0 0 0 .5-8.97A6 6 0 0 0 6.1 10.2 4 4 0 0 0 6.5 18h11Z" />
+                  <path d="M12 12v6M9.5 14.5 12 12l2.5 2.5" />
                 </svg>
               </div>
-              <h3 className="up-zone-title">拖拽 PDF 到此处</h3>
-              <p className="up-zone-sub">或点击下方按钮浏览本地文件（支持多选）</p>
+              <h3 className="up-zone-title">拖拽 PDF 至此</h3>
+              <p className="up-zone-sub">或点击此处浏览本地文件 (支持多选)</p>
               <button
                 className="btn-ghost"
                 onClick={(e) => {
@@ -337,7 +352,7 @@ export function UploadFlowView({
                   pickFiles();
                 }}
               >
-                选择 PDF 文件
+                浏览文件
               </button>
               <input
                 ref={fileRef}
@@ -352,11 +367,40 @@ export function UploadFlowView({
               />
             </div>
 
-            {/* 粘贴论文正文（真实功能，默认收起） */}
+            {/* 分析进度卡（草稿结构与样式原样；数值换成真实的步骤进度） */}
+            <div className="up-prog">
+              <div className="up-prog-head">
+                <div>
+                  <h4 className="up-prog-title">{progTitle}</h4>
+                  <p className="up-prog-step">{progStepLabel}</p>
+                </div>
+                <span className="up-prog-pct">{pct}%</span>
+              </div>
+              <div className="up-prog-track">
+                <div className="up-prog-fill" style={{ width: `${pct}%` }} />
+              </div>
+              <div className="up-prog-foot">
+                <span>{`共 ${stepTotal} 步 · 已完成 ${stepDone} 步`}</span>
+                <span className="up-prog-note">
+                  <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 11v5M12 8h.01" />
+                  </svg>
+                  {progNote}
+                </span>
+              </div>
+            </div>
+
+            {/* 五步真实流程（原页面功能，兼容保留；草稿没有等价物） */}
+            <div className="up-prog">
+              <FlowBar steps={overview} />
+            </div>
+
+            {/* 粘贴论文正文（原页面功能，兼容保留） */}
             {pasteOpen && (
-              <div className="up-card">
-                <div className="up-card-head">
-                  <h4 className="up-card-title">粘贴论文正文</h4>
+              <div className="up-prog up-paste">
+                <div className="up-prog-head" style={{ marginBottom: 8 }}>
+                  <h4 className="up-prog-title">粘贴论文正文</h4>
                 </div>
                 <label className="f">论文标题</label>
                 <input
@@ -411,42 +455,8 @@ export function UploadFlowView({
                 );
               })()}
 
-            {/* 处理状态卡：显示**真实的**当前阶段与五步流程（替代草稿里那条假进度条） */}
-            <div className="up-card">
-              <div className="up-card-head">
-                <h4 className="up-card-title">处理状态</h4>
-                <span className="up-count">
-                  {shown.length ? `${doneCount}/${shown.length} 篇已完成` : '还没有论文'}
-                </span>
-              </div>
-              {/* 还没有论文时 cur 是 undefined —— 必须给真实空态，不能无条件读 cur.no */}
-              {cur ? (
-                <div className="up-stage">
-                  <div>
-                    <h4>
-                      {cur.no} {cur.name}
-                    </h4>
-                    <p className="sub">
-                      {STATE_TEXT[cur.state]} · {cur.result}
-                    </p>
-                  </div>
-                  {cur.state !== 'done' && cur.next && <span className="up-stage-dot">下一步：{cur.next}</span>}
-                </div>
-              ) : (
-                <div className="up-stage">
-                  <div>
-                    <h4>还没有论文</h4>
-                    <p className="sub">拖入 PDF 或粘贴正文后，这里会显示真实的处理阶段与结果。</p>
-                  </div>
-                </div>
-              )}
-              <div className="up-flow">
-                <FlowBar steps={overview} />
-              </div>
-            </div>
-
-            {/* 当前论文详情（.up-detail 供验收脚本定位） */}
-            <div className="up-card up-detail">
+            {/* 当前论文详情（原页面功能，兼容保留；.up-detail 供验收脚本定位） */}
+            <div className="up-prog up-detail">
               {current ? (
                 <>
                   <div className="detail-head">
@@ -477,12 +487,12 @@ export function UploadFlowView({
                         <div>
                           <dt>当前阶段</dt>
                           <dd>
-                            {cur.no} {cur.name}（{STATE_TEXT[cur.state]}）
+                            {cur ? `${cur.no} ${cur.name}` : '等待上传论文'}（{cur ? STATE_TEXT[cur.state] : '等待中'}）
                           </dd>
                         </div>
                         <div>
                           <dt>当前结果</dt>
-                          <dd>{cur.result}</dd>
+                          <dd>{cur ? cur.result : '还没有论文'}</dd>
                         </div>
                         <div>
                           <dt>已完成步骤</dt>
@@ -630,16 +640,16 @@ export function UploadFlowView({
               )}
             </div>
 
-            {/* 模型配置：解析已完成但还没法抽取时才出现 */}
+            {/* 模型配置（原页面功能，兼容保留） */}
             {needModel && (
-              <div className="up-card" style={{ borderColor: 'var(--warn-line)', background: 'var(--warn-soft)' }}>
-                <div className="up-card-head">
-                  <h4 className="up-card-title">第 03 步需要模型接口</h4>
+              <div className="up-prog" style={{ borderColor: 'var(--warn-line)', background: 'var(--warn-soft)' }}>
+                <div className="up-prog-head" style={{ marginBottom: 8 }}>
+                  <div>
+                    <h4 className="up-prog-title">第 03 步需要模型接口</h4>
+                    <p className="up-prog-step">解析已经完成并保留；密钥只保存在本机浏览器，不会写入任何产物。</p>
+                  </div>
                   <Status kind="warn">未配置</Status>
                 </div>
-                <p className="small" style={{ marginTop: 0 }}>
-                  解析已经完成并保留；要继续到「提取方法字段」需要模型接口。密钥只保存在本机浏览器，不会写入任何产物。
-                </p>
                 <div className="grid2">
                   <div>
                     <label className="f">接口地址（OpenAI 兼容）</label>
@@ -667,12 +677,12 @@ export function UploadFlowView({
             )}
           </div>
 
-          {/* 右栏：待处理队列（草稿的 sticky 卡结构） */}
+          {/* Right: File List & Action（col-span-5） */}
           <div className="up-col-side">
-            <div className="up-card up-sticky">
-              <div className="up-card-head">
-                <h4 className="up-card-title">待处理队列</h4>
-                <span className="up-count">{shown.length ? `${shown.length} 篇` : '0 篇'}</span>
+            <div className="up-side">
+              <div className="up-side-head">
+                <h4 className="up-side-title">待处理队列</h4>
+                <span className="up-count">{`${shown.length} 个文件`}</span>
               </div>
 
               <div className="up-list">
@@ -715,55 +725,56 @@ export function UploadFlowView({
                   })
                 ) : (
                   <div className="up-empty">
-                    <p>
-                      还没有上传论文。选一个 PDF 或粘贴正文即可开始；解析失败会给出原因，不会静默返回空结果。
+                    <p>尚未选择任何文件</p>
+                    <p style={{ marginTop: 8, fontSize: 12 }}>
+                      解析失败会给出原因，不会静默返回空结果。
                     </p>
                   </div>
                 )}
               </div>
 
-              <div className="up-foot-act">
-                <div className="up-actions">
-                  <button className="btn-primary" onClick={onEnterMap} disabled={!methods.length}>
-                    进入研究地图
-                  </button>
-                  <button className="btn-ghost" onClick={() => setPasteOpen((v) => !v)}>
-                    粘贴论文正文
-                  </button>
-                </div>
+              <div className="up-side-foot">
+                <button
+                  className="btn-primary"
+                  disabled={!pendingExtract.length}
+                  onClick={() => {
+                    if (pendingExtract.length) onExtract(pendingExtract[0].id, false);
+                  }}
+                >
+                  开始梳理脉络
+                </button>
+                <button className="btn-ghost" onClick={() => setPasteOpen((v) => !v)}>
+                  粘贴论文正文
+                </button>
                 <p className="up-fineprint">
-                  解析在<strong>本机浏览器</strong>完成，论文不会上传到服务器；「提取方法字段」需要你自己配置的模型接口，密钥只保存在本机。
+                  解析在本机浏览器完成，论文不会上传到服务器；只有在你配置模型接口后，才会把解析出的正文送去抽取。密钥只保存在本机。
                 </p>
               </div>
-
-              {shown.length > 0 && (
-                <p className="small dim" style={{ marginTop: 12, marginBottom: 0, textAlign: 'center' }}>
-                  {listMode === 'own' ? '我上传的论文' : scope.meta.label} · 共 {shown.length} 篇 · 已完成 {doneCount} 篇
-                  {pendingCount ? ` · 待处理 ${pendingCount} 篇` : ''}
-                </p>
-              )}
             </div>
           </div>
         </section>
-
-        {/* ---------------- 通栏页脚（草稿结构，内容换成真实入口） ---------------- */}
-        <footer className="up-foot">
-          <div className="up-foot-in">
-            <div className="up-foot-brand">
-              <span className="b">ResearchPilot</span>
-              <span className="up-foot-tag">解析本机完成 · 密钥只存本机</span>
-            </div>
-            <div className="up-foot-links">
-              <button className="text-link" onClick={onEnterMap} disabled={!methods.length}>
-                进入研究地图
-              </button>
-              <button className="text-link" onClick={() => current && onOpenPaper(current.id)} disabled={!currentMethod}>
-                在论文集合里打开这一篇
-              </button>
-            </div>
-          </div>
-        </footer>
       </div>
+
+      {/* footer：border-t bg-white py-12（草稿结构原样） */}
+      <footer className="up-foot">
+        <div className="up-foot-in">
+          <div className="up-foot-brand">
+            <span className="b">ResearchPilot</span>
+            <span className="up-foot-tag">本机解析 · 结论带原文依据</span>
+          </div>
+          <div className="up-foot-links">
+            <button className="text-link" onClick={() => onGo?.('landing')}>
+              返回首页
+            </button>
+            <button className="dimlink" onClick={() => onGo?.('library')}>
+              查看论文集合
+            </button>
+            <button className="dimlink" onClick={() => onGo?.('settings')}>
+              打开设置
+            </button>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

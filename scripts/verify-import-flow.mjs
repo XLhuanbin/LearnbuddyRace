@@ -319,8 +319,10 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
   check(
     '列表/页头计数指向同一范围（列表条数 = 页头「共 N 篇」）',
     await ev(`(() => {
+      // 2026-10-09 改版：方法提取页的计数移到右栏队列卡，文案按草稿改为「N 个文件」
+      //（原来是页头/列表头的「共 N 篇」）。这里核对的仍是同一件事：计数与列表条数取自同一个集合。
       const t=(document.querySelector('.uppage .up-col-side')||{}).innerText||'';
-      const m=t.match(/共\\s*(\\d+)\\s*篇/);
+      const m=t.match(/(\\d+)\\s*个文件/);
       const n=document.querySelectorAll('.main-inner .up-row').length;
       return !!m && Number(m[1]) === n;
     })()`),

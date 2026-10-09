@@ -1310,7 +1310,7 @@ export default function App() {
       <div className={`app-body${tab === 'map' ? ' mapbody' : ''}`}>
         {/* 默认不显示侧栏：页面切换走顶部「目录」浮层 */}
 
-        <main className={`main${tab === 'landing' ? ' plain' : ''}${tab === 'map' ? ' mapmain' : ''}`}>
+        <main className={`main${tab === 'landing' ? ' plain' : ''}${tab === 'map' ? ' mapmain' : ''}${tab === 'upload' ? ' uploadmain' : ''}`}>
           <div className="main-inner">
           {pendingDependents.length > 0 && (
             <Banner kind="warn">
@@ -1441,6 +1441,8 @@ export default function App() {
                 setExpFocus(paperId);
                 setTab('library');
               }}
+              /* 页脚的真实导航：草稿页脚指向的「使用指南 / 法律条款」在本项目里并不存在 */
+              onGo={(t) => setTab(t as Tab)}
             />
           )}
 

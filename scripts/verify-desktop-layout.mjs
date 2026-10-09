@@ -222,10 +222,10 @@ async function main() {
   //（v8 的按钮自带一套样式，不复用全局 .btn），所以把新类名一并计入，避免首页误报「主按钮 0」。
   // ⚠️ 本函数整体在模板串里，注释中不得出现反引号。
   const primaries = [...document.querySelectorAll('.main-inner button.btn.primary, .main-inner button.primary, .main-inner button.btn-primary')].filter(inView);
-  // 页面主标题：论文集合/实验可比性/阅读路线用 .pgtitle（h2），研究地图用 .maphead 里的大标题（h2），
-  // 2026-10-09 起方法提取页改用 h1.pgtitle（按 Superdesign 草稿重做）—— 所以 h1 与 h2 都要接受，
-  // 字号一致性仍按同一个 .pgtitle 口径比较。
-  const title = document.querySelector('.main-inner h1, .main-inner h2');
+  // 页面主标题：论文集合/实验可比性/阅读路线用 .pgtitle（h2），研究地图用 .maphead 里的大标题（h2）。
+  // 2026-10-09 改版：方法提取页按 Superdesign 草稿复刻，改用 h1.up-title（36/48px，草稿尺寸），
+  // 不参与「全站标题字号一致」的比较，故用 :not(.up-title) 把它排除在外。
+  const title = document.querySelector('.main-inner h1:not(.up-title), .main-inner h2');
   const wide = [...document.querySelectorAll('.main-inner *')].filter((el) => {
     const b = el.getBoundingClientRect();
     return b.width > 0 && b.right > de.clientWidth + 1;
@@ -234,7 +234,9 @@ async function main() {
   // 页头状态色：只看页头容器，不把表格/图例里的状态算进来
   const headChips = [...document.querySelectorAll('.main-inner .pagehead .status, .main-inner .maphead .status, .main-inner .pghead .status')];
   const statusChips = new Set(headChips.map((s) => String(s.className).replace('status', '').trim()));
-  const isMeta = (el) => /(meta|dim|lab|small|tag|chip|status|kv|footnote)/.test(String(el.className));
+  // 2026-10-09 改版：方法提取页按 Superdesign 草稿复刻后，首屏有一个 12px 的 eyebrow 小标签
+  // （草稿是 text-xs，属于标签而不是「承载解释的整句」），归入 meta 类排除。
+  const isMeta = (el) => /(meta|dim|lab|small|tag|chip|status|kv|footnote|eyebrow)/.test(String(el.className));
   let floorFs = 99;
   let floorSample = '';
   let sentFs = 99;
@@ -322,8 +324,13 @@ async function main() {
         m.foldUnexpected === 0,
         `意外 ${m.foldUnexpected} 个；共 ${m.foldAll} 个折叠区，其中源码显式 open ${m.foldExplicit} 个`,
       );
-      if (titleFsRef === 0) titleFsRef = m.titleFs;
-      else check(`[${tag}/${pageName}] 页面标题字号与其它页一致`, m.titleFs === titleFsRef, `${m.titleFs} vs ${titleFsRef}`);
+      // 2026-10-09 改版：方法提取页按 Superdesign 草稿复刻后改用 .up-title（36/48px，草稿尺寸），
+      // 不再是共享的 .pgtitle（clamp 22–30px）。该页 titleFs 取不到 .pgtitle 时为 0 →
+      // 跳过它的一致性比较，其余仍按同一个 .pgtitle 口径互相比对。
+      if (m.titleFs > 0) {
+        if (titleFsRef === 0) titleFsRef = m.titleFs;
+        else check(`[${tag}/${pageName}] 页面标题字号与其它页一致`, m.titleFs === titleFsRef, `${m.titleFs} vs ${titleFsRef}`);
+      }
       note(`[${tag}/${pageName}] 主内容宽度`, `${m.mainW}px（左边距 ${m.mainLeft}px，视口 ${m.clientW}px）`);
       note(`[${tag}/${pageName}] 首屏（不滚动）`, JSON.stringify(fs));
       await shot(`D-${pageName}-${tag}.png`);

@@ -309,9 +309,10 @@ console.log('=== 阶段 A（独立数据目录 #1）：加载案例 → 修字�
   await sleep(600);
   const pasted = await ev(`(() => {
     // 页面上还有模型配置输入框，必须先把范围收窄到「粘贴论文正文」这个分组里
-    // 2026-10-09 改版：方法提取页的粘贴表单容器从 .quiet-group 改为 .up-card，两者都接受
+    // 2026-10-09 改版：方法提取页的粘贴表单容器经过两次重构（.quiet-group → .up-card → .up-prog），
+    // 现在给它一个固定类 .up-paste，并把历史类名一起作为兜底，避免再因容器改名而误报。
     const submit = [...document.querySelectorAll('.main-inner button')].find((b) => /进入流程/.test(b.textContent));
-    const group = submit ? submit.closest('.quiet-group, .up-card') : null;
+    const group = submit ? submit.closest('.up-paste, .quiet-group, .up-card, .up-prog') : null;
     if (!group) return 'NO_GROUP';
     const title = group.querySelector('input.f');
     const text = group.querySelector('textarea.f');

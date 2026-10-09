@@ -396,7 +396,9 @@ await sleep(1400);
 const upEmpty = await mainText();
 check(
   '进入上传流程（含解析说明与两种入口）',
-  /方法提取/.test(upEmpty) && /选择 PDF 文件/.test(upEmpty) && /粘贴论文正文/.test(upEmpty) && /尚未提取方法|还没有上传论文/.test(upEmpty),
+  // 2026-10-09 改版：方法提取页按 Superdesign 草稿复刻，上传按钮文案改为草稿原文「浏览文件」，
+  // 空态文案改为草稿原文「尚未选择任何文件」；「方法提取」仍在首屏 eyebrow 里。
+  /方法提取/.test(upEmpty) && /浏览文件/.test(upEmpty) && /粘贴论文正文/.test(upEmpty) && /尚未提取方法|还没有上传论文|尚未选择任何文件/.test(upEmpty),
   upEmpty.replace(/\n+/g, ' | ').slice(0, 140),
 );
 
