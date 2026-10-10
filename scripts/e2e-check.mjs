@@ -349,12 +349,15 @@ async function main() {
       /方法地图/.test(mapOnly) &&
       /关系与比较/.test(mapOnly),
   );
-  // 关系可见性三态常驻页头，默认「全部」——不再默认把大部分关系藏起来
+  // 关系可见性三态常驻页头，默认「全部」——不再默认把大部分关系藏起来。
+  // 条数由模型结果决定（关系检索/认证规则改版后会变），这里只守「三态存在 + 默认选中全部」，不写死数字。
+  const chipState = await cdp.evaluate(
+    `(() => { const cs=[...document.querySelectorAll('.relview .chip')]; const on=cs.find((c)=>c.classList.contains('on')); return [!!on, on ? on.textContent.trim() : '', cs.length]; })()`,
+  );
   check(
     '关系可见性三态常驻（全部 / 可用 / 待核查），默认选中「全部」',
-    (await cdp.evaluate(
-      `(() => { const on=[...document.querySelectorAll('.relview .chip')].find((c)=>c.classList.contains('on')); return [!!on, on ? on.textContent.trim() : '', [...document.querySelectorAll('.relview .chip')].length]; })()`,
-    )).join('|') === 'true|全部10|3',
+    chipState[0] === true && /^全部\d+$/.test(String(chipState[1])) && chipState[2] === 3,
+    chipState.join('|'),
   );
   // 本轮改版：「数据来源与统计」移到页头折叠区；关系状态行直接可见；筛选与集合操作拆成两个入口
   const optsOpened = await cdp.evaluate(

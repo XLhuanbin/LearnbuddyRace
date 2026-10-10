@@ -40,7 +40,7 @@ import {
   requireReadingSteps,
   toPage,
 } from '../src/core/model/analyze';
-import { buildRelationHints, findRelationCandidates, primaryAlias } from '../src/core/relationCandidates';
+import { buildRelationHints, findRelationCandidates, primaryAlias, usableAliases } from '../src/core/relationCandidates';
 import {
   CORPUS_META,
   asScopedSnapshot,
@@ -1513,9 +1513,10 @@ console.log('=== 25. 唯一分析范围 / 关系生命周期 / 案例切换（�
   // 于是同 ID 的新结果一条也写不进去、旧的普通关系也永远删不掉。
   const rawVision = JSON.parse(readFileSync('public/samples-vision/index.json', 'utf8')) as { relations: Relation[] };
   const cacheRels = rawVision.relations;
+  // 条数由模型决定，不写死；这里要守的是「关系存在且每条都带 aiOriginal」。
   check(
-    '真实缓存：10 条关系，且全部带 aiOriginal（= AI 原始判定快照，不是人工痕迹）',
-    cacheRels.length === 10 && cacheRels.every((r) => !!r.aiOriginal),
+    '真实缓存：关系条目齐全，且全部带 aiOriginal（= AI 原始判定快照，不是人工痕迹）',
+    cacheRels.length >= 5 && cacheRels.every((r) => !!r.aiOriginal),
     `${cacheRels.length} 条，带 aiOriginal ${cacheRels.filter((r) => !!r.aiOriginal).length} 条`,
   );
   check('真实缓存：没有任何一条被用户改过（userEdited 全空）', cacheRels.every((r) => !r.userEdited));
@@ -2722,6 +2723,73 @@ console.log('=== 36. 重复定义收敛：escapeRe / pageAt 只剩一份实现�
   check('pageAt：落在第二页区间 → 2', pageAt(pages, 100) === 2 && pageAt(pages, 249) === 2, `${pageAt(pages, 100)}/${pageAt(pages, 249)}`);
   check('pageAt：超出最后一页偏移 → 最后一页', pageAt(pages, 99999) === 3, String(pageAt(pages, 99999)));
   check('pageAt：空页表 → undefined（不猜）', pageAt([], 10) === undefined, String(pageAt([], 10)));
+}
+
+console.log('=== 37. 关系证据检索：到引用句 / Related Work 里找明说的关系（本轮修复） ===');
+{
+  // 背景（实测缺陷）：旧版 buildRelationHints 只取「最短别名」，且别名长度 <4 整条丢弃，
+  // 于是 ViT 的唯一短别名 "ViT"（3 字符）被丢掉 ⇒ ViT→DeiT / ViT→Swin 零候选；
+  // 别名派生又不认驼峰专名 ⇒ "DeiT" 根本没有独立别名。结果是原文里明明写着
+  // "our work builds upon the ViT model [15]"，系统却报「检索片段未指名」。
+  check('「ViT」必须能作为检索别名（不得被长度门槛丢掉）', usableAliases('Vision Transformer (ViT)').includes('ViT'));
+  const deiTAliases = usableAliases('DeiT (data-efficient image transformers)；蒸馏版本记为 DeiT⚗');
+  check('驼峰专名「DeiT」能派生出独立别名', deiTAliases.includes('DeiT'), deiTAliases.join('|'));
+  check(
+    '人工注解（「…记为 DeiT⚗」这类）不会被当成方法名别名',
+    !deiTAliases.some((a) => /记为|亦称|简称|缩写/.test(a)),
+    deiTAliases.join('|'),
+  );
+  const swinAliases = usableAliases('Swin Transformer（Swin Transformer，缩写 Swin）');
+  check('含「缩写」注解的写法也不会污染别名', !swinAliases.some((a) => /缩写/.test(a)), swinAliases.join('|'));
+
+  // ---- 认证门槛：引用标记不能替代关系措辞（否则「最相关」会被当成「继承」） ----
+  const mostRelated = 'Transformer based vision backbones Most related to our work is the Vision Transformer (ViT) [20] and its follow-ups [63, 72, 15, 28, 66].';
+  const asExtends = assessRelationEvidence(mostRelated, 'Vision Transformer (ViT)', 'Swin Transformer', 'extends');
+  check('「most related to our work is X」不得认证为 extends', !asExtends.sufficient, asExtends.reason);
+  const asSimilar = assessRelationEvidence(mostRelated, 'Vision Transformer (ViT)', 'Swin Transformer', 'similar');
+  check('同一句用于「相似/相关」关系时可以认证（自指「our work」算指向另一端）', asSimilar.sufficient, asSimilar.reason);
+
+  // ---- 继承措辞要覆盖真实论文写法 ----
+  check(
+    '「Our starting point is a ResNet-50 model」可支撑 extends',
+    assessRelationEvidence(
+      'Our starting point is a ResNet-50 model.',
+      'residual learning framework；residual nets / residual networks（ResNet）',
+      'ConvNeXt',
+      'extends',
+    ).sufficient,
+  );
+  check(
+    '「we gradually modernize a standard ResNet」可支撑 extends',
+    assessRelationEvidence(
+      'We gradually “modernize” a standard ResNet toward the design of a vision Transformer.',
+      'residual learning framework；residual nets / residual networks（ResNet）',
+      'ConvNeXt',
+      'extends',
+    ).sufficient,
+  );
+
+  // ---- 真实语料：原文明示的关系必须每条都可复核 ----
+  const vision = JSON.parse(readFileSync('public/samples-vision/index.json', 'utf8')) as {
+    relations: Relation[];
+    methods: { id: string; fields: { methodName: { value?: string } } }[];
+  };
+  const vName = new Map(vision.methods.map((m) => [m.id, m.fields.methodName.value ?? '']));
+  const explicitRels = vision.relations.filter((r) => r.evidenceState === 'explicit');
+  check('真实视觉语料里存在「原文明示」的关系', explicitRels.length >= 3, `${explicitRels.length} 条`);
+  check(
+    '每条「原文明示」都带已定位的引文（verified=true）',
+    explicitRels.every((r) => r.evidence?.verified === true && !!r.evidence?.quote),
+    explicitRels.map((r) => `${r.type}:${r.evidence?.verified}`).join(','),
+  );
+  const rechecked = explicitRels.map((r) =>
+    assessRelationEvidence(r.evidence?.quote ?? '', vName.get(r.fromMethodId), vName.get(r.toMethodId), r.type),
+  );
+  check(
+    '每条「原文明示」用当前规则复核仍然成立（防止规则一改就悄悄失效）',
+    rechecked.every((a) => a.sufficient),
+    rechecked.map((a) => a.sufficient).join(','),
+  );
 }
 
 console.log('');

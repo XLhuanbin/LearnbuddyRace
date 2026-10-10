@@ -11,7 +11,7 @@
  * 6. 分歧发现区分数值结果与定性主张，要求给出共同比较范围；措辞改为「条件不一致，无法归因于方法」。
  */
 
-export const PROMPT_VERSION = 'v3.1.0';
+export const PROMPT_VERSION = 'v3.2.0';
 
 const TRUTH_RULES = `
 硬性要求（违反则本次结果作废）：
@@ -151,10 +151,20 @@ export function relationSystemPrompt(): string {
     '你要输出三档证据状态：explicit（论文明确说明）、inferred（基于论文内容推断）、candidate（依据不足，仅供核查）。不要输出置信度百分比。',
     `关于 explicit 的严格标准（必须同时满足）：
 - 引文必须**指名被继承/被改进的那一方方法**（可以用简称或全称，例如 BERT 与 Bidirectional Encoder Representations from Transformers 都算）；
-- 并且要有能说明该关系类型的措辞（based on / build on / extends / improve / outperform 等）。
+- 并且要有能说明该关系类型的措辞（based on / build on / extends / improve / outperform / starting point / modernize / most related to 等）。
 仅仅出现引用标记（如 [Vaswani et al., 2017]）或只提到更泛的技术名称（如 Transformer）都不够，
 因为那只支持更泛的关系，不能认证具体端点。
-另外，年份先后、任务相同、关键词相似都不能作为 explicit 的依据。`,
+另外，年份先后、任务相同、关键词相似都不能作为 explicit 的依据。
+
+**去哪里找 explicit 的表述**（经验规律，不是放宽标准）：
+- 优先看 Related Work / 引言里**带引用标记的句子**——作者通常就在那里说明本文与哪篇工作是什么关系；
+- 其次看方法章节里交代「本文从什么出发」的句子（例如 "Our starting point is …"、"We adopt …"、"our work builds upon …"）。
+
+**关系类型必须与句子字面语义一致**（这条最容易被判错）：
+- "our work builds upon X" / "we extend X" / "our starting point is X" → extends；
+- "we improve upon X" / "outperforms X" → improves；
+- "most related to our work is X" / "unlike X" / "in contrast to X" → **similar**（只是"相关/对比"，不是继承）；
+- 论文只说 X 有什么不足、本文另起炉灶 → 不要判成 extends，可用 improves 或 candidate。`,
   ].join('\n\n');
 }
 
@@ -192,6 +202,8 @@ ${list}
 - from 表示「被基于/被改进」的一方，to 表示「新方法」一方。
 - explicit 必须满足上面 system 中列出的严格标准；不满足就标 inferred 或 candidate，不要试探性地标 explicit。
 - 一个片段只能支持它字面说到的内容：如果片段只提到 Transformer 和 Vaswani et al.，就不能用它认证「BERT 是它的前身」。
+- 片段写「most related to our work is X」时只能标 similar，不能标 extends；写「X is unsuitable / requires large data」这类评价也不能当成继承。
+- 下方候选已按「是否直接陈述关系」排序并标出章节与引用标记，Related Work 里的句子优先看。
 - 判断不了就用 candidate，并在 rationale 中写明还需要核查什么。
 - 不要为同一对方法输出多条关系。
 

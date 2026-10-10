@@ -13,7 +13,7 @@
     "purpose": "核心三篇（DeiT / Swin / ConvNeXt）先行验证实验级抽取，通过后再加入 ResNet 与 ViT",
     "baseUrlHost": "api.deepseek.com"
   },
-  "rulesVersion": "r3.0.0",
+  "rulesVersion": "r3.3.0",
   "inputsSignature": "p_arxiv_2012.12877,p_arxiv_2103.14030,p_arxiv_2201.03545",
   "papers": [
     {
@@ -2214,37 +2214,48 @@
   ],
   "relations": [
     {
-      "id": "r_0_m_p_arxiv_2103.14030_m_p_arxiv_2012.12877",
-      "fromMethodId": "m_p_arxiv_2103.14030",
-      "toMethodId": "m_p_arxiv_2012.12877",
-      "type": "unclear",
+      "id": "r_0_m_p_arxiv_2012.12877_m_p_arxiv_2201.03545",
+      "fromMethodId": "m_p_arxiv_2012.12877",
+      "toMethodId": "m_p_arxiv_2201.03545",
+      "type": "similar",
       "evidenceState": "inferred",
-      "rationale": "提供的候选片段中，Swin Transformer 论文的句子只说明 Swin 自身由标准 Transformer 改造而来（'the proposed Swin Transformer is adapted from the standard Transformer'），并未提及 DeiT；ConvNeXt 论文的句子虽同时出现 DeiT 与 Swin，但只是说训练配方接近二者（'we use a training recipe that is close to DeiT’s [73] and Swin Transformer’s [45]'），这属于 ConvNeXt 对二者的借鉴，不能证明 Swin 基于或改进了 DeiT。两篇论文的原文片段均未陈述 Swin 与 DeiT 之间的继承/改进关系，故无法判定，需核查 Swin 论文是否在正文中引用或对比 DeiT。",
-      "aiOriginal": {
-        "type": "unclear",
-        "evidenceState": "inferred",
-        "rationale": "提供的候选片段中，Swin Transformer 论文的句子只说明 Swin 自身由标准 Transformer 改造而来（'the proposed Swin Transformer is adapted from the standard Transformer'），并未提及 DeiT；ConvNeXt 论文的句子虽同时出现 DeiT 与 Swin，但只是说训练配方接近二者（'we use a training recipe that is close to DeiT’s [73] and Swin Transformer’s [45]'），这属于 ConvNeXt 对二者的借鉴，不能证明 Swin 基于或改进了 DeiT。两篇论文的原文片段均未陈述 Swin 与 DeiT 之间的继承/改进关系，故无法判定，需核查 Swin 论文是否在正文中引用或对比 DeiT。"
+      "evidence": {
+        "paperId": "p_arxiv_2201.03545",
+        "quote": "In our study,\n\nwe use a training recipe that is close to DeiT’s [73] and\n\nSwin Transformer’s [45].",
+        "page": 3,
+        "start": 13090,
+        "end": 13188,
+        "section": "model, named ConvNeXt, can outperform the Swin Transformer.",
+        "locator": "page+offset",
+        "verified": true,
+        "matchType": "strict",
+        "coverage": 1
       },
-      "stateAdjusted": [],
-      "cached": true
+      "evidenceList": [
+        {
+          "paperId": "p_arxiv_2201.03545",
+          "quote": "In our study,\n\nwe use a training recipe that is close to DeiT’s [73] and\n\nSwin Transformer’s [45].",
+          "page": 3,
+          "start": 13090,
+          "end": 13188,
+          "section": "model, named ConvNeXt, can outperform the Swin Transformer.",
+          "locator": "page+offset",
+          "verified": true,
+          "matchType": "strict",
+          "coverage": 1
+        }
+      ],
+      "rationale": "ConvNeXt 论文明确说其训练配方接近 DeiT 的配方，属于训练方法上的借鉴/相似，而非架构继承。原文没有说 ConvNeXt 基于或改进 DeiT 的架构，因此不能标 explicit 的 extends/improves；这里按训练配方层面的相似关系记为 inferred。",
+      "aiOriginal": {
+        "type": "similar",
+        "evidenceState": "inferred",
+        "rationale": "ConvNeXt 论文明确说其训练配方接近 DeiT 的配方，属于训练方法上的借鉴/相似，而非架构继承。原文没有说 ConvNeXt 基于或改进 DeiT 的架构，因此不能标 explicit 的 extends/improves；这里按训练配方层面的相似关系记为 inferred。",
+        "evidenceQuote": "In our study, we use a training recipe that is close to DeiT’s [73] and Swin Transformer’s [45]."
+      },
+      "stateAdjusted": []
     },
     {
-      "id": "r_1_m_p_arxiv_2201.03545_m_p_arxiv_2012.12877",
-      "fromMethodId": "m_p_arxiv_2201.03545",
-      "toMethodId": "m_p_arxiv_2012.12877",
-      "type": "unclear",
-      "evidenceState": "inferred",
-      "rationale": "候选片段中 ConvNeXt 论文只提到其训练配方接近 DeiT（'we use a training recipe that is close to DeiT’s [73] and Swin Transformer’s [45]'），这至多说明 ConvNeXt 借鉴了 DeiT 的训练技巧，但方向是 ConvNeXt 参考 DeiT，而非 ConvNeXt 被 DeiT 基于或改进；且该句并未陈述 ConvNeXt 与 DeiT 之间的方法继承关系。其余片段只涉及 ConvNeXt 与 Swin 的性能对比。因此无法判定 ConvNeXt 与 DeiT 的关系，需核查 ConvNeXt 论文中是否明确说明其设计源自 DeiT。",
-      "aiOriginal": {
-        "type": "unclear",
-        "evidenceState": "inferred",
-        "rationale": "候选片段中 ConvNeXt 论文只提到其训练配方接近 DeiT（'we use a training recipe that is close to DeiT’s [73] and Swin Transformer’s [45]'），这至多说明 ConvNeXt 借鉴了 DeiT 的训练技巧，但方向是 ConvNeXt 参考 DeiT，而非 ConvNeXt 被 DeiT 基于或改进；且该句并未陈述 ConvNeXt 与 DeiT 之间的方法继承关系。其余片段只涉及 ConvNeXt 与 Swin 的性能对比。因此无法判定 ConvNeXt 与 DeiT 的关系，需核查 ConvNeXt 论文中是否明确说明其设计源自 DeiT。"
-      },
-      "stateAdjusted": [],
-      "cached": true
-    },
-    {
-      "id": "r_2_m_p_arxiv_2103.14030_m_p_arxiv_2201.03545",
+      "id": "r_1_m_p_arxiv_2103.14030_m_p_arxiv_2201.03545",
       "fromMethodId": "m_p_arxiv_2103.14030",
       "toMethodId": "m_p_arxiv_2201.03545",
       "type": "improves",
@@ -2271,30 +2282,91 @@
           "verified": true,
           "matchType": "strict",
           "coverage": 1
-        },
-        {
-          "paperId": "p_arxiv_2201.03545",
-          "quote": "Following\n\nSwin Transformer [45], we use multi-scale training, AdamW\n\noptimizer, and a 3× schedule.",
-          "page": 8,
-          "start": 38300,
-          "end": 38399,
-          "section": "model #param. FLOPs",
-          "locator": "page+offset",
-          "verified": true,
-          "matchType": "strict",
-          "coverage": 1
         }
       ],
-      "rationale": "ConvNeXt 论文明确指名 Swin Transformer，并声明其纯卷积模型 ConvNeXt 能超越 Swin Transformer（'can outperform the Swin Transformer'），同时说明在训练设置上跟随 Swin Transformer（'Following Swin Transformer [45], we use multi-scale training, AdamW optimizer, and a 3× schedule.'）。这满足 explicit 标准：指名被改进方（Swin Transformer）且有 outperform/following 等关系措辞。",
+      "rationale": "ConvNeXt 论文明确指名 Swin Transformer，并使用 outperform 措辞，说明 ConvNeXt 在性能上超越 Swin Transformer，符合 improves 关系。",
       "aiOriginal": {
         "type": "improves",
         "evidenceState": "explicit",
-        "rationale": "ConvNeXt 论文明确指名 Swin Transformer，并声明其纯卷积模型 ConvNeXt 能超越 Swin Transformer（'can outperform the Swin Transformer'），同时说明在训练设置上跟随 Swin Transformer（'Following Swin Transformer [45], we use multi-scale training, AdamW optimizer, and a 3× schedule.'）。这满足 explicit 标准：指名被改进方（Swin Transformer）且有 outperform/following 等关系措辞。",
+        "rationale": "ConvNeXt 论文明确指名 Swin Transformer，并使用 outperform 措辞，说明 ConvNeXt 在性能上超越 Swin Transformer，符合 improves 关系。",
         "evidenceQuote": "In the end, our pure ConvNet model, named ConvNeXt, can outperform the Swin Transformer."
       },
       "stateAdjusted": [],
-      "evidenceAssessment": "引文提到了被继承方法「Swin Transformer」；提到了关系另一端「ConvNeXt」；含改进措辞「outperform」，足以支撑「improves」关系。",
-      "cached": true
+      "evidenceAssessment": "引文提到了被继承方法「Swin Transformer」；提到了关系另一端「ConvNeXt」；含改进措辞「outperform」，足以支撑「improves」关系。"
+    },
+    {
+      "id": "r_2_m_p_arxiv_2012.12877_m_p_arxiv_2103.14030",
+      "fromMethodId": "m_p_arxiv_2012.12877",
+      "toMethodId": "m_p_arxiv_2103.14030",
+      "type": "improves",
+      "evidenceState": "candidate",
+      "evidence": {
+        "paperId": "p_arxiv_2103.14030",
+        "quote": "It outperforms\n\nthe ViT / DeiT [20, 63] and ResNe(X)t models [30, 70] sig-\n\nnificantly with similar latency on the three tasks",
+        "page": 2,
+        "start": 7910,
+        "end": 8036,
+        "locator": "page+offset",
+        "verified": true,
+        "matchType": "loose",
+        "coverage": 1
+      },
+      "evidenceList": [
+        {
+          "paperId": "p_arxiv_2103.14030",
+          "quote": "It outperforms\n\nthe ViT / DeiT [20, 63] and ResNe(X)t models [30, 70] sig-\n\nnificantly with similar latency on the three tasks",
+          "page": 2,
+          "start": 7910,
+          "end": 8036,
+          "locator": "page+offset",
+          "verified": true,
+          "matchType": "loose",
+          "coverage": 1
+        }
+      ],
+      "rationale": "Swin Transformer 论文明确指名 DeiT，并使用 outperforms 措辞，说明 Swin Transformer 在性能上显著超越 DeiT，符合 improves 关系。",
+      "aiOriginal": {
+        "type": "improves",
+        "evidenceState": "explicit",
+        "rationale": "Swin Transformer 论文明确指名 DeiT，并使用 outperforms 措辞，说明 Swin Transformer 在性能上显著超越 DeiT，符合 improves 关系。",
+        "evidenceQuote": "It outperforms the ViT / DeiT [20, 63] and ResNe(X)t models [30, 70] sig- nificantly with similar latency on the three tasks."
+      },
+      "stateAdjusted": [
+        {
+          "from": "explicit",
+          "to": "candidate",
+          "reason": "证据不足以认证该具体关系。引文提到了被继承方法「DeiT」；含改进措辞「outperforms」；含引用标记「[20, 63]」。句子没有指向关系另一端（既未提到对方方法名，也不是本论文的自指表述）。"
+        }
+      ],
+      "evidenceAssessment": "引文提到了被继承方法「DeiT」；含改进措辞「outperforms」；含引用标记「[20, 63]」。句子没有指向关系另一端（既未提到对方方法名，也不是本论文的自指表述）。"
+    },
+    {
+      "id": "r_3_m_p_arxiv_2201.03545_m_p_arxiv_2012.12877",
+      "fromMethodId": "m_p_arxiv_2201.03545",
+      "toMethodId": "m_p_arxiv_2012.12877",
+      "type": "unclear",
+      "evidenceState": "candidate",
+      "rationale": "候选片段中 ConvNeXt 论文没有明确陈述与 DeiT 的继承或改进关系；DeiT 论文也没有提到 ConvNeXt。现有片段不足以判定二者关系，需要核查 ConvNeXt 是否在正文中明确基于或改进 DeiT。",
+      "aiOriginal": {
+        "type": "unclear",
+        "evidenceState": "candidate",
+        "rationale": "候选片段中 ConvNeXt 论文没有明确陈述与 DeiT 的继承或改进关系；DeiT 论文也没有提到 ConvNeXt。现有片段不足以判定二者关系，需要核查 ConvNeXt 是否在正文中明确基于或改进 DeiT。"
+      },
+      "stateAdjusted": []
+    },
+    {
+      "id": "r_4_m_p_arxiv_2201.03545_m_p_arxiv_2103.14030",
+      "fromMethodId": "m_p_arxiv_2201.03545",
+      "toMethodId": "m_p_arxiv_2103.14030",
+      "type": "unclear",
+      "evidenceState": "candidate",
+      "rationale": "候选片段中 ConvNeXt 论文没有明确陈述基于或改进 Swin Transformer；Swin Transformer 论文也没有提到 ConvNeXt。现有片段不足以判定二者关系，需要核查 ConvNeXt 是否在正文中明确基于或改进 Swin Transformer。",
+      "aiOriginal": {
+        "type": "unclear",
+        "evidenceState": "candidate",
+        "rationale": "候选片段中 ConvNeXt 论文没有明确陈述基于或改进 Swin Transformer；Swin Transformer 论文也没有提到 ConvNeXt。现有片段不足以判定二者关系，需要核查 ConvNeXt 是否在正文中明确基于或改进 Swin Transformer。"
+      },
+      "stateAdjusted": []
     }
   ],
   "divergences": {
@@ -2956,5 +3028,7 @@
     "totalFields": 21
   },
   "experimentsRevalidatedAt": "2026-09-18T09:48:42.439Z",
-  "tableBindingCheckedAt": "2026-09-18T09:49:59.616Z"
+  "tableBindingCheckedAt": "2026-09-18T09:49:59.616Z",
+  "promptVersion": "v3.2.0",
+  "relationsOnlyRegeneratedAt": "2026-10-10T16:52:28.129Z"
 }

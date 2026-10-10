@@ -1137,3 +1137,41 @@ IndexedDB 里已存在一条人工修正关系 〔{"id":"r_0_m_p_arxiv_1512.0338
 ```
 
 未调用真实模型（只用预置缓存 + 界面人工修正 + 直读/写 IndexedDB 制造旧值基线）；未改首页与手机布局。
+
+---
+
+## V42 · 关系证据检索改版（2026-10-11）
+
+完整记录见 `docs/RELATION-EVIDENCE-ROUND.md`。这里只列**实跑数字**。
+
+目标：让关系抽取到引用句 / Related Work 里找作者明说的表述。修了三处检索缺陷
+（只取最短别名 + 长度 <4 丢弃、别名不认驼峰专名、候选不排序），并**收紧**了认证门槛
+（`extends` 必须有关系措辞，引用标记不能替代）。
+
+| 检查项 | 实际结果 |
+| --- | --- |
+| `npm run typecheck` | 通过 |
+| `npm test` | **474/474**（新增第 37 节 11 条断言） |
+| `npm run build` | 通过，构建指纹 `5fc847cb9f` |
+| `npm run e2e` | **70/78** —— 8 项失败全部是研究地图改版遗留的选择器失效（`.mapstage .mnode` 在 DOM 里已不存在），**非本轮引入** |
+| `npm run verify:relations` | **16/16** |
+| `npm run verify:layout` | **81/81** |
+| `npm run verify:import` | **25/25** |
+| `npm run verify:reload` | **20/20** |
+| `npm run verify:scope` | **23/25** —— 2 项失败同上（地图改版遗留） |
+| `npm run verify:ui` | 崩溃（同上，脚本里 `.mapstage` 取不到） |
+| `npm run verify:mobile` | 崩溃（同上） |
+
+真实模型调用 3 次（`--relations-only`，分别针对 `samples-vision` / `samples-vision-core` / `samples`）。
+
+视觉案例关系状态变化：
+
+- 改前：10 条关系，**原文明示 0 条**
+- 改后：8 条关系，**原文明示 4 条**（ViT→DeiT 继承、ResNet→ConvNeXt 继承、Swin→ConvNeXt 改进、ViT→Swin 相似）
+
+收紧后复核对旧结论的影响：`samples`（NLP 回归样例）改版前已认证的 3 条 explicit
+（Transformer→BERT、BERT→RoBERTa、BERT→DistilBERT）**全部仍然成立**，无回退。
+
+诚实边界（实测，写在此处以备回看）：Swin 论文全文里 `extend` / `build upon` / `based on` /
+`inspired` / `motivated` / `start from` 的出现次数均为 0，因此 `ViT → Swin` **不能**判为原文明示的继承；
+只能按 Related Work 的「Most related to our work is the Vision Transformer (ViT)」落到「相似」。

@@ -13,7 +13,7 @@
     "purpose": "正式参赛案例（真实论文、真实抽取；不是开发流程验证样例）",
     "baseUrlHost": "api.deepseek.com"
   },
-  "rulesVersion": "r3.2.0",
+  "rulesVersion": "r3.3.0",
   "inputsSignature": "p_arxiv_1512.03385,p_arxiv_2010.11929,p_arxiv_2012.12877,p_arxiv_2103.14030,p_arxiv_2201.03545",
   "papers": [
     {
@@ -3609,62 +3609,101 @@
   ],
   "relations": [
     {
-      "id": "r_0_m_p_arxiv_1512.03385_m_p_arxiv_2010.11929",
-      "fromMethodId": "m_p_arxiv_1512.03385",
-      "toMethodId": "m_p_arxiv_2010.11929",
-      "type": "unclear",
-      "evidenceState": "inferred",
-      "rationale": "检索到的句子只表明 ViT 在 JFT-300M 预训练后优于 ResNet-based baselines（性能对比），并未说明 ViT 基于或改进 ResNet。ViT 的核心是标准 Transformer 直接作用于图像 patch，与残差学习框架无继承关系。ResNet 在 ViT 论文中仅作为对比基线出现，不足以认证方法继承关系，故标为 candidate。",
-      "aiOriginal": {
-        "type": "unclear",
-        "evidenceState": "inferred",
-        "rationale": "检索到的句子只表明 ViT 在 JFT-300M 预训练后优于 ResNet-based baselines（性能对比），并未说明 ViT 基于或改进 ResNet。ViT 的核心是标准 Transformer 直接作用于图像 patch，与残差学习框架无继承关系。ResNet 在 ViT 论文中仅作为对比基线出现，不足以认证方法继承关系，故标为 candidate。"
-      },
-      "stateAdjusted": [],
-      "cached": true
-    },
-    {
-      "id": "r_1_m_p_arxiv_1512.03385_m_p_arxiv_2012.12877",
-      "fromMethodId": "m_p_arxiv_1512.03385",
+      "id": "r_0_m_p_arxiv_2010.11929_m_p_arxiv_2012.12877",
+      "fromMethodId": "m_p_arxiv_2010.11929",
       "toMethodId": "m_p_arxiv_2012.12877",
-      "type": "unclear",
-      "evidenceState": "inferred",
-      "rationale": "检索到的 DeiT 片段仅提到 DeiT-S 和 DeiT-Ti 可视为 ResNet-50 和 ResNet-18 的对应物（counterpart），这是参数量/规模上的类比，并非方法继承或改进。DeiT 基于 ViT 与蒸馏 token，与残差学习框架无直接继承关系。故标为 candidate。",
-      "aiOriginal": {
-        "type": "unclear",
-        "evidenceState": "inferred",
-        "rationale": "检索到的 DeiT 片段仅提到 DeiT-S 和 DeiT-Ti 可视为 ResNet-50 和 ResNet-18 的对应物（counterpart），这是参数量/规模上的类比，并非方法继承或改进。DeiT 基于 ViT 与蒸馏 token，与残差学习框架无直接继承关系。故标为 candidate。"
-      },
-      "stateAdjusted": [],
-      "cached": true
-    },
-    {
-      "id": "r_2_m_p_arxiv_1512.03385_m_p_arxiv_2103.14030",
-      "fromMethodId": "m_p_arxiv_1512.03385",
-      "toMethodId": "m_p_arxiv_2103.14030",
-      "type": "unclear",
-      "evidenceState": "inferred",
-      "rationale": "Swin Transformer 论文中 ResNet 仅作为 CNN 架构发展史中的一员被列举（e.g., VGG, GoogleNet, ResNet, DenseNet...），并未说明 Swin 基于或改进 ResNet。Swin 明确 adapted from the standard Transformer，与残差学习框架无继承关系。故标为 candidate。",
-      "aiOriginal": {
-        "type": "unclear",
-        "evidenceState": "inferred",
-        "rationale": "Swin Transformer 论文中 ResNet 仅作为 CNN 架构发展史中的一员被列举（e.g., VGG, GoogleNet, ResNet, DenseNet...），并未说明 Swin 基于或改进 ResNet。Swin 明确 adapted from the standard Transformer，与残差学习框架无继承关系。故标为 candidate。"
-      },
-      "stateAdjusted": [],
-      "cached": true
-    },
-    {
-      "id": "r_3_m_p_arxiv_1512.03385_m_p_arxiv_2201.03545",
-      "fromMethodId": "m_p_arxiv_1512.03385",
-      "toMethodId": "m_p_arxiv_2201.03545",
       "type": "extends",
-      "evidenceState": "candidate",
+      "evidenceState": "explicit",
+      "evidence": {
+        "paperId": "p_arxiv_2012.12877",
+        "quote": "In order to get a transformer to process images, our work builds upon the\n\nViT model [15].",
+        "page": 5,
+        "start": 11309,
+        "end": 11399,
+        "section": "2 Related work",
+        "locator": "page+offset",
+        "verified": true,
+        "matchType": "strict",
+        "coverage": 1
+      },
+      "evidenceList": [
+        {
+          "paperId": "p_arxiv_2012.12877",
+          "quote": "In order to get a transformer to process images, our work builds upon the\n\nViT model [15].",
+          "page": 5,
+          "start": 11309,
+          "end": 11399,
+          "section": "2 Related work",
+          "locator": "page+offset",
+          "verified": true,
+          "matchType": "strict",
+          "coverage": 1
+        }
+      ],
+      "rationale": "DeiT 论文 Related work 明确写出 'our work builds upon the ViT model [15]'，指名 ViT 并给出继承措辞 builds upon，故为 explicit 的 extends。",
+      "aiOriginal": {
+        "type": "extends",
+        "evidenceState": "explicit",
+        "rationale": "DeiT 论文 Related work 明确写出 'our work builds upon the ViT model [15]'，指名 ViT 并给出继承措辞 builds upon，故为 explicit 的 extends。",
+        "evidenceQuote": "In order to get a transformer to process images, our work builds upon the ViT model [15]."
+      },
+      "stateAdjusted": [],
+      "evidenceAssessment": "引文提到了被继承方法「ViT」；含继承/组合措辞「builds upon」；含引用标记「[15]」，足以支撑「extends」关系。"
+    },
+    {
+      "id": "r_1_m_p_arxiv_2010.11929_m_p_arxiv_2103.14030",
+      "fromMethodId": "m_p_arxiv_2010.11929",
+      "toMethodId": "m_p_arxiv_2103.14030",
+      "type": "similar",
+      "evidenceState": "explicit",
+      "evidence": {
+        "paperId": "p_arxiv_2103.14030",
+        "quote": "Transformer based vision backbones Most related to\n\nour work is the Vision Transformer (ViT) [20] and its\n\nfollow-ups [63, 72, 15, 28, 66].",
+        "page": 3,
+        "start": 11615,
+        "end": 11754,
+        "section": "model throughout computer vision. While the CNN has ex-",
+        "locator": "page+offset",
+        "verified": true,
+        "matchType": "strict",
+        "coverage": 1
+      },
+      "evidenceList": [
+        {
+          "paperId": "p_arxiv_2103.14030",
+          "quote": "Transformer based vision backbones Most related to\n\nour work is the Vision Transformer (ViT) [20] and its\n\nfollow-ups [63, 72, 15, 28, 66].",
+          "page": 3,
+          "start": 11615,
+          "end": 11754,
+          "section": "model throughout computer vision. While the CNN has ex-",
+          "locator": "page+offset",
+          "verified": true,
+          "matchType": "strict",
+          "coverage": 1
+        }
+      ],
+      "rationale": "Swin 论文 Related work 用 'Most related to our work is the Vision Transformer (ViT) [20]' 指名 ViT，但该措辞只表达相关性/对比，按规则只能标 similar，不能标 extends。",
+      "aiOriginal": {
+        "type": "similar",
+        "evidenceState": "explicit",
+        "rationale": "Swin 论文 Related work 用 'Most related to our work is the Vision Transformer (ViT) [20]' 指名 ViT，但该措辞只表达相关性/对比，按规则只能标 similar，不能标 extends。",
+        "evidenceQuote": "Transformer based vision backbones Most related to our work is the Vision Transformer (ViT) [20] and its follow-ups [63, 72, 15, 28, 66]."
+      },
+      "stateAdjusted": [],
+      "evidenceAssessment": "引文提到了被继承方法「Vision Transformer (ViT)」；含继承/组合措辞「Most related」；含引用标记「[20]」，足以支撑「similar」关系。"
+    },
+    {
+      "id": "r_2_m_p_arxiv_2012.12877_m_p_arxiv_2201.03545",
+      "fromMethodId": "m_p_arxiv_2012.12877",
+      "toMethodId": "m_p_arxiv_2201.03545",
+      "type": "similar",
+      "evidenceState": "inferred",
       "evidence": {
         "paperId": "p_arxiv_2201.03545",
-        "quote": "Our starting point is a ResNet-50 model. We first\n\ntrain it with similar training techniques used to train vision\n\nTransformers and obtain much improved results compared to\n\nthe original ResNet-50. This will be our baseline.",
+        "quote": "In our study,\n\nwe use a training recipe that is close to DeiT’s [73] and\n\nSwin Transformer’s [45].",
         "page": 3,
-        "start": 11539,
-        "end": 11763,
+        "start": 13090,
+        "end": 13188,
         "section": "model, named ConvNeXt, can outperform the Swin Transformer.",
         "locator": "page+offset",
         "verified": true,
@@ -3674,10 +3713,10 @@
       "evidenceList": [
         {
           "paperId": "p_arxiv_2201.03545",
-          "quote": "Our starting point is a ResNet-50 model. We first\n\ntrain it with similar training techniques used to train vision\n\nTransformers and obtain much improved results compared to\n\nthe original ResNet-50. This will be our baseline.",
+          "quote": "In our study,\n\nwe use a training recipe that is close to DeiT’s [73] and\n\nSwin Transformer’s [45].",
           "page": 3,
-          "start": 11539,
-          "end": 11763,
+          "start": 13090,
+          "end": 13188,
           "section": "model, named ConvNeXt, can outperform the Swin Transformer.",
           "locator": "page+offset",
           "verified": true,
@@ -3685,103 +3724,26 @@
           "coverage": 1
         }
       ],
-      "rationale": "ConvNeXt 论文明确指出以 ResNet-50 为起点（starting point），并在其基础上逐步引入现代设计决策，属于对 ResNet 的扩展/现代化。引文指名了 ResNet-50 并给出 starting point 的继承措辞，满足 explicit 标准。",
+      "rationale": "ConvNeXt 论文说明其训练配方接近 DeiT，属于训练方法上的借鉴/相似，但原文并未说 ConvNeXt 基于或改进 DeiT 架构，故只能推断为 similar 而非 extends。",
       "aiOriginal": {
-        "type": "extends",
-        "evidenceState": "explicit",
-        "rationale": "ConvNeXt 论文明确指出以 ResNet-50 为起点（starting point），并在其基础上逐步引入现代设计决策，属于对 ResNet 的扩展/现代化。引文指名了 ResNet-50 并给出 starting point 的继承措辞，满足 explicit 标准。",
-        "evidenceQuote": "Our starting point is a ResNet-50 model. We first train it with similar training techniques used to train vision Transformers and obtain much improved results compared to the original ResNet-50. This will be our baseline."
-      },
-      "stateAdjusted": [],
-      "evidenceAssessment": "引文提到了被继承方法「ResNet」。缺少继承/组合措辞或引用标记。",
-      "cached": true
-    },
-    {
-      "id": "r_4_m_p_arxiv_2010.11929_m_p_arxiv_2012.12877",
-      "fromMethodId": "m_p_arxiv_2010.11929",
-      "toMethodId": "m_p_arxiv_2012.12877",
-      "type": "extends",
-      "evidenceState": "inferred",
-      "rationale": "DeiT 论文明确以 ViT 为参考视觉 Transformer（reference vision transformer），并在此基础上引入蒸馏 token 与数据高效训练策略。检索片段未直接出现指名 ViT 的继承措辞，但 DeiT 的核心架构与训练流程承接自 ViT，属于技术承接关系，故标为 inferred。",
-      "aiOriginal": {
-        "type": "extends",
+        "type": "similar",
         "evidenceState": "inferred",
-        "rationale": "DeiT 论文明确以 ViT 为参考视觉 Transformer（reference vision transformer），并在此基础上引入蒸馏 token 与数据高效训练策略。检索片段未直接出现指名 ViT 的继承措辞，但 DeiT 的核心架构与训练流程承接自 ViT，属于技术承接关系，故标为 inferred。"
+        "rationale": "ConvNeXt 论文说明其训练配方接近 DeiT，属于训练方法上的借鉴/相似，但原文并未说 ConvNeXt 基于或改进 DeiT 架构，故只能推断为 similar 而非 extends。",
+        "evidenceQuote": "In our study, we use a training recipe that is close to DeiT’s [73] and Swin Transformer’s [45]."
       },
-      "stateAdjusted": [],
-      "cached": true
+      "stateAdjusted": []
     },
     {
-      "id": "r_5_m_p_arxiv_2010.11929_m_p_arxiv_2103.14030",
-      "fromMethodId": "m_p_arxiv_2010.11929",
-      "toMethodId": "m_p_arxiv_2103.14030",
-      "type": "extends",
-      "evidenceState": "inferred",
-      "rationale": "Swin Transformer 明确 adapted from the standard Transformer，并针对 ViT 类架构单分辨率、二次复杂度的问题提出层级式与移位窗口设计。检索片段未直接指名 ViT 并给出继承措辞，但技术承接关系清晰，故标为 inferred。",
-      "aiOriginal": {
-        "type": "extends",
-        "evidenceState": "inferred",
-        "rationale": "Swin Transformer 明确 adapted from the standard Transformer，并针对 ViT 类架构单分辨率、二次复杂度的问题提出层级式与移位窗口设计。检索片段未直接指名 ViT 并给出继承措辞，但技术承接关系清晰，故标为 inferred。"
-      },
-      "stateAdjusted": [],
-      "cached": true
-    },
-    {
-      "id": "r_6_m_p_arxiv_2010.11929_m_p_arxiv_2201.03545",
-      "fromMethodId": "m_p_arxiv_2010.11929",
-      "toMethodId": "m_p_arxiv_2201.03545",
-      "type": "unclear",
-      "evidenceState": "inferred",
-      "rationale": "ConvNeXt 论文提到使用训练视觉 Transformer 的技巧，但检索片段未指名 ViT 并给出继承措辞。ConvNeXt 的宏观设计主要借鉴 Swin Transformer，与 ViT 的直接继承关系不明确，故标为 candidate。",
-      "aiOriginal": {
-        "type": "unclear",
-        "evidenceState": "inferred",
-        "rationale": "ConvNeXt 论文提到使用训练视觉 Transformer 的技巧，但检索片段未指名 ViT 并给出继承措辞。ConvNeXt 的宏观设计主要借鉴 Swin Transformer，与 ViT 的直接继承关系不明确，故标为 candidate。"
-      },
-      "stateAdjusted": [],
-      "cached": true
-    },
-    {
-      "id": "r_7_m_p_arxiv_2012.12877_m_p_arxiv_2103.14030",
-      "fromMethodId": "m_p_arxiv_2012.12877",
-      "toMethodId": "m_p_arxiv_2103.14030",
-      "type": "unclear",
-      "evidenceState": "inferred",
-      "rationale": "检索片段中未出现 DeiT 与 Swin Transformer 之间的直接继承或改进措辞。两者均为视觉 Transformer 变体，但无明确证据表明 Swin 基于或改进 DeiT，故标为 candidate。",
-      "aiOriginal": {
-        "type": "unclear",
-        "evidenceState": "inferred",
-        "rationale": "检索片段中未出现 DeiT 与 Swin Transformer 之间的直接继承或改进措辞。两者均为视觉 Transformer 变体，但无明确证据表明 Swin 基于或改进 DeiT，故标为 candidate。"
-      },
-      "stateAdjusted": [],
-      "cached": true
-    },
-    {
-      "id": "r_8_m_p_arxiv_2012.12877_m_p_arxiv_2201.03545",
-      "fromMethodId": "m_p_arxiv_2012.12877",
-      "toMethodId": "m_p_arxiv_2201.03545",
-      "type": "unclear",
-      "evidenceState": "inferred",
-      "rationale": "检索片段中未出现 DeiT 与 ConvNeXt 之间的直接继承或改进措辞。ConvNeXt 主要借鉴 Swin Transformer 的设计，与 DeiT 的关系不明确，故标为 candidate。",
-      "aiOriginal": {
-        "type": "unclear",
-        "evidenceState": "inferred",
-        "rationale": "检索片段中未出现 DeiT 与 ConvNeXt 之间的直接继承或改进措辞。ConvNeXt 主要借鉴 Swin Transformer 的设计，与 DeiT 的关系不明确，故标为 candidate。"
-      },
-      "stateAdjusted": [],
-      "cached": true
-    },
-    {
-      "id": "r_9_m_p_arxiv_2103.14030_m_p_arxiv_2201.03545",
+      "id": "r_3_m_p_arxiv_2103.14030_m_p_arxiv_2201.03545",
       "fromMethodId": "m_p_arxiv_2103.14030",
       "toMethodId": "m_p_arxiv_2201.03545",
-      "type": "extends",
-      "evidenceState": "candidate",
+      "type": "improves",
+      "evidenceState": "explicit",
       "evidence": {
         "paperId": "p_arxiv_2201.03545",
-        "quote": "model, named ConvNeXt, can outperform the Swin Transformer.",
+        "quote": "In the end, our pure ConvNet\n\nmodel, named ConvNeXt, can outperform the Swin Transformer.",
         "page": 3,
-        "start": 11470,
+        "start": 11440,
         "end": 11529,
         "locator": "page+offset",
         "verified": true,
@@ -3791,9 +3753,9 @@
       "evidenceList": [
         {
           "paperId": "p_arxiv_2201.03545",
-          "quote": "model, named ConvNeXt, can outperform the Swin Transformer.",
+          "quote": "In the end, our pure ConvNet\n\nmodel, named ConvNeXt, can outperform the Swin Transformer.",
           "page": 3,
-          "start": 11470,
+          "start": 11440,
           "end": 11529,
           "locator": "page+offset",
           "verified": true,
@@ -3801,16 +3763,99 @@
           "coverage": 1
         }
       ],
-      "rationale": "ConvNeXt 论文明确以 Swin Transformer 为对标与借鉴对象，逐步引入 Swin 的宏观设计（stage 计算比、patchify stem）等，属于对 Swin Transformer 的扩展/现代化。引文指名 Swin Transformer 并给出 outperform 的改进措辞，满足 explicit 标准。",
+      "rationale": "ConvNeXt 论文明确写出 'our pure ConvNet model, named ConvNeXt, can outperform the Swin Transformer'，指名 Swin Transformer 并给出 outperform 措辞，故为 explicit 的 improves。",
+      "aiOriginal": {
+        "type": "improves",
+        "evidenceState": "explicit",
+        "rationale": "ConvNeXt 论文明确写出 'our pure ConvNet model, named ConvNeXt, can outperform the Swin Transformer'，指名 Swin Transformer 并给出 outperform 措辞，故为 explicit 的 improves。",
+        "evidenceQuote": "In the end, our pure ConvNet model, named ConvNeXt, can outperform the Swin Transformer."
+      },
+      "stateAdjusted": [],
+      "evidenceAssessment": "引文提到了被继承方法「Swin Transformer」；提到了关系另一端「ConvNeXt」；含改进措辞「outperform」，足以支撑「improves」关系。"
+    },
+    {
+      "id": "r_4_m_p_arxiv_1512.03385_m_p_arxiv_2201.03545",
+      "fromMethodId": "m_p_arxiv_1512.03385",
+      "toMethodId": "m_p_arxiv_2201.03545",
+      "type": "extends",
+      "evidenceState": "explicit",
+      "evidence": {
+        "paperId": "p_arxiv_2201.03545",
+        "quote": "Our starting point is a ResNet-50 model. We first\n\ntrain it with similar training techniques used to train vision\n\nTransformers and obtain much improved results compared to\n\nthe original ResNet-50.",
+        "page": 3,
+        "start": 11539,
+        "end": 11736,
+        "section": "model, named ConvNeXt, can outperform the Swin Transformer.",
+        "locator": "page+offset",
+        "verified": true,
+        "matchType": "strict",
+        "coverage": 1
+      },
+      "evidenceList": [
+        {
+          "paperId": "p_arxiv_2201.03545",
+          "quote": "Our starting point is a ResNet-50 model. We first\n\ntrain it with similar training techniques used to train vision\n\nTransformers and obtain much improved results compared to\n\nthe original ResNet-50.",
+          "page": 3,
+          "start": 11539,
+          "end": 11736,
+          "section": "model, named ConvNeXt, can outperform the Swin Transformer.",
+          "locator": "page+offset",
+          "verified": true,
+          "matchType": "strict",
+          "coverage": 1
+        }
+      ],
+      "rationale": "ConvNeXt 论文明确写出 'Our starting point is a ResNet-50 model'，指名 ResNet-50 并给出 starting point 措辞，故为 explicit 的 extends。",
       "aiOriginal": {
         "type": "extends",
         "evidenceState": "explicit",
-        "rationale": "ConvNeXt 论文明确以 Swin Transformer 为对标与借鉴对象，逐步引入 Swin 的宏观设计（stage 计算比、patchify stem）等，属于对 Swin Transformer 的扩展/现代化。引文指名 Swin Transformer 并给出 outperform 的改进措辞，满足 explicit 标准。",
-        "evidenceQuote": "model, named ConvNeXt, can outperform the Swin Transformer."
+        "rationale": "ConvNeXt 论文明确写出 'Our starting point is a ResNet-50 model'，指名 ResNet-50 并给出 starting point 措辞，故为 explicit 的 extends。",
+        "evidenceQuote": "Our starting point is a ResNet-50 model. We first train it with similar training techniques used to train vision Transformers and obtain much improved results compared to the original ResNet-50."
       },
       "stateAdjusted": [],
-      "evidenceAssessment": "引文提到了被继承方法「Swin Transformer」；提到了关系另一端「ConvNeXt」。缺少继承/组合措辞或引用标记。",
-      "cached": true
+      "evidenceAssessment": "引文提到了被继承方法「ResNet」；含继承/组合措辞「starting point」，足以支撑「extends」关系。"
+    },
+    {
+      "id": "r_5_m_p_arxiv_1512.03385_m_p_arxiv_2012.12877",
+      "fromMethodId": "m_p_arxiv_1512.03385",
+      "toMethodId": "m_p_arxiv_2012.12877",
+      "type": "unclear",
+      "evidenceState": "candidate",
+      "rationale": "提供的候选片段中没有任何一句指名 ResNet 并陈述 DeiT 基于/改进 ResNet 的关系；DeiT 的教师网络是 RegNetY，与 ResNet 不同，故无法判定，需核查 DeiT 原文是否提及 ResNet。",
+      "aiOriginal": {
+        "type": "unclear",
+        "evidenceState": "candidate",
+        "rationale": "提供的候选片段中没有任何一句指名 ResNet 并陈述 DeiT 基于/改进 ResNet 的关系；DeiT 的教师网络是 RegNetY，与 ResNet 不同，故无法判定，需核查 DeiT 原文是否提及 ResNet。"
+      },
+      "stateAdjusted": []
+    },
+    {
+      "id": "r_6_m_p_arxiv_1512.03385_m_p_arxiv_2103.14030",
+      "fromMethodId": "m_p_arxiv_1512.03385",
+      "toMethodId": "m_p_arxiv_2103.14030",
+      "type": "unclear",
+      "evidenceState": "candidate",
+      "rationale": "候选片段中 Swin 论文只提到 'adapted from the standard Transformer' 与对比 Performer，未指名 ResNet 并陈述继承/改进关系，故无法判定，需核查 Swin 原文是否提及 ResNet。",
+      "aiOriginal": {
+        "type": "unclear",
+        "evidenceState": "candidate",
+        "rationale": "候选片段中 Swin 论文只提到 'adapted from the standard Transformer' 与对比 Performer，未指名 ResNet 并陈述继承/改进关系，故无法判定，需核查 Swin 原文是否提及 ResNet。"
+      },
+      "stateAdjusted": []
+    },
+    {
+      "id": "r_7_m_p_arxiv_2010.11929_m_p_arxiv_2201.03545",
+      "fromMethodId": "m_p_arxiv_2010.11929",
+      "toMethodId": "m_p_arxiv_2201.03545",
+      "type": "unclear",
+      "evidenceState": "candidate",
+      "rationale": "ConvNeXt 论文提到使用 DeiT 的监督训练结果用于 ViT-S/B，但未指名 ViT 并陈述 ConvNeXt 基于/改进 ViT 的关系，故无法判定，需核查 ConvNeXt 原文对 ViT 的表述。",
+      "aiOriginal": {
+        "type": "unclear",
+        "evidenceState": "candidate",
+        "rationale": "ConvNeXt 论文提到使用 DeiT 的监督训练结果用于 ViT-S/B，但未指名 ViT 并陈述 ConvNeXt 基于/改进 ViT 的关系，故无法判定，需核查 ConvNeXt 原文对 ViT 的表述。"
+      },
+      "stateAdjusted": []
     }
   ],
   "divergences": {
@@ -4687,5 +4732,7 @@
   },
   "tableBindingCheckedAt": "2026-09-18T09:53:08.048Z",
   "revalidatedOnly": true,
-  "revalidationNote": "本文件的「判定类结论」（字段校验问题、条件范围与状态、关系可信度三档、分歧种类与可比性、已检查论文对）已由程序按规则 r3.2.0 在模型输出上重算；模型给出的字段值、引文、理由文字来自提示词 v3.0.0 的那次真实调用（未在重算中重新调用模型）。"
+  "revalidationNote": "本文件的「判定类结论」（字段校验问题、条件范围与状态、关系可信度三档、分歧种类与可比性、已检查论文对）已由程序按规则 r3.2.0 在模型输出上重算；模型给出的字段值、引文、理由文字来自提示词 v3.0.0 的那次真实调用（未在重算中重新调用模型）。",
+  "promptVersion": "v3.2.0",
+  "relationsOnlyRegeneratedAt": "2026-10-10T16:52:09.296Z"
 }

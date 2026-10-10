@@ -114,6 +114,51 @@ if (process.argv.includes('--decision-only')) {
   process.exit(0);
 }
 
+/* ---------- 模式：只重跑关系抽取（沿用缓存里的论文与方法字段） ---------- */
+/*
+ * 用途：关系检索/认证规则改动后，只需要重新判定关系，不必重跑整条抽取流水线。
+ * 这样既省额度，也不会扰动已经核对过的字段值。
+ *
+ * 诚实性边界：本模式只重算 relations，papers / methods 沿用缓存，
+ * 因此 index.json 里会写入 relationsOnlyRegeneratedAt，说明这次是「只重跑关系」。
+ */
+if (process.argv.includes('--relations-only')) {
+  const index = JSON.parse(await readFile(join(outDir, 'index.json'), 'utf8'));
+  const papers = [];
+  for (const meta of index.papers) {
+    const t = JSON.parse(await readFile(join(outDir, 'text', meta.id + '.json'), 'utf8'));
+    papers.push({ ...meta, pages: t.pages, rawText: t.rawText, charCount: t.charCount });
+  }
+  const methods = index.methods.map((m) => mod.migrateMethod(m));
+  log('[关系] 只重跑关系抽取（沿用缓存的 ' + papers.length + ' 篇论文与 ' + methods.length + ' 个方法）...');
+  const { relations, issues } = await mod.inferRelations(papers, methods, cfg, (t) => {
+    log('      ' + t.label + ' attempt=' + t.attempt + ' ' + t.ms + 'ms' + (t.error ? ' ERROR=' + t.error : ''));
+  });
+  const byState = (s) => relations.filter((r) => r.evidenceState === s).length;
+  log(
+    '      关系数=' + relations.length +
+      '（原文明示 ' + byState('explicit') + '，系统推断 ' + byState('inferred') + '，待核查 ' + byState('candidate') + '）',
+  );
+  log('      关系校验问题 ' + issues.length + ' 条');
+  const mById = new Map(methods.map((m) => [m.id, m]));
+  const nm = (id) => mById.get(id)?.fields?.methodName?.value ?? id;
+  for (const r of relations) {
+    const ev = r.evidence;
+    log(
+      '      · ' + nm(r.fromMethodId) + ' → ' + nm(r.toMethodId) + ' | ' + r.type + ' | ' + r.evidenceState +
+        (ev ? ' | p.' + (ev.page ?? '?') + ' verified=' + ev.verified : ' | 无引文'),
+    );
+    if (ev?.quote) log('          「' + ev.quote.replace(/\s+/g, ' ').slice(0, 150) + '」');
+  }
+  index.relations = relations;
+  index.rulesVersion = mod.RULES_VERSION;
+  index.promptVersion = mod.PROMPT_VERSION;
+  index.relationsOnlyRegeneratedAt = new Date().toISOString();
+  await writeFile(join(outDir, 'index.json'), JSON.stringify(index, null, 2), 'utf8');
+  log('      已写回 index.json 的 relations（rulesVersion=' + mod.RULES_VERSION + '）');
+  process.exit(0);
+}
+
 /* ---------- 验收模式：单变量条件对照 + 反例 ---------- */
 if (process.argv.includes('--decision-variation')) {
   const index = JSON.parse(await readFile(join(outDir, 'index.json'), 'utf8'));

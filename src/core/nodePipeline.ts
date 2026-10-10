@@ -22,6 +22,7 @@ import { FIELD_KEYS_ORDER, methodToCache } from './cache';
 export { FIELD_KEYS_ORDER, buildVerificationStat, methodToCache, migrateMethod, migrateRelation, CACHE_VERSION } from './cache';
 export { PROMPT_VERSION } from './model/prompts';
 export { findDivergences, generateDecision, extractMethod, applyTitleCorrection };
+export { inferRelations } from './model/analyze';
 export { compareConditions, comparePair, pairLevel, differingDimensions, LEVEL_LABELS, SCREENING_NOTICE } from './comparability';
 export { applyDivergenceRules, buildCheckedPairs } from './divergenceRules';
 export { validateMethod, validateRelation, summarizeIssues } from './validate';

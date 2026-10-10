@@ -11,7 +11,7 @@ import { CONDITION_DIMENSIONS } from './types';
 import { escapeRe } from './text';
 
 /** 规则版本：可比性、关系校验、条件范围、证据支持判定。任何影响结论的改动都要升版本。 */
-export const RULES_VERSION = 'r3.2.0';
+export const RULES_VERSION = 'r3.3.0';
 
 /**
  * 字段 note 的判据词：模型把该字段标注为「找到了内容但无法确认」。
@@ -86,9 +86,16 @@ export function methodAliases(rawName?: string): string[] {
   if (!v) return [];
   const out = new Set<string>();
 
+  /**
+   * 元信息残留不是方法名：抽取时把「记为 / 亦称 / 简称 / 缩写」这类人工注解整条丢掉。
+   * 实测 "DeiT (data-efficient image transformers)；蒸馏版本记为 DeiT⚗" 会派生出
+   * "蒸馏版本记为 DeiT⚗" 这种别名，拿它去原文里检索必然落空，还会污染命中提示。
+   */
+  const isMetaNote = (s: string) => /(记为|亦称|简称|缩写)/.test(s);
+
   const add = (s: string) => {
     const t = s.replace(/^[\s,;:。-]+|[\s,;:。]+$/g, '').trim();
-    if (t.length >= 2) out.add(t);
+    if (t.length >= 2 && !isMetaNote(t)) out.add(t);
   };
 
   // 去掉结尾的版本/规模后缀，保留主体
@@ -98,20 +105,33 @@ export function methodAliases(rawName?: string): string[] {
   // 括号内的内容（中英文括号）作为整体别名，例如 BERT 的全称展开
   for (const m of cleaned.matchAll(/[（(]([^）)]{2,80})[）)]/g)) add(m[1]);
   // 括号外的部分（即主名称）
-  const mainName = cleaned.replace(/[（(][^）)]*[）)]/g, ' ').trim();
-  add(mainName);
+  const mainNameRaw = cleaned.replace(/[（(][^）)]*[）)]/g, ' ').trim();
+  add(mainNameRaw);
+  // 分号分隔的并列写法（如「residual learning framework；residual nets（ResNet）」）各自成别名
+  const mainSegments = mainNameRaw.split(/[；;]/).map((s) => s.trim()).filter(Boolean);
+  for (const seg of mainSegments) add(seg);
+  const mainName = mainSegments[0] ?? mainNameRaw;
 
   /**
-   * 只在**主名称**中提取「全大写缩写」作为别名。
+   * 只在**主名称**中提取缩写作为别名。
    *
    * 关键修复：不能从括号内容里逐个抽大写词 —— 实测
    * "RoBERTa (Robustly Optimized BERT Pretraining Approach)" 会把括号里的独立 token「BERT」
    * 也当成 RoBERTa 的别名，导致「引文提到 BERT」被误判为「提到了 RoBERTa」，
    * 甚至反过来给 BERT→RoBERTa 这种关系提供错误的端点证据。
-   * 同时对全大写的判定收紧（纯大写字母/数字/连字符），避免把 "Robustly" 这类普通词当缩写。
+   *
+   * 两类缩写都要收：
+   * 1. 全大写（BERT / GPT / ViT 里的 VIT）；
+   * 2. 驼峰专名（DeiT / RoBERTa / ConvNeXt）—— 实测只认全大写会让 "DeiT"
+   *    完全没有独立别名（"DeiT" 不是全大写），进而检索不到 DeiT 论文里的关系句。
+   * 判定收紧为「首字母大写 + 后面至少还有一个大写字母」，避免把 "Robust" 这类普通词当专名。
    */
   for (const m of mainName.matchAll(/(^|[^A-Za-z0-9])([A-Z][A-Z0-9-]{2,15})(?![A-Za-z0-9])/g)) {
     add(m[2]);
+  }
+  const firstToken = mainName.split(/[\s,;:]+/)[0] ?? '';
+  if (/^[A-Z][A-Za-z0-9-]{2,}$/.test(firstToken) && /[A-Z]/.test(firstToken.slice(1))) {
+    add(firstToken);
   }
 
   return [...out];
@@ -153,6 +173,22 @@ const CLAIM_PATTERNS: Record<RelationType, RegExp[]> = {
     /\bdistilled version of\b/i,
     /\bsame (?:general )?architecture as\b/i,
     /\b(?:initialized|trained|pre-?trained) (?:from|with|using)\b/i,
+    /**
+     * 下面几条是实测漏判的「真实论文写法」——都是原文里明明白白的继承表述，
+     * 但既不是 based on 也不是 extend，导致明明有的证据被判成"缺少措辞"：
+     * - ConvNeXt："Our starting point is a ResNet-50 model."
+     * - ConvNeXt："We gradually 'modernize' a standard ResNet"（含 "Modernizing a ConvNet: a Roadmap"）
+     * - ConvNeXt："a trajectory going from a ResNet to a ConvNet"
+     * 加进来不改变判定门槛：仍然要求引文**指名**被继承方法且非第三方主语，
+     * 只是不再把「用别的动词说出同一件事」误判为"没有措辞"。
+     */
+    /\bstart(?:ing)? point\b/i,
+    /\bmoder?niz(?:e|es|ed|ing|ation)\b/i,
+    /\bgo(?:es|ing)? from\b/i,
+    /\badapt(?:s|ed|ing)?\s+(?:from|to)\b/i,
+    /\binspired by\b/i,
+    /\bmotivated by\b/i,
+    /\btake[sn]?\b[^.]{0,40}\bas\b/i,
   ],
   improves: [
     /\bimprov(?:e|es|ed|ement|ing)\b/i,
@@ -165,13 +201,30 @@ const CLAIM_PATTERNS: Record<RelationType, RegExp[]> = {
     /\bstronger than\b/i,
   ],
   combines: [/\bcombin(?:e|es|ed|ing)\b/i, /\bjointly\b/i, /\btogether with\b/i, /\bensemble\b/i, /\bwe integrate\b/i],
-  similar: [/\bunlike\b/i, /\bin contrast to\b/i, /\bsimilar to\b/i, /\bcomparable to\b/i],
+  /**
+   * related work 里的关系表述也算「原文明示」，但只能支撑它字面上说的那种关系。
+   * 实测 Swin 论文写的是 "Most related to our work is the Vision Transformer (ViT) [20]" ——
+   * 这是「最相关」，不是「我们基于它扩展」，因此归到 similar 而不是 extends。
+   */
+  similar: [
+    /\bunlike\b/i,
+    /\bin contrast to\b/i,
+    /\bsimilar to\b/i,
+    /\bcomparable to\b/i,
+    /\bmost related\b/i,
+    /\brelated to our work\b/i,
+  ],
   unclear: [],
 };
 
 /** 引用标记：[Vaswani et al., 2017] / [VSP+17] / (Devlin et al., 2019) */
 const CITATION_RE =
   /\[[A-Za-z][A-Za-z0-9+&.,\s-]{1,24}\]|\[\d+(?:,\s*\d+)*\]|\(\s*[A-Z][A-Za-z-]+(?:\s+et\s+al\.?)?\s*,\s*(?:19|20)\d{2}[a-z]?\s*\)/;
+
+/** 引文里是否带引用标记（关系表述绝大多数出现在引用句里，检索时据此加权） */
+export function findCitationMarker(text: string): string | undefined {
+  return CITATION_RE.exec(text)?.[0];
+}
 
 /**
  * 第三方主语：句子在描述「其它系统 / 先前工作」而不是本论文的方法时，
@@ -201,11 +254,14 @@ export interface RelationEvidenceAssessment {
  *
  * 判定标准（必须同时满足）：
  * 1. 引文必须提到**被继承一方**（from）的方法名或其别名 —— 泛化词（如单独出现的 Transformer）不算；
- * 2. 关系类型需要有对应的支持：
- *    - extends / combines：出现继承/组合措辞，或「提到 from 方法名 + 引用标记」；
- *    - improves：必须出现改进类措辞（改进比较不能被引用标记替代）；
- *    - similar：必须同时提到两端；
- * 3. 仅出现引用标记、或只出现更泛的技术祖先（如 Vaswani et al.），不能认证具体端点。
+ * 2. 引文必须**有关系措辞**（based on / builds upon / starting point / modernize / most related …）。
+ *    引用标记（[15]、(Author et al., 2020)）**不能**替代关系措辞：它只说明提到了这篇工作，
+ *    没有说明"是什么关系"。
+ * 3. 各关系类型的额外要求：
+ *    - extends / combines：具备继承/组合措辞；
+ *    - improves：必须出现改进类措辞；
+ *    - similar：必须同时指向两端（另一端可以是本论文自指，如「our work」）；
+ * 4. 仅出现引用标记、或只出现更泛的技术祖先（如 Vaswani et al.），不能认证具体端点。
  */
 export function assessRelationEvidence(
   quote: string,
@@ -253,8 +309,11 @@ export function assessRelationEvidence(
       sufficient = true;
     }
   } else if (type === 'similar') {
-    if (!mentionsFrom || !mentionsTo) {
-      missing = '「相似」关系需要同时提到关系两端的方法名称';
+    // 「最相关的工作是 X」这类 related work 表述里，另一端常写作「our work」，
+    // 与 extends 一样接受自指；但两端都必须能指到，不能只提一方。
+    const hasTo = mentionsTo || selfReferential;
+    if (!mentionsFrom || !hasTo) {
+      missing = '「相似/相关」关系需要同时指向关系两端（另一端可以是本论文的自指表述，如「our work」）';
     } else {
       sufficient = true;
     }
@@ -262,8 +321,16 @@ export function assessRelationEvidence(
     // extends / combines / unclear
     if (!mentionsFrom) {
       missing = '缺少「被继承方法名称」这一必需条件，仅凭引用标记或更泛的技术名称不能认证该端点';
-    } else if (!claimWord && !citation) {
-      missing = '缺少继承/组合措辞或引用标记';
+    } else if (!claimWord) {
+      /**
+       * 关系措辞改为**必需**（旧版允许「提到方法名 + 引用标记」就通过）。
+       *
+       * 实测漏洞：Swin 论文的 "Most related to our work is the Vision Transformer (ViT) [20]"
+       * 指名了 ViT 且带引用标记，旧规则会把它判成「原文明示 extends」——
+       * 但这句话说的是「最相关」，不是「我们基于它扩展」。引用标记只能说明提到了这篇工作，
+       * 不能替代「说了什么关系」。这条同时与项目铁律一致：判原文明示必须有关系措辞。
+       */
+      missing = '缺少能说明继承/组合的措辞（引用标记只能说明提到了这篇工作，不能替代关系措辞）';
     } else {
       sufficient = true;
     }
