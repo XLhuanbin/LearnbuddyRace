@@ -11,7 +11,7 @@
  * 6. 分歧发现区分数值结果与定性主张，要求给出共同比较范围；措辞改为「条件不一致，无法归因于方法」。
  */
 
-export const PROMPT_VERSION = 'v3.2.0';
+export const PROMPT_VERSION = 'v3.3.0';
 
 const TRUTH_RULES = `
 硬性要求（违反则本次结果作废）：
@@ -164,7 +164,21 @@ export function relationSystemPrompt(): string {
 - "our work builds upon X" / "we extend X" / "our starting point is X" → extends；
 - "we improve upon X" / "outperforms X" → improves；
 - "most related to our work is X" / "unlike X" / "in contrast to X" → **similar**（只是"相关/对比"，不是继承）；
-- 论文只说 X 有什么不足、本文另起炉灶 → 不要判成 extends，可用 improves 或 candidate。`,
+- 论文只说 X 有什么不足、本文另起炉灶 → 不要判成 extends，可用 improves 或 candidate。
+
+**关系不只有「谁基于谁」这一类**（实测最容易整片漏掉的正是这一类）：
+- **并行分支**：两个方法都基于同一个前置方法（图上已存在 A→B 与 A→C），或发表于同一时期、解决同一任务、
+  思路不同源 —— 它们之间**没有继承关系，但有明确的横向关系**，应判为 **similar**；
+- **不同技术路线**：两个方法用根本不同的技术路线解决同一个任务（例如卷积路线 vs 注意力路线、
+  自监督 vs 监督预训练）—— 同样是 **similar**，不是 extends，也不是"没关系"。
+这两类要在 rationale 里写清是哪一种（「并行分支」/「不同路线」）以及依据（共同前置是什么、
+路线差异在哪）。**不要把「找不到继承证据」当成「没有关系」而整对不输出** ——
+那会让图上只剩一条沿时间往前推的链，丢掉最有信息量的横向结构。
+
+**优先级（别把横向关系当成兜底类型）**：
+先按字面措辞判 —— 引文里有 outperforms / improves upon / builds upon / starting point /
+modernize 这类明确措辞时，就判 improves / extends，**不要因为"它们路线不同"就改判 similar**；
+只有**确实找不到继承或改进措辞**的对，才用 similar 表达横向关系。`,
   ].join('\n\n');
 }
 
@@ -199,7 +213,11 @@ ${list}
 }
 
 规则：
+- **每一对方法都要给出一条判断**：上面共 ${methods.length} 个方法，应输出 ${(methods.length * (methods.length - 1)) / 2} 对（不要漏对）。
+  实在找不到证据也要输出，判为 candidate 并在 rationale 写明还缺什么；
+  属于「并行分支 / 不同路线」的横向关系判 similar。**不要因为不是继承关系就整对不输出**。
 - from 表示「被基于/被改进」的一方，to 表示「新方法」一方。
+  横向关系（similar / unclear）不存在方向，from/to 只是形式上的两端，界面不会把它画成方向。
 - explicit 必须满足上面 system 中列出的严格标准；不满足就标 inferred 或 candidate，不要试探性地标 explicit。
 - 一个片段只能支持它字面说到的内容：如果片段只提到 Transformer 和 Vaswani et al.，就不能用它认证「BERT 是它的前身」。
 - 片段写「most related to our work is X」时只能标 similar，不能标 extends；写「X is unsuitable / requires large data」这类评价也不能当成继承。

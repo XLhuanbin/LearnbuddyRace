@@ -611,6 +611,12 @@ export function assembleRelationsFromModel(
   const issues: ValidationIssue[] = [];
   /** 有向去重键：A→B 与 B→A 是两条不同的关系，不能按无向键合并掉一条 */
   const seen = new Set<string>();
+  /**
+   * 注：这里**不做**「同一对方法只保留一条」的合并。实测模型偶尔会同时给出 A→B 与 B→A，
+   * 看着像重复，但按无向键合并会丢掉真实存在的反向关系（例如「A 基于 B」与「B 反过来改进了 A」
+   * 是两件事）。提示词已要求「不要为同一对方法输出多条关系」，多余的反向条目保留为
+   * 「待核查」并展示其引文，由读者判断，不静默丢弃。
+   */
 
   rawRelations.forEach((r, i) => {
     const from = r.from || '';
@@ -698,6 +704,25 @@ export function assembleRelationsFromModel(
     }
     if (!primary) primary = located[0] ?? unlocated;
 
+    /**
+     * 非「原文明示」的关系：引文必须至少提到**一个端点**，否则不挂。
+     *
+     * 实测问题：提示词要求覆盖全部配对后，模型给「待核查」的关系也附了引文，
+     * 但其中有些片段与这两个方法都无关（例：ResNet–ViT 这条挂的是 ViT 论文里
+     * "To handle 2D images, we reshape the image …" 这段纯粹的方法描述）。
+     * 界面上它就显示成这条关系的「原文依据」——等于拿不相干的原文冒充依据。
+     * 因此这里只保留「至少提到一端」的片段；不符合就写「无引文」（界面会如实说明）。
+     */
+    if (primary && evidenceState !== 'explicit') {
+      const a = assessRelationEvidence(
+        primary.quote,
+        fromMethod.fields.methodName.value,
+        toMethod.fields.methodName.value,
+        type,
+      );
+      if (!a.mentionsFrom && !a.mentionsTo) primary = undefined;
+    }
+
     const draft: Relation = {
       id: `r_${i}_${from}_${to}`,
       fromMethodId: from,
@@ -716,6 +741,7 @@ export function assembleRelationsFromModel(
     };
 
     const { relation, issues: relIssues } = validateRelation(draft, methods, papers);
+
     out.push(relation);
     issues.push(...relIssues);
   });

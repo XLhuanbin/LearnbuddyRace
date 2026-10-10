@@ -1151,8 +1151,8 @@ IndexedDB 里已存在一条人工修正关系 〔{"id":"r_0_m_p_arxiv_1512.0338
 | 检查项 | 实际结果 |
 | --- | --- |
 | `npm run typecheck` | 通过 |
-| `npm test` | **474/474**（新增第 37 节 11 条断言） |
-| `npm run build` | 通过，构建指纹 `5fc847cb9f` |
+| `npm test` | **478/478**（第 37 节共 16 条断言：11 条守证据检索，5 条守「关系不能只剩一条时间链」） |
+| `npm run build` | 通过，构建指纹 `03ec0e2ae1` |
 | `npm run e2e` | **70/78** —— 8 项失败全部是研究地图改版遗留的选择器失效（`.mapstage .mnode` 在 DOM 里已不存在），**非本轮引入** |
 | `npm run verify:relations` | **16/16** |
 | `npm run verify:layout` | **81/81** |
@@ -1162,12 +1162,16 @@ IndexedDB 里已存在一条人工修正关系 〔{"id":"r_0_m_p_arxiv_1512.0338
 | `npm run verify:ui` | 崩溃（同上，脚本里 `.mapstage` 取不到） |
 | `npm run verify:mobile` | 崩溃（同上） |
 
-真实模型调用 3 次（`--relations-only`，分别针对 `samples-vision` / `samples-vision-core` / `samples`）。
+真实模型调用多次（`--relations-only`，分别针对 `samples-vision` / `samples-vision-core` / `samples`）。
+「只重跑关系」模式不重跑抽取，因此缓存里 `relationsOnlyRegeneratedAt` 标明范围。
 
 视觉案例关系状态变化：
 
-- 改前：10 条关系，**原文明示 0 条**
-- 改后：8 条关系，**原文明示 4 条**（ViT→DeiT 继承、ResNet→ConvNeXt 继承、Swin→ConvNeXt 改进、ViT→Swin 相似）
+- 改前：10 条关系，**原文明示 0 条**，且 10 个无序配对缺 2 对（ResNet–ViT、DeiT–Swin 两条横向关系）
+- 第一轮后：8 条关系，**原文明示 4 条**（ViT→DeiT 继承、ResNet→ConvNeXt 继承、Swin→ConvNeXt 改进、ViT→Swin 相似）
+- 第二轮后：**10 条关系，覆盖全部 10 个配对**，原文明示仍 4 条，三态「全部 10 · 可用 7 · 待核查 3」；
+  画布实测节点坐标 `ResNet(120,250) ViT(120,380) Swin(120,510) → DeiT(310,315) ConvNeXt(310,445)`，
+  **不再是 5 个节点排在一条线上**（第二轮修了「分层把无方向的 similar 边也算进去」导致的退化）
 
 收紧后复核对旧结论的影响：`samples`（NLP 回归样例）改版前已认证的 3 条 explicit
 （Transformer→BERT、BERT→RoBERTa、BERT→DistilBERT）**全部仍然成立**，无回退。

@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import type { Evidence, Method, Paper, Relation } from '../core/types';
+import type { Evidence, Method, Paper, Relation, RelationType } from '../core/types';
 import { buildMethodProfile, shortContribution } from '../core/grouping';
 import { DraftIcon } from '../draft-icons';
 import { INNOVATION_TIERS, innovationColor } from './innovationScale';
@@ -88,12 +88,25 @@ export function MapNetworkView({
   /** 布局：按关系深度分层（没有关系的排在最左），层内纵向均分 —— 确定性，不随机 */
   const { nodes, edges } = useMemo(() => {
     const ids = methods.map((m) => m.id);
+
+    /**
+     * ⚠️ 分层**只用「有方向」的关系**（extends / improves / combines）。
+     *
+     * 实测踩到的坑：similar / unclear 的 from→to 只是形式上的两端，界面也写着
+     * 「相近/不明确的关系不声明方向」。若把它们也当成「谁在谁之后」，一旦关系覆盖变全
+     * （每对方法都有边），5 个方法会被推成「5 层、每层 1 个」⇒ 全部落在同一条 y 上，
+     * 画出来就是一条直线 —— 正是用户说的「简单线性」。
+     * 只用有方向的边分层，横向关系就只画线、不参与定序，图才分得出层次与分支。
+     */
+    const DIRECTED: RelationType[] = ['extends', 'improves', 'combines'];
+    const directed = relations.filter((r) => DIRECTED.includes(r.type));
+
     const depth = new Map<string, number>();
     for (const id of ids) depth.set(id, 0);
     // 最多迭代 ids.length 轮，避免关系成环时死循环
     for (let pass = 0; pass < ids.length; pass++) {
       let changed = false;
-      for (const r of relations) {
+      for (const r of directed) {
         if (!depth.has(r.fromMethodId) || !depth.has(r.toMethodId)) continue;
         const d = (depth.get(r.fromMethodId) ?? 0) + 1;
         if (d > (depth.get(r.toMethodId) ?? 0)) {
@@ -120,28 +133,31 @@ export function MapNetworkView({
      *   - 有分叉（任一层 >1 个节点，或任一节点出度 >1）→ 用深度分层，能体现分支；
      *   - 纯链 → **按年份升序排、y 上下交错（之字形）**，读起来是一条有节奏的演进时间线。
      */
+    // 「是否分叉」只看有没有哪一层装了不止一个节点；出度大不构成分叉（那是辐辏，不是分层）
     const maxLayer = Math.max(0, ...[...byDepth.values()].map((l) => l.length));
-    const maxOut = Math.max(0, ...ids.map((id) => relations.filter((r) => r.fromMethodId === id).length));
-    const hasBranch = maxLayer > 1 || maxOut > 1;
+    const hasBranch = maxLayer > 1;
 
     const placed = new Map<string, { x: number; y: number; r: number }>();
     const degOf = (id: string) => relations.filter((r) => r.fromMethodId === id || r.toMethodId === id).length;
     const radiusOf = (id: string) => 13 + Math.min(degOf(id), 5) * 2;
+    const yearOf = (id: string) => {
+      const m = methods.find((x) => x.id === id);
+      return papers.find((p) => p.id === m?.paperId)?.year ?? 9999;
+    };
 
     if (hasBranch) {
       for (const [d, list] of [...byDepth.entries()].sort((a, b) => a[0] - b[0])) {
         const h = (list.length - 1) * ROW_GAP;
-        list.forEach((id, i) => {
-          placed.set(id, { x: 120 + d * COL_GAP, y: 380 - h / 2 + i * ROW_GAP, r: radiusOf(id) });
-        });
+        // 同一层内按年份升序，读起来是从上到下的时间顺序（不按输入顺序，避免看起来随机）
+        [...list]
+          .sort((a, b) => yearOf(a) - yearOf(b))
+          .forEach((id, i) => {
+            placed.set(id, { x: 120 + d * COL_GAP, y: 380 - h / 2 + i * ROW_GAP, r: radiusOf(id) });
+          });
       }
     } else {
       // 纯链：按年份升序，y 上下交错
       const AMP = 85;
-      const yearOf = (id: string) => {
-        const m = methods.find((x) => x.id === id);
-        return papers.find((p) => p.id === m?.paperId)?.year ?? 9999;
-      };
       [...ids]
         .sort((a, b) => yearOf(a) - yearOf(b))
         .forEach((id, i) => {
@@ -302,6 +318,12 @@ export function MapNetworkView({
               {/* 连线 */}
               {edges.map((e) => {
                 const s = PATH_STYLE[e.type] ?? PATH_STYLE.unclear;
+                /**
+                 * 只有「有方向」的关系类型才画箭头。
+                 * similar / unclear 的 from→to 只是形式上的两端（模型必须填两个端点），
+                 * 图例也写了「相近/不明确的关系不声明方向」——给它们画箭头等于凭空声明了一个方向。
+                 */
+                const directional = e.type === 'extends' || e.type === 'improves' || e.type === 'combines';
                 return (
                   <line
                     key={e.id}
@@ -312,7 +334,7 @@ export function MapNetworkView({
                     stroke={s.color}
                     strokeWidth={s.width}
                     strokeDasharray={s.dash}
-                    markerEnd={`url(#arrow-${e.type})`}
+                    markerEnd={directional ? `url(#arrow-${e.type})` : undefined}
                     opacity={dimmed.size ? 0.15 : 0.9}
                   />
                 );

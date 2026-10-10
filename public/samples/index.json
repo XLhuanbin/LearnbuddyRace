@@ -2024,75 +2024,7 @@
   ],
   "relations": [
     {
-      "id": "r_0_m_p_arxiv_1706.03762_m_p_arxiv_1910.01108",
-      "fromMethodId": "m_p_arxiv_1706.03762",
-      "toMethodId": "m_p_arxiv_1910.01108",
-      "type": "extends",
-      "evidenceState": "inferred",
-      "rationale": "DistilBERT 原文提到学生模型是一个更小的 Transformer，并用更大的 Transformer 语言模型（BERT）进行蒸馏监督，说明其架构承接自 Transformer 架构；但检索到的句子只泛称 Transformer 并带 [2017] 引用标记，未指名 Vaswani et al. 的 Transformer 作为被继承端点，因此不满足 explicit 标准，只能推断为架构层面的承接。",
-      "aiOriginal": {
-        "type": "extends",
-        "evidenceState": "inferred",
-        "rationale": "DistilBERT 原文提到学生模型是一个更小的 Transformer，并用更大的 Transformer 语言模型（BERT）进行蒸馏监督，说明其架构承接自 Transformer 架构；但检索到的句子只泛称 Transformer 并带 [2017] 引用标记，未指名 Vaswani et al. 的 Transformer 作为被继承端点，因此不满足 explicit 标准，只能推断为架构层面的承接。"
-      },
-      "stateAdjusted": []
-    },
-    {
-      "id": "r_1_m_p_arxiv_1810.04805_m_p_arxiv_1910.01108",
-      "fromMethodId": "m_p_arxiv_1810.04805",
-      "toMethodId": "m_p_arxiv_1910.01108",
-      "type": "extends",
-      "evidenceState": "explicit",
-      "evidence": {
-        "paperId": "p_arxiv_1910.01108",
-        "quote": "3 DistilBERT: a distilled version of BERT\nStudent architecture In the present work, the student - DistilBERT - has the same general architec-\n\nture as BERT",
-        "page": 2,
-        "start": 5706,
-        "end": 5861,
-        "section": "1 Introduction",
-        "locator": "page+offset",
-        "verified": true,
-        "matchType": "loose",
-        "coverage": 1
-      },
-      "evidenceList": [
-        {
-          "paperId": "p_arxiv_1910.01108",
-          "quote": "3 DistilBERT: a distilled version of BERT\nStudent architecture In the present work, the student - DistilBERT - has the same general architec-\n\nture as BERT",
-          "page": 2,
-          "start": 5706,
-          "end": 5861,
-          "section": "1 Introduction",
-          "locator": "page+offset",
-          "verified": true,
-          "matchType": "loose",
-          "coverage": 1
-        },
-        {
-          "paperId": "p_arxiv_1910.01108",
-          "quote": "While most prior work investigated the use of distillation for building task-specific\n\nmodels, we leverage knowledge distillation during the pre-training phase and show\n\nthat it is possible to reduce the size of a BERT model by 40%, while retaining 97%\n\nof its language understanding capabilities and being 60% faster.",
-          "page": 1,
-          "start": 697,
-          "end": 1015,
-          "section": "Abstract",
-          "locator": "page+offset",
-          "verified": true,
-          "matchType": "strict",
-          "coverage": 1
-        }
-      ],
-      "rationale": "DistilBERT 明确指名 BERT 作为教师模型，并说明学生模型与 BERT 具有相同总体架构、通过预训练阶段的知识蒸馏从 BERT 出发缩小模型，属于在 BERT 基础上的继承与压缩式扩展。",
-      "aiOriginal": {
-        "type": "extends",
-        "evidenceState": "explicit",
-        "rationale": "DistilBERT 明确指名 BERT 作为教师模型，并说明学生模型与 BERT 具有相同总体架构、通过预训练阶段的知识蒸馏从 BERT 出发缩小模型，属于在 BERT 基础上的继承与压缩式扩展。",
-        "evidenceQuote": "3 DistilBERT: a distilled version of BERT Student architecture In the present work, the student - DistilBERT - has the same general architec- ture as BERT."
-      },
-      "stateAdjusted": [],
-      "evidenceAssessment": "引文提到了被继承方法「BERT」；提到了关系另一端「DistilBERT」；含继承/组合措辞「distilled version of」，足以支撑「extends」关系。"
-    },
-    {
-      "id": "r_2_m_p_arxiv_1706.03762_m_p_arxiv_1810.04805",
+      "id": "r_0_m_p_arxiv_1706.03762_m_p_arxiv_1810.04805",
       "fromMethodId": "m_p_arxiv_1706.03762",
       "toMethodId": "m_p_arxiv_1810.04805",
       "type": "extends",
@@ -2123,18 +2055,18 @@
           "coverage": 1
         }
       ],
-      "rationale": "BERT 原文明确说明其模型架构是基于 Vaswani et al. 描述的原始实现的多层双向 Transformer 编码器，指名了被继承的方法（Vaswani et al. 的 Transformer）并使用 based on 表述，符合 explicit 标准。",
+      "rationale": "BERT 原文明确说明其模型架构是基于 Vaswani et al. 的原始实现的多层双向 Transformer 编码器，'based on the original implementation described in Vaswani et al.' 指名了被继承方（Transformer 原始实现），关系类型为 extends。",
       "aiOriginal": {
         "type": "extends",
         "evidenceState": "explicit",
-        "rationale": "BERT 原文明确说明其模型架构是基于 Vaswani et al. 描述的原始实现的多层双向 Transformer 编码器，指名了被继承的方法（Vaswani et al. 的 Transformer）并使用 based on 表述，符合 explicit 标准。",
+        "rationale": "BERT 原文明确说明其模型架构是基于 Vaswani et al. 的原始实现的多层双向 Transformer 编码器，'based on the original implementation described in Vaswani et al.' 指名了被继承方（Transformer 原始实现），关系类型为 extends。",
         "evidenceQuote": "Model Architecture BERT’s model architec- ture is a multi-layer bidirectional Transformer en- coder based on the original implementation de- scribed in Vaswani et al."
       },
       "stateAdjusted": [],
       "evidenceAssessment": "引文提到了被继承方法「Transformer」；提到了关系另一端「BERT」；含继承/组合措辞「based on」，足以支撑「extends」关系。"
     },
     {
-      "id": "r_3_m_p_arxiv_1810.04805_m_p_arxiv_1907.11692",
+      "id": "r_1_m_p_arxiv_1810.04805_m_p_arxiv_1907.11692",
       "fromMethodId": "m_p_arxiv_1810.04805",
       "toMethodId": "m_p_arxiv_1907.11692",
       "type": "improves",
@@ -2177,15 +2109,110 @@
           "coverage": 1
         }
       ],
-      "rationale": "RoBERTa 原文明确指名 BERT，并使用 improves upon / modifications to the BERT pretraining procedure that improve 等措辞，说明其在保持 BERT 架构的前提下改进 BERT 的预训练流程并提升结果，属于 improves 关系。",
+      "rationale": "RoBERTa 原文明确使用 'improves upon the published BERT results' 和 'modifications to the BERT pretraining procedure that improve end-task performance'，指名 BERT 并给出改进措辞，关系类型为 improves。",
       "aiOriginal": {
         "type": "improves",
         "evidenceState": "explicit",
-        "rationale": "RoBERTa 原文明确指名 BERT，并使用 improves upon / modifications to the BERT pretraining procedure that improve 等措辞，说明其在保持 BERT 架构的前提下改进 BERT 的预训练流程并提升结果，属于 improves 关系。",
+        "rationale": "RoBERTa 原文明确使用 'improves upon the published BERT results' 和 'modifications to the BERT pretraining procedure that improve end-task performance'，指名 BERT 并给出改进措辞，关系类型为 improves。",
         "evidenceQuote": "When controlling for training data, our im- proved training procedure improves upon the pub- lished BERT results on both GLUE and SQuAD."
       },
       "stateAdjusted": [],
       "evidenceAssessment": "引文提到了被继承方法「BERT」；含改进措辞「improves」，足以支撑「improves」关系。"
+    },
+    {
+      "id": "r_2_m_p_arxiv_1810.04805_m_p_arxiv_1910.01108",
+      "fromMethodId": "m_p_arxiv_1810.04805",
+      "toMethodId": "m_p_arxiv_1910.01108",
+      "type": "extends",
+      "evidenceState": "explicit",
+      "evidence": {
+        "paperId": "p_arxiv_1910.01108",
+        "quote": "3 DistilBERT: a distilled version of BERT\nStudent architecture In the present work, the student - DistilBERT - has the same general architec-\n\nture as BERT",
+        "page": 2,
+        "start": 5706,
+        "end": 5861,
+        "section": "1 Introduction",
+        "locator": "page+offset",
+        "verified": true,
+        "matchType": "loose",
+        "coverage": 1
+      },
+      "evidenceList": [
+        {
+          "paperId": "p_arxiv_1910.01108",
+          "quote": "3 DistilBERT: a distilled version of BERT\nStudent architecture In the present work, the student - DistilBERT - has the same general architec-\n\nture as BERT",
+          "page": 2,
+          "start": 5706,
+          "end": 5861,
+          "section": "1 Introduction",
+          "locator": "page+offset",
+          "verified": true,
+          "matchType": "loose",
+          "coverage": 1
+        },
+        {
+          "paperId": "p_arxiv_1910.01108",
+          "quote": "While most prior work investigated the use of distillation for building task-specific\n\nmodels, we leverage knowledge distillation during the pre-training phase and show\n\nthat it is possible to reduce the size of a BERT model by 40%, while retaining 97%\n\nof its language understanding capabilities and being 60% faster.",
+          "page": 1,
+          "start": 697,
+          "end": 1015,
+          "section": "Abstract",
+          "locator": "page+offset",
+          "verified": true,
+          "matchType": "strict",
+          "coverage": 1
+        }
+      ],
+      "rationale": "DistilBERT 原文明确说明学生模型 DistilBERT 具有与 BERT 相同的总体架构，并在预训练阶段对 BERT 进行知识蒸馏，指名 BERT 并说明承接关系，关系类型为 extends。",
+      "aiOriginal": {
+        "type": "extends",
+        "evidenceState": "explicit",
+        "rationale": "DistilBERT 原文明确说明学生模型 DistilBERT 具有与 BERT 相同的总体架构，并在预训练阶段对 BERT 进行知识蒸馏，指名 BERT 并说明承接关系，关系类型为 extends。",
+        "evidenceQuote": "3 DistilBERT: a distilled version of BERT Student architecture In the present work, the student - DistilBERT - has the same general architec- ture as BERT."
+      },
+      "stateAdjusted": [],
+      "evidenceAssessment": "引文提到了被继承方法「BERT」；提到了关系另一端「DistilBERT」；含继承/组合措辞「distilled version of」，足以支撑「extends」关系。"
+    },
+    {
+      "id": "r_3_m_p_arxiv_1706.03762_m_p_arxiv_1910.01108",
+      "fromMethodId": "m_p_arxiv_1706.03762",
+      "toMethodId": "m_p_arxiv_1910.01108",
+      "type": "extends",
+      "evidenceState": "inferred",
+      "evidence": {
+        "paperId": "p_arxiv_1910.01108",
+        "quote": "Using a triple loss, we show that a 40% smaller Transformer (Vaswani et al. [2017]) pre-trained\n\nthrough distillation via the supervision of a bigger Transformer language model can achieve similar\n\nperformance on a variety of downstream tasks, while being 60% faster at inference time.",
+        "page": 2,
+        "start": 3206,
+        "end": 3491,
+        "section": "1 Introduction",
+        "locator": "page+offset",
+        "verified": true,
+        "matchType": "strict",
+        "coverage": 1
+      },
+      "evidenceList": [
+        {
+          "paperId": "p_arxiv_1910.01108",
+          "quote": "Using a triple loss, we show that a 40% smaller Transformer (Vaswani et al. [2017]) pre-trained\n\nthrough distillation via the supervision of a bigger Transformer language model can achieve similar\n\nperformance on a variety of downstream tasks, while being 60% faster at inference time.",
+          "page": 2,
+          "start": 3206,
+          "end": 3491,
+          "section": "1 Introduction",
+          "locator": "page+offset",
+          "verified": true,
+          "matchType": "strict",
+          "coverage": 1
+        }
+      ],
+      "rationale": "DistilBERT 原文提到其学生模型是一个更小的 Transformer (Vaswani et al. [2017])，说明其架构承接自 Transformer，但该句主要陈述蒸馏结果，未直接以 'based on/builds upon' 等措辞指名继承 Transformer 原始方法，故标为 inferred。",
+      "aiOriginal": {
+        "type": "extends",
+        "evidenceState": "inferred",
+        "rationale": "DistilBERT 原文提到其学生模型是一个更小的 Transformer (Vaswani et al. [2017])，说明其架构承接自 Transformer，但该句主要陈述蒸馏结果，未直接以 'based on/builds upon' 等措辞指名继承 Transformer 原始方法，故标为 inferred。",
+        "evidenceQuote": "Using a triple loss, we show that a 40% smaller Transformer (Vaswani et al. [2017]) pre-trained through distillation via the supervision of a bigger Transformer language model can achieve similar performance on a variety of downstream tasks, while being 60% faster at inference time."
+      },
+      "stateAdjusted": []
     },
     {
       "id": "r_4_m_p_arxiv_1810.04805_m_p_arxiv_2005.14165",
@@ -2217,12 +2244,139 @@
           "coverage": 1
         }
       ],
-      "rationale": "检索到的唯一句子只是把 GPT-3 的 few-shot 结果与 BERT 微调基线在 DROP 上做性能对比，并未说明 GPT-3 在方法上基于或改进 BERT；GPT-3 是自回归语言模型且不做微调，与 BERT 的双向编码器预训练+微调范式不同，因此只能作为对比/相似性候选，需核查 GPT-3 论文是否在别处明确讨论与 BERT 的方法关系。",
+      "rationale": "GPT-3 原文仅在 DROP 数据集上把 few-shot GPT-3 与 fine-tuned BERT baseline 做性能对比，未陈述架构继承或改进关系。两者属于不同技术路线（BERT 为双向编码器微调范式，GPT-3 为自回归语言模型少样本上下文学习），可视为横向 similar，但缺少直接陈述关系的句子，故标为 candidate。",
       "aiOriginal": {
         "type": "similar",
         "evidenceState": "candidate",
-        "rationale": "检索到的唯一句子只是把 GPT-3 的 few-shot 结果与 BERT 微调基线在 DROP 上做性能对比，并未说明 GPT-3 在方法上基于或改进 BERT；GPT-3 是自回归语言模型且不做微调，与 BERT 的双向编码器预训练+微调范式不同，因此只能作为对比/相似性候选，需核查 GPT-3 论文是否在别处明确讨论与 BERT 的方法关系。",
+        "rationale": "GPT-3 原文仅在 DROP 数据集上把 few-shot GPT-3 与 fine-tuned BERT baseline 做性能对比，未陈述架构继承或改进关系。两者属于不同技术路线（BERT 为双向编码器微调范式，GPT-3 为自回归语言模型少样本上下文学习），可视为横向 similar，但缺少直接陈述关系的句子，故标为 candidate。",
         "evidenceQuote": "On DROP [DWD + 19 ], a dataset testing discrete reasoning and numeracy in the context of reading comprehension, GPT-3 in a few-shot setting outperforms the fine-tuned BERT baseline from the original paper but is still well below both human performance and state-of-the-art approaches which augment neural networks with symbolic systems [RLL + 19 ]."
+      },
+      "stateAdjusted": []
+    },
+    {
+      "id": "r_5_m_p_arxiv_1706.03762_m_p_arxiv_1907.11692",
+      "fromMethodId": "m_p_arxiv_1706.03762",
+      "toMethodId": "m_p_arxiv_1907.11692",
+      "type": "extends",
+      "evidenceState": "inferred",
+      "evidenceList": [
+        {
+          "paperId": "p_arxiv_1907.11692",
+          "quote": "This section explores and quantifies which choices\n\nare important for successfully pretraining BERT\n\nmodels. We keep the model architecture fixed.",
+          "page": 4,
+          "start": 13709,
+          "end": 13855,
+          "section": "results depend on a several task-specific modifica-",
+          "locator": "page+offset",
+          "verified": true,
+          "matchType": "strict",
+          "coverage": 1
+        }
+      ],
+      "rationale": "RoBERTa 保持 BERT 架构不变，而 BERT 架构本身基于 Transformer，因此 RoBERTa 间接承接 Transformer 架构。但 RoBERTa 原文未直接指名 Transformer 并陈述继承关系，故标为 inferred。",
+      "aiOriginal": {
+        "type": "extends",
+        "evidenceState": "inferred",
+        "rationale": "RoBERTa 保持 BERT 架构不变，而 BERT 架构本身基于 Transformer，因此 RoBERTa 间接承接 Transformer 架构。但 RoBERTa 原文未直接指名 Transformer 并陈述继承关系，故标为 inferred。",
+        "evidenceQuote": "This section explores and quantifies which choices\n\nare important for successfully pretraining BERT\n\nmodels. We keep the model architecture fixed."
+      },
+      "stateAdjusted": []
+    },
+    {
+      "id": "r_6_m_p_arxiv_1706.03762_m_p_arxiv_2005.14165",
+      "fromMethodId": "m_p_arxiv_1706.03762",
+      "toMethodId": "m_p_arxiv_2005.14165",
+      "type": "similar",
+      "evidenceState": "candidate",
+      "evidence": {
+        "paperId": "p_arxiv_2005.14165",
+        "quote": "Specifically, we train GPT-3, an autoregressive language model with 175 billion\n\nparameters, 10x more than any previous non-sparse language model, and test its performance in\n\nthe few-shot setting.",
+        "page": 1,
+        "start": 1221,
+        "end": 1418,
+        "section": "Abstract",
+        "locator": "page+offset",
+        "verified": true,
+        "matchType": "strict",
+        "coverage": 1
+      },
+      "evidenceList": [
+        {
+          "paperId": "p_arxiv_2005.14165",
+          "quote": "Specifically, we train GPT-3, an autoregressive language model with 175 billion\n\nparameters, 10x more than any previous non-sparse language model, and test its performance in\n\nthe few-shot setting.",
+          "page": 1,
+          "start": 1221,
+          "end": 1418,
+          "section": "Abstract",
+          "locator": "page+offset",
+          "verified": true,
+          "matchType": "strict",
+          "coverage": 1
+        }
+      ],
+      "rationale": "GPT-3 是自回归语言模型，与 Transformer 的编码器-解码器注意力架构属于不同技术路线（GPT-3 强调少样本上下文学习而非微调）。原文未直接陈述与 Transformer 的继承或改进关系，故标为 candidate。",
+      "aiOriginal": {
+        "type": "similar",
+        "evidenceState": "candidate",
+        "rationale": "GPT-3 是自回归语言模型，与 Transformer 的编码器-解码器注意力架构属于不同技术路线（GPT-3 强调少样本上下文学习而非微调）。原文未直接陈述与 Transformer 的继承或改进关系，故标为 candidate。",
+        "evidenceQuote": "Specifically, we train GPT-3, an autoregressive language model with 175 billion\n\nparameters, 10x more than any previous non-sparse language model, and test its performance in\n\nthe few-shot setting."
+      },
+      "stateAdjusted": []
+    },
+    {
+      "id": "r_7_m_p_arxiv_1907.11692_m_p_arxiv_1910.01108",
+      "fromMethodId": "m_p_arxiv_1907.11692",
+      "toMethodId": "m_p_arxiv_1910.01108",
+      "type": "similar",
+      "evidenceState": "candidate",
+      "evidenceList": [
+        {
+          "paperId": "p_arxiv_1910.01108",
+          "quote": "Distillation We applied best practices for training BERT model recently proposed in Liu et al.",
+          "page": 3,
+          "start": 8173,
+          "end": 8267,
+          "section": "Model # param. Inf. time",
+          "locator": "page+offset",
+          "verified": true,
+          "matchType": "strict",
+          "coverage": 1
+        }
+      ],
+      "rationale": "DistilBERT 原文提到应用了 Liu et al.（即 RoBERTa）最近提出的 BERT 训练最佳实践，说明两者共享 BERT 预训练技术路线，但未陈述继承或改进关系，属于并行分支/同源横向关系，故标为 similar 且 evidenceState=candidate。",
+      "aiOriginal": {
+        "type": "similar",
+        "evidenceState": "candidate",
+        "rationale": "DistilBERT 原文提到应用了 Liu et al.（即 RoBERTa）最近提出的 BERT 训练最佳实践，说明两者共享 BERT 预训练技术路线，但未陈述继承或改进关系，属于并行分支/同源横向关系，故标为 similar 且 evidenceState=candidate。",
+        "evidenceQuote": "Distillation We applied best practices for training BERT model recently proposed in Liu et al."
+      },
+      "stateAdjusted": []
+    },
+    {
+      "id": "r_8_m_p_arxiv_1907.11692_m_p_arxiv_2005.14165",
+      "fromMethodId": "m_p_arxiv_1907.11692",
+      "toMethodId": "m_p_arxiv_2005.14165",
+      "type": "similar",
+      "evidenceState": "candidate",
+      "rationale": "RoBERTa 与 GPT-3 均属大规模预训练语言模型，但 RoBERTa 为双向编码器微调范式，GPT-3 为自回归少样本范式，属于不同技术路线。原文片段中未找到直接陈述两者关系的句子，故标为 candidate，需核查 GPT-3 原文是否提及 RoBERTa。",
+      "aiOriginal": {
+        "type": "similar",
+        "evidenceState": "candidate",
+        "rationale": "RoBERTa 与 GPT-3 均属大规模预训练语言模型，但 RoBERTa 为双向编码器微调范式，GPT-3 为自回归少样本范式，属于不同技术路线。原文片段中未找到直接陈述两者关系的句子，故标为 candidate，需核查 GPT-3 原文是否提及 RoBERTa。"
+      },
+      "stateAdjusted": []
+    },
+    {
+      "id": "r_9_m_p_arxiv_1910.01108_m_p_arxiv_2005.14165",
+      "fromMethodId": "m_p_arxiv_1910.01108",
+      "toMethodId": "m_p_arxiv_2005.14165",
+      "type": "similar",
+      "evidenceState": "candidate",
+      "rationale": "DistilBERT 与 GPT-3 均为基于 Transformer 的语言模型，但 DistilBERT 侧重蒸馏压缩 BERT，GPT-3 侧重自回归少样本学习，属于不同技术路线。原文片段中未找到直接陈述两者关系的句子，故标为 candidate，需核查 GPT-3 原文是否提及 DistilBERT。",
+      "aiOriginal": {
+        "type": "similar",
+        "evidenceState": "candidate",
+        "rationale": "DistilBERT 与 GPT-3 均为基于 Transformer 的语言模型，但 DistilBERT 侧重蒸馏压缩 BERT，GPT-3 侧重自回归少样本学习，属于不同技术路线。原文片段中未找到直接陈述两者关系的句子，故标为 candidate，需核查 GPT-3 原文是否提及 DistilBERT。"
       },
       "stateAdjusted": []
     }
@@ -3197,6 +3351,6 @@
   },
   "revalidatedOnly": true,
   "revalidationNote": "本文件的「判定类结论」（字段校验问题、条件范围与状态、关系可信度三档、分歧种类与可比性、已检查论文对）已由程序按规则 r3.2.0 在模型输出上重算；模型给出的字段值、引文、理由文字来自提示词 v3.0.0 的那次真实调用（未在重算中重新调用模型）。",
-  "promptVersion": "v3.2.0",
-  "relationsOnlyRegeneratedAt": "2026-10-10T16:52:38.172Z"
+  "promptVersion": "v3.3.0",
+  "relationsOnlyRegeneratedAt": "2026-10-10T17:56:23.944Z"
 }

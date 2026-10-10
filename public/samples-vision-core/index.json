@@ -2245,11 +2245,11 @@
           "coverage": 1
         }
       ],
-      "rationale": "ConvNeXt 论文明确说其训练配方接近 DeiT 的配方，属于训练方法上的借鉴/相似，而非架构继承。原文没有说 ConvNeXt 基于或改进 DeiT 的架构，因此不能标 explicit 的 extends/improves；这里按训练配方层面的相似关系记为 inferred。",
+      "rationale": "ConvNeXt 明确采用与 DeiT 接近的训练配方（training recipe），并直接引用 DeiT 的监督训练结果作为 ViT-S/B 的对照（p.7: 'We use the supervised training results from DeiT [73] for ViT-S/B'）。但 ConvNeXt 的架构起点是 ResNet-50（'Our starting point is a ResNet-50 model'），并非从 DeiT 继承或改进其架构；两者是同一时期、同一任务（ImageNet 分类）上不同技术路线（纯 ConvNet 现代化 vs 无卷积视觉 Transformer）的横向关系，故判 similar。原文没有出现 'builds upon DeiT' 或 'improves upon DeiT' 这类指名继承/改进的措辞，因此不能标 explicit。",
       "aiOriginal": {
         "type": "similar",
         "evidenceState": "inferred",
-        "rationale": "ConvNeXt 论文明确说其训练配方接近 DeiT 的配方，属于训练方法上的借鉴/相似，而非架构继承。原文没有说 ConvNeXt 基于或改进 DeiT 的架构，因此不能标 explicit 的 extends/improves；这里按训练配方层面的相似关系记为 inferred。",
+        "rationale": "ConvNeXt 明确采用与 DeiT 接近的训练配方（training recipe），并直接引用 DeiT 的监督训练结果作为 ViT-S/B 的对照（p.7: 'We use the supervised training results from DeiT [73] for ViT-S/B'）。但 ConvNeXt 的架构起点是 ResNet-50（'Our starting point is a ResNet-50 model'），并非从 DeiT 继承或改进其架构；两者是同一时期、同一任务（ImageNet 分类）上不同技术路线（纯 ConvNet 现代化 vs 无卷积视觉 Transformer）的横向关系，故判 similar。原文没有出现 'builds upon DeiT' 或 'improves upon DeiT' 这类指名继承/改进的措辞，因此不能标 explicit。",
         "evidenceQuote": "In our study, we use a training recipe that is close to DeiT’s [73] and Swin Transformer’s [45]."
       },
       "stateAdjusted": []
@@ -2284,11 +2284,11 @@
           "coverage": 1
         }
       ],
-      "rationale": "ConvNeXt 论文明确指名 Swin Transformer，并使用 outperform 措辞，说明 ConvNeXt 在性能上超越 Swin Transformer，符合 improves 关系。",
+      "rationale": "ConvNeXt 论文在正文中指名 Swin Transformer 并使用了明确的改进/超越措辞 'outperform the Swin Transformer'，符合 explicit 对『指名被改进方 + 关系类型措辞』的要求。此外 ConvNeXt 还借鉴了 Swin 的宏观设计（层级结构、patch merging 等）与训练配方（'Following Swin Transformer [45], we use multi-scale training, AdamW optimizer, and a 3× schedule.'，p.8），属于在 Swin 设计思路基础上的改进与超越，故 type 取 improves。",
       "aiOriginal": {
         "type": "improves",
         "evidenceState": "explicit",
-        "rationale": "ConvNeXt 论文明确指名 Swin Transformer，并使用 outperform 措辞，说明 ConvNeXt 在性能上超越 Swin Transformer，符合 improves 关系。",
+        "rationale": "ConvNeXt 论文在正文中指名 Swin Transformer 并使用了明确的改进/超越措辞 'outperform the Swin Transformer'，符合 explicit 对『指名被改进方 + 关系类型措辞』的要求。此外 ConvNeXt 还借鉴了 Swin 的宏观设计（层级结构、patch merging 等）与训练配方（'Following Swin Transformer [45], we use multi-scale training, AdamW optimizer, and a 3× schedule.'，p.8），属于在 Swin 设计思路基础上的改进与超越，故 type 取 improves。",
         "evidenceQuote": "In the end, our pure ConvNet model, named ConvNeXt, can outperform the Swin Transformer."
       },
       "stateAdjusted": [],
@@ -2322,13 +2322,25 @@
           "verified": true,
           "matchType": "loose",
           "coverage": 1
+        },
+        {
+          "paperId": "p_arxiv_2103.14030",
+          "quote": "DeiT [63], Swin Transformers no-\n\nticeably surpass the counterpart DeiT architectures with\n\nsimilar complexities: +1",
+          "page": 6,
+          "start": 25252,
+          "end": 25368,
+          "section": "Results with regular ImageNet-1K training Table 1(a)",
+          "locator": "page+offset",
+          "verified": true,
+          "matchType": "loose",
+          "coverage": 1
         }
       ],
-      "rationale": "Swin Transformer 论文明确指名 DeiT，并使用 outperforms 措辞，说明 Swin Transformer 在性能上显著超越 DeiT，符合 improves 关系。",
+      "rationale": "Swin Transformer 论文在引言与实验部分指名 DeiT 并使用 'outperforms' / 'surpass the counterpart DeiT architectures' 的明确超越措辞，满足 explicit 标准。两者同为视觉 Transformer 路线，但 Swin 通过层级式结构与 shifted window 注意力在精度/复杂度权衡上超越 DeiT，属于改进关系，故 type 取 improves。第二条引文页码为 p.6（原文标记处），此处 page 字段取首条引文所在页 2。",
       "aiOriginal": {
         "type": "improves",
         "evidenceState": "explicit",
-        "rationale": "Swin Transformer 论文明确指名 DeiT，并使用 outperforms 措辞，说明 Swin Transformer 在性能上显著超越 DeiT，符合 improves 关系。",
+        "rationale": "Swin Transformer 论文在引言与实验部分指名 DeiT 并使用 'outperforms' / 'surpass the counterpart DeiT architectures' 的明确超越措辞，满足 explicit 标准。两者同为视觉 Transformer 路线，但 Swin 通过层级式结构与 shifted window 注意力在精度/复杂度权衡上超越 DeiT，属于改进关系，故 type 取 improves。第二条引文页码为 p.6（原文标记处），此处 page 字段取首条引文所在页 2。",
         "evidenceQuote": "It outperforms the ViT / DeiT [20, 63] and ResNe(X)t models [30, 70] sig- nificantly with similar latency on the three tasks."
       },
       "stateAdjusted": [
@@ -2339,34 +2351,6 @@
         }
       ],
       "evidenceAssessment": "引文提到了被继承方法「DeiT」；含改进措辞「outperforms」；含引用标记「[20, 63]」。句子没有指向关系另一端（既未提到对方方法名，也不是本论文的自指表述）。"
-    },
-    {
-      "id": "r_3_m_p_arxiv_2201.03545_m_p_arxiv_2012.12877",
-      "fromMethodId": "m_p_arxiv_2201.03545",
-      "toMethodId": "m_p_arxiv_2012.12877",
-      "type": "unclear",
-      "evidenceState": "candidate",
-      "rationale": "候选片段中 ConvNeXt 论文没有明确陈述与 DeiT 的继承或改进关系；DeiT 论文也没有提到 ConvNeXt。现有片段不足以判定二者关系，需要核查 ConvNeXt 是否在正文中明确基于或改进 DeiT。",
-      "aiOriginal": {
-        "type": "unclear",
-        "evidenceState": "candidate",
-        "rationale": "候选片段中 ConvNeXt 论文没有明确陈述与 DeiT 的继承或改进关系；DeiT 论文也没有提到 ConvNeXt。现有片段不足以判定二者关系，需要核查 ConvNeXt 是否在正文中明确基于或改进 DeiT。"
-      },
-      "stateAdjusted": []
-    },
-    {
-      "id": "r_4_m_p_arxiv_2201.03545_m_p_arxiv_2103.14030",
-      "fromMethodId": "m_p_arxiv_2201.03545",
-      "toMethodId": "m_p_arxiv_2103.14030",
-      "type": "unclear",
-      "evidenceState": "candidate",
-      "rationale": "候选片段中 ConvNeXt 论文没有明确陈述基于或改进 Swin Transformer；Swin Transformer 论文也没有提到 ConvNeXt。现有片段不足以判定二者关系，需要核查 ConvNeXt 是否在正文中明确基于或改进 Swin Transformer。",
-      "aiOriginal": {
-        "type": "unclear",
-        "evidenceState": "candidate",
-        "rationale": "候选片段中 ConvNeXt 论文没有明确陈述基于或改进 Swin Transformer；Swin Transformer 论文也没有提到 ConvNeXt。现有片段不足以判定二者关系，需要核查 ConvNeXt 是否在正文中明确基于或改进 Swin Transformer。"
-      },
-      "stateAdjusted": []
     }
   ],
   "divergences": {
@@ -3029,6 +3013,6 @@
   },
   "experimentsRevalidatedAt": "2026-09-18T09:48:42.439Z",
   "tableBindingCheckedAt": "2026-09-18T09:49:59.616Z",
-  "promptVersion": "v3.2.0",
-  "relationsOnlyRegeneratedAt": "2026-10-10T16:52:28.129Z"
+  "promptVersion": "v3.3.0",
+  "relationsOnlyRegeneratedAt": "2026-10-10T17:56:15.246Z"
 }

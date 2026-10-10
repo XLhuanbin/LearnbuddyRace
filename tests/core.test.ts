@@ -41,6 +41,7 @@ import {
   toPage,
 } from '../src/core/model/analyze';
 import { buildRelationHints, findRelationCandidates, primaryAlias, usableAliases } from '../src/core/relationCandidates';
+import { relationSystemPrompt, relationUserPrompt } from '../src/core/model/prompts';
 import {
   CORPUS_META,
   asScopedSnapshot,
@@ -2790,6 +2791,28 @@ console.log('=== 37. 关系证据检索：到引用句 / Related Work 里找明�
     rechecked.every((a) => a.sufficient),
     rechecked.map((a) => a.sufficient).join(','),
   );
+
+  // ---- 关系不能只剩「沿时间往前推」的链：横向关系必须被覆盖 ----
+  // 实测缺陷：模型只输出「早 → 晚」的继承边，两对横向关系（ResNet–ViT 两条路线、
+  // DeiT–Swin 同期并行分支）整对不输出 ⇒ 图上看起来就是一条线。提示词已要求覆盖全部配对。
+  check(
+    '关系提示词要求覆盖全部配对（不能只挑有继承关系的对）',
+    /每一对方法都要给出一条判断/.test(relationUserPrompt([{ id: 'a', label: 'a' }, { id: 'b', label: 'b' }, { id: 'c', label: 'c' }], '')),
+  );
+  check(
+    '关系提示词把「并行分支 / 不同技术路线」明确归到 similar',
+    /并行分支/.test(relationSystemPrompt()) && /不同技术路线/.test(relationSystemPrompt()),
+  );
+  const unorderedPairs = new Set(vision.relations.map((r) => [r.fromMethodId, r.toMethodId].sort().join('~')));
+  const expectPairs = (vision.methods.length * (vision.methods.length - 1)) / 2;
+  // 覆盖度由模型输出决定（允许漏 1 对，但不允许像改版前那样整片缺横向关系）
+  check(
+    '真实视觉语料几乎覆盖全部方法配对（横向关系不能整对缺失）',
+    unorderedPairs.size >= expectPairs - 1,
+    `${unorderedPairs.size} / ${expectPairs} 对`,
+  );
+  const lateral = vision.relations.filter((r) => r.type === 'similar');
+  check('存在横向关系（similar）而不是清一色的继承边', lateral.length >= 2, `${lateral.length} 条`);
 }
 
 console.log('');
