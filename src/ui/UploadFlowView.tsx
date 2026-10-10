@@ -575,7 +575,9 @@ export function UploadFlowView({
         <div className="up-foot-in">
           <div className="up-foot-brand">
             <span className="b">ResearchPilot</span>
-            <span className="up-foot-tag">本机解析 · 结论带原文依据</span>
+            {/* 2026-10-10：恢复草稿原文。它是定位标语（不是与事实不符的编造），
+                而且必须是英文才能吃到 .up-foot-tag 的 uppercase + letter-spacing，改成中文那套字距就没了。 */}
+            <span className="up-foot-tag">Privacy &amp; Trust First</span>
           </div>
           <div className="up-foot-links">
             <button className="text-link" onClick={() => onGo?.('landing')}>
