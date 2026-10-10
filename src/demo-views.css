@@ -673,8 +673,11 @@
    ⚠️ 不引入草稿里的 tailwindcss CDN / Google Fonts / iconify（作品是纯静态自包含 SPA）。
    ========================================================================= */
 
-/* 本页沿用草稿的宽版内容宽度（草稿 main 是 max-w-[var(--content-max)]，即 1160px） */
-.main.uploadmain .main-inner { max-width: var(--content-max); }
+/* 本页的结构照草稿：草稿里 <footer> 是 <main> 的**兄弟节点**（在受限容器之外），
+   所以页脚的白条通到屏幕两边、和页眉一样通栏；内容宽度由页面自己的 .up-main 管（1160 + px-6）。
+   ⇒ 外壳这边不能再限制宽度、也不能留左右内边距，否则页脚会被缩进容器里。 */
+.main.uploadmain { padding-left: 0; padding-right: 0; padding-bottom: 0; }
+.main.uploadmain .main-inner { max-width: none; }
 
 .uppage { position: relative; }
 

@@ -52,7 +52,7 @@
 
   /* ---------- 字体 ---------- */
   /* 界面正文：系统无衬线（保证小字号清晰） */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+  --font-sans: 'RP Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
     'Microsoft YaHei', 'Noto Sans SC', 'Source Han Sans SC', sans-serif;
   /* 中文衬线（标题）：优先自托管的 Noto Serif SC 子集（见 src/fonts.css），再回退到本机可能已有的思源宋体 / 宋体族 */
   --font-serif: 'RP Serif SC', 'Noto Serif SC', 'Source Han Serif SC', 'Source Han Serif CN',
