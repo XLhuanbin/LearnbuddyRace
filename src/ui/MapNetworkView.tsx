@@ -66,6 +66,8 @@ export function MapNetworkView({
   const [selId, setSelId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [scale, setScale] = useState(1);
+  /** 图例可收起：默认展开（保持草稿的样子），嫌它挡画布时点标题即可收起 */
+  const [legendOpen, setLegendOpen] = useState(true);
   const svgRef = useRef<SVGSVGElement>(null);
 
   /** 方法 → 短名 / 家族 / 创新度 / 复杂度（全部来自真实数据） */
@@ -109,14 +111,42 @@ export function MapNetworkView({
     }
     const COL_GAP = 190;
     const ROW_GAP = 130;
+    /**
+     * ⚠️ 布局必须能应对「线性演进链」——这是实测踩到的坑：
+     * 我们的视觉语料是 ResNet(2015) → ViT(2020) → DeiT(2020) → Swin(2021) → ConvNeXt(2022)
+     * **一条链**，按关系深度分层会得到「5 层、每层 1 个节点」，y 坐标全相同 ⇒ 画出来是一条直线，
+     * 完全看不出演进关系（草稿示例是分叉结构，所以没暴露这个问题）。
+     * 因此分两种情况：
+     *   - 有分叉（任一层 >1 个节点，或任一节点出度 >1）→ 用深度分层，能体现分支；
+     *   - 纯链 → **按年份升序排、y 上下交错（之字形）**，读起来是一条有节奏的演进时间线。
+     */
+    const maxLayer = Math.max(0, ...[...byDepth.values()].map((l) => l.length));
+    const maxOut = Math.max(0, ...ids.map((id) => relations.filter((r) => r.fromMethodId === id).length));
+    const hasBranch = maxLayer > 1 || maxOut > 1;
+
     const placed = new Map<string, { x: number; y: number; r: number }>();
-    for (const [d, list] of [...byDepth.entries()].sort((a, b) => a[0] - b[0])) {
-      const h = (list.length - 1) * ROW_GAP;
-      list.forEach((id, i) => {
-        // 半径按「有没有评估结果 + 连接数」给，最大 24（与草稿一致）
-        const deg = relations.filter((r) => r.fromMethodId === id || r.toMethodId === id).length;
-        placed.set(id, { x: 120 + d * COL_GAP, y: 380 - h / 2 + i * ROW_GAP, r: 13 + Math.min(deg, 5) * 2 });
-      });
+    const degOf = (id: string) => relations.filter((r) => r.fromMethodId === id || r.toMethodId === id).length;
+    const radiusOf = (id: string) => 13 + Math.min(degOf(id), 5) * 2;
+
+    if (hasBranch) {
+      for (const [d, list] of [...byDepth.entries()].sort((a, b) => a[0] - b[0])) {
+        const h = (list.length - 1) * ROW_GAP;
+        list.forEach((id, i) => {
+          placed.set(id, { x: 120 + d * COL_GAP, y: 380 - h / 2 + i * ROW_GAP, r: radiusOf(id) });
+        });
+      }
+    } else {
+      // 纯链：按年份升序，y 上下交错
+      const AMP = 85;
+      const yearOf = (id: string) => {
+        const m = methods.find((x) => x.id === id);
+        return papers.find((p) => p.id === m?.paperId)?.year ?? 9999;
+      };
+      [...ids]
+        .sort((a, b) => yearOf(a) - yearOf(b))
+        .forEach((id, i) => {
+          placed.set(id, { x: 120 + i * COL_GAP, y: 380 + (i % 2 === 0 ? -AMP : AMP), r: radiusOf(id) });
+        });
     }
     const nodeList = ids
       .filter((id) => placed.has(id))
@@ -314,8 +344,12 @@ export function MapNetworkView({
           {/* 图例（左下） */}
           <div className="absolute bottom-8 left-8">
             <div className="bg-white/80 backdrop-blur-md p-4 rounded-xl border border-[var(--line)] shadow-lg">
-              <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--fg-3)] mb-3">图例说明</h4>
-              <div className="space-y-2">
+              <button className="flex items-center justify-between w-full gap-3" onClick={() => setLegendOpen((v) => !v)}>
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--fg-3)]">图例说明</h4>
+                <DraftIcon name={legendOpen ? 'chevron-down' : 'chevron-right'} />
+              </button>
+              {legendOpen && (
+              <div className="space-y-2 mt-3">
                 {INNOVATION_TIERS.map((t) => (
                   <div key={t.label} className="flex items-center gap-3 text-xs text-[var(--fg-2)]">
                     <span className="w-3 h-3 rounded-full" style={{ background: t.color }} />
@@ -341,6 +375,7 @@ export function MapNetworkView({
                   ⚠️ 创新度是模型评估（不是论文给出的分数），灰色节点表示本篇还没有评估结果。
                 </p>
               </div>
+              )}
             </div>
           </div>
 
