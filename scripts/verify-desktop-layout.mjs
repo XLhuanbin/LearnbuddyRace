@@ -225,7 +225,9 @@ async function main() {
   // 页面主标题：论文集合/实验可比性/阅读路线用 .pgtitle（h2），研究地图用 .maphead 里的大标题（h2）。
   // 2026-10-09 改版：方法提取页按 Superdesign 草稿复刻，改用 h1.up-title（36/48px，草稿尺寸），
   // 不参与「全站标题字号一致」的比较，故用 :not(.up-title) 把它排除在外。
-  const title = document.querySelector('.main-inner h1:not(.up-title), .main-inner h2');
+  // 2026-10-10：方法提取页已按草稿 a6947252 的标记重写，标题 h1 用草稿的 text-4xl / md:text-5xl（草稿就是大标题），
+  // 不再带 .up-title。这里按草稿的类名排除它，避免把草稿刻意放大的标题算进「全站标题字号一致性」。
+  const title = document.querySelector('.main-inner h1:not(.up-title):not([class*="text-4xl"]):not([class*="text-5xl"]), .main-inner h2');
   const wide = [...document.querySelectorAll('.main-inner *')].filter((el) => {
     const b = el.getBoundingClientRect();
     return b.width > 0 && b.right > de.clientWidth + 1;
@@ -236,7 +238,10 @@ async function main() {
   const statusChips = new Set(headChips.map((s) => String(s.className).replace('status', '').trim()));
   // 2026-10-09 改版：方法提取页按 Superdesign 草稿复刻后，首屏有一个 12px 的 eyebrow 小标签
   // （草稿是 text-xs，属于标签而不是「承载解释的整句」），归入 meta 类排除。
-  const isMeta = (el) => /(meta|dim|lab|small|tag|chip|status|kv|footnote|eyebrow|fineprint)/.test(String(el.className));
+  // 2026-10-10：方法提取页改用草稿的 Tailwind 类后，元数据/小字不再带我们自造的名（eyebrow / fineprint），
+  // 而是 uppercase（eyebrow）与 text-xs / text-[10px]（小字）。一并纳入元数据判定。
+  // ⚠️ 这段注释在浏览器的模板串里：**不许出现反引号**，否则会提前终止模板串。
+  const isMeta = (el) => /(meta|dim|lab|small|tag|chip|status|kv|footnote|eyebrow|fineprint|uppercase|text-xs|10px)/.test(String(el.className));
   let floorFs = 99;
   let floorSample = '';
   let sentFs = 99;

@@ -1,0 +1,159 @@
+/* =========================================================================
+   草稿（Superdesign a6947252「论文上传与分析」）自带的 style 块 —— **逐行照搬，不改**
+   来源：草稿 <style> 段落；只删掉了 Google Fonts 的 @import（本项目自托管 Noto Serif/Sans SC）。
+   配合 tailwind.config.js（preflight 关闭）使用；草稿的 Tailwind 工具类直接写在 JSX 里。
+
+   ⚠️ 2026-10-10 唯一的结构性处理：草稿里 `body` / `h1,h2,h3` / `.btn-*` / `.text-link` 等是**全局**规则，
+   但本项目其他页面尚未重构（由另一个对话负责），全局覆盖会改动它们（例如 .btn-primary 的 padding 会从
+   14px 32px 变成草稿的 12px 28px）。所以这里把草稿的自定义类**统一收进本页容器 `.uppage`** ——
+   本页视觉与草稿完全一致，其他页面不受影响。
+   `:root` 令牌保持全局：其值与项目现有令牌本来就完全相同，不构成冲突。
+   ========================================================================= */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #F5F7F8;
+  --bg-2: #FCFDFD;
+  --bg-3: #EEF2F4;
+  --bg-4: #E3E9ED;
+  --line: rgba(22, 38, 61, .14);
+  --line-2: rgba(22, 38, 61, .26);
+  --fg: #16263D;
+  --fg-2: #536274;
+  --fg-3: #7D8996;
+  --accent: #1F4772;
+  --accent-2: #17395C;
+  --accent-soft: #E5EEF6;
+  --accent-line: #B7CBE0;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --font-sans: 'RP Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-serif: 'RP Serif SC', 'Noto Serif SC', 'Source Han Serif SC', serif;
+  --shadow-2: 0 4px 20px rgba(22, 38, 61, .06);
+  --topbar-h: 72px;
+  --content-max: 1160px;
+}
+
+.uppage {
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.uppage h1, .uppage h2, .uppage h3 {
+  font-family: var(--font-serif);
+}
+
+.uppage .btn-primary {
+  background-color: var(--accent);
+  color: white;
+  padding: 12px 28px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(31, 71, 114, 0.15);
+}
+
+.uppage .btn-primary:hover {
+  background-color: var(--accent-2);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(31, 71, 114, 0.25);
+}
+
+/* 2026-10-10 追加：草稿用 JS 把按钮的 class 换成 `bg-green-600 text-white` 表示「分析完成」，
+   React 侧用一个状态类更直接；草稿的换法会连带丢掉 .btn-primary 的内边距，这里保留内边距只换配色。 */
+.uppage .btn-primary.is-done {
+  background-color: #16a34a;
+  color: #fff;
+  box-shadow: none;
+  transform: none;
+}
+
+.uppage .btn-ghost {
+  background: transparent;
+  border: 1px solid var(--line-2);
+  color: var(--fg-2);
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.uppage .btn-ghost:hover {
+  background: var(--bg-3);
+  border-color: var(--fg-3);
+  color: var(--fg);
+}
+
+.uppage .upload-zone {
+  border: 2px dashed var(--accent-line);
+  transition: all 0.3s ease;
+  background: var(--bg-2);
+}
+
+.uppage .upload-zone.drag-over {
+  border-color: var(--accent);
+  background-color: var(--accent-soft);
+  transform: scale(1.01);
+}
+
+.uppage .file-card {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  box-shadow: var(--shadow-2);
+  transition: transform 0.2s ease;
+}
+
+.uppage .progress-bar-inner {
+  width: 0%;
+  transition: width 0.5s ease-in-out;
+}
+
+.uppage .text-link {
+  color: var(--accent);
+  text-decoration: none;
+  position: relative;
+  font-weight: 600;
+  transition: color 0.3s;
+}
+
+.uppage .text-link::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 1.5px;
+  bottom: -2px;
+  left: 0;
+  background-color: var(--accent);
+  transform: scaleX(0.4);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+}
+
+.uppage .text-link:hover::after {
+  transform: scaleX(1);
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.uppage .animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
+
+.uppage .editorial-spine-thin {
+  position: absolute;
+  left: 40px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: var(--line-2);
+  z-index: 0;
+}

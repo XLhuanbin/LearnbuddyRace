@@ -325,8 +325,8 @@ for (const [tag, w, h] of VIEWPORTS) {
   await goMore('方法提取');
   const upload = await ev(`(() => ({
   zone: !!document.querySelector('.main-inner .upload-zone'),
-  queued: document.querySelectorAll('.main-inner .filecard').length,
-  empty: (document.querySelector('.main-inner .up-empty') || {}).textContent || '',
+  queued: document.querySelectorAll('.main-inner .file-card').length,
+  empty: (document.querySelector('.main-inner [data-queue-empty]') || {}).textContent || '',
   start: (() => { const b = [...document.querySelectorAll('.main-inner button')].find((x)=>/开始梳理脉络/.test(x.textContent)); return b ? { text: b.textContent.trim(), disabled: b.disabled } : null; })(),
 }))()`);
   check(

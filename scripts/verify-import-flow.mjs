@@ -261,11 +261,11 @@ const logText = (ev) => ev(`(() => { const l = document.querySelector('.log, .lo
 const uploadList = (ev) =>
   ev(`(() => {
   // 2026-10-09 改版：方法提取页按 Superdesign 草稿重做，队列行的类名从 .pitem 改为 .up-row
-  const items = [...document.querySelectorAll('.main-inner .filecard')];
+  const items = [...document.querySelectorAll('.main-inner .file-card')];
   return {
     count: items.length,
-    names: items.map((x)=>((x.querySelector('.fc-name')||{}).textContent||'').trim()),
-    states: items.map((x)=>((x.querySelector('.fc-status')||{}).textContent||'').trim()),
+    names: items.map((x)=>((x.querySelector('[data-file-name]')||{}).textContent||'').trim()),
+    states: items.map((x)=>((x.querySelector('[data-file-status]')||{}).textContent||'').trim()),
   };
 })()`);
 
@@ -326,15 +326,15 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
     await ev(`(() => {
       // 2026-10-09 改版：方法提取页的计数移到右栏队列卡，文案按草稿改为「N 个文件」
       //（原来是页头/列表头的「共 N 篇」）。这里核对的仍是同一件事：计数与列表条数取自同一个集合。
-      const t=(document.querySelector('.uppage .up-col-side')||{}).innerText||'';
+      const t=(document.querySelector('.uppage')||{}).innerText||'';
       const m=t.match(/(\\d+)\\s*个文件/);
-      const n=document.querySelectorAll('.main-inner .filecard').length;
+      const n=document.querySelectorAll('.main-inner .file-card').length;
       return !!m && Number(m[1]) === n;
     })()`),
   );
   if (ddpmIn >= 0) {
     // 2026-10-09 改版：方法提取页不再有「每篇详情」，点这篇 → 跳到论文集合看详情
-    await ev(`(() => { const it=[...document.querySelectorAll('.main-inner .filecard')][${ddpmIn}]; const nb=it&&it.querySelector('.fc-name'); if(nb) nb.click(); else if(it) it.click(); return true; })()`);
+    await ev(`(() => { const it=[...document.querySelectorAll('.main-inner .file-card')][${ddpmIn}]; const nb=it&&it.querySelector('[data-file-name]'); if(nb) nb.click(); else if(it) it.click(); return true; })()`);
     await sleep(900);
   }
   // 在论文集合里定位那篇（标题含 denoising/diffusion），读它的标题 / 按钮 / 标题待确认标记
@@ -387,15 +387,15 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
   check('可以放入损坏的 PDF', setBad === 'OK', String(setBad));
   const failedVisible = await waitFor(
     ev,
-    `[...document.querySelectorAll('.main-inner .filecard .fc-status')].some((s)=>/(解析失败|解析文本 · 失败)/.test(s.textContent))`,
+    `[...document.querySelectorAll('.main-inner [data-file-status]')].some((s)=>/(解析失败|解析文本 · 失败)/.test(s.textContent))`,
     60000,
     '损坏 PDF 报错',
   );
   check('损坏 PDF 解析失败后可见（状态显示「解析失败」）', failedVisible);
-  const failedIdx = await ev(`(() => [...document.querySelectorAll('.main-inner .filecard')].findIndex((x)=>/(解析失败|解析文本 · 失败)/.test(((x.querySelector('.fc-status')||{}).textContent||''))))()`);
+  const failedIdx = await ev(`(() => [...document.querySelectorAll('.main-inner .file-card')].findIndex((x)=>/(解析失败|解析文本 · 失败)/.test(((x.querySelector('[data-file-status]')||{}).textContent||''))))()`);
   if (failedIdx >= 0) {
     // 2026-10-09 改版：点失败的这篇 → 跳到论文集合看详情与重解析入口
-    await ev(`(() => { const it=[...document.querySelectorAll('.main-inner .filecard')][${failedIdx}]; const nb=it&&it.querySelector('.fc-name'); if(nb) nb.click(); else if(it) it.click(); return true; })()`);
+    await ev(`(() => { const it=[...document.querySelectorAll('.main-inner .file-card')][${failedIdx}]; const nb=it&&it.querySelector('[data-file-name]'); if(nb) nb.click(); else if(it) it.click(); return true; })()`);
     await sleep(800);
   }
   // 重解析按钮在论文集合失败行的 .lrow 里（.lrow-r1 常驻显示）
@@ -428,7 +428,7 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
   await waitFor(ev, `document.querySelectorAll('.mapstage .mnode').length >= 5`, 60000, '视觉案例加载');
   await goMore(ev, '方法提取');
   const banner = await ev(`(() => {
-    const b=document.querySelector('.ownentry');
+    const b=document.querySelector('[data-own-entry]');
     return b ? b.innerText.replace(/\\n/g, ' ').slice(0, 120) : '';
   })()`);
   console.log(`   刷新后在方法提取页看到的入口横幅：${banner || '(没有)'}`);

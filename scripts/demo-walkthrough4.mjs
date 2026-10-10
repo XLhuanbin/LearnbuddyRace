@@ -395,10 +395,15 @@ check('点击「上传我的论文」', await clickBtn('上传我的论文'));
 await sleep(1400);
 const upEmpty = await mainText();
 check(
-  '进入上传流程（含解析说明与两种入口）',
-  // 2026-10-09 改版：方法提取页按 Superdesign 草稿复刻，上传按钮文案改为草稿原文「浏览文件」，
-  // 空态文案改为草稿原文「尚未选择任何文件」；「方法提取」仍在首屏 eyebrow 里。
-  /方法提取/.test(upEmpty) && /浏览文件/.test(upEmpty) && /粘贴论文正文/.test(upEmpty) && /尚未提取方法|还没有上传论文|尚未选择任何文件/.test(upEmpty),
+  '进入上传流程（草稿标记：eyebrow + 主标题 + 拖拽区 + 队列空态）',
+  // 2026-10-10：本页已按草稿 a6947252 的标记逐行重写 —— eyebrow 是草稿原文「Step 01 — Data Ingestion」，
+  // 拖拽区标题是草稿原文「拖拽文件至此」，空态是草稿原文「尚未选择任何文件」。
+  // 草稿没有「粘贴论文正文」入口，旧断言里的那一项已随重写移除。
+  /DATA INGESTION/i.test(upEmpty) &&
+    /上传并梳理你的论文/.test(upEmpty) &&
+    /拖拽文件至此/.test(upEmpty) &&
+    /浏览文件/.test(upEmpty) &&
+    /尚未选择任何文件/.test(upEmpty),
   upEmpty.replace(/\n+/g, ' | ').slice(0, 140),
 );
 
@@ -434,7 +439,7 @@ check('提示密钥只保存在本机浏览器', /只保存在本机浏览器|�
 await cdp.shot(join(OUT, 'B1-上传论文-解析完成.png'));
 
 // 2026-10-09 改版：方法提取页按 Superdesign 草稿重做，队列行的类名从 .pitem 改为 .up-row
-const paperCount = await cdp.ev(`document.querySelectorAll('.main-inner .filecard').length`);
+const paperCount = await cdp.ev(`document.querySelectorAll('.main-inner .file-card').length`);
 check(`上传后出现论文卡片（${paperCount} 张）`, paperCount >= 1);
 
 /**

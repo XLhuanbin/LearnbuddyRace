@@ -14,6 +14,7 @@
  */
 import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, copyFileSync, rmSync } from 'node:fs';
 import { join, basename } from 'node:path';
+import { createHash } from 'node:crypto';
 
 const OUT_DIR = 'public/fonts';
 const CSS_OUT = 'src/fonts.css';
@@ -83,18 +84,26 @@ for (const { pkg, family, weights } of FAMILIES) {
     const slices = parseWeightCss(pkg, w);
     const keep = slices.filter((s) => rangeHits(s.range, cps));
     let bytes = 0;
+    // 2026-10-10：文件名带上 8 位内容哈希。两个理由：
+    //   ① 字体文件是内容寻址的，改名即缓存失效；
+    //   ② 构建时若 dist 里已存在同名文件且被其它进程占着，覆盖会 EPERM 失败 —— 换名就能绕开。
+    const named = [];
     for (const s of keep) {
-      copyFileSync(join('node_modules/@fontsource', pkg, 'files', s.file), join(OUT_DIR, s.file));
-      bytes += readFileSync(join('node_modules/@fontsource', pkg, 'files', s.file)).length;
+      const raw = readFileSync(join('node_modules/@fontsource', pkg, 'files', s.file));
+      const h = createHash('sha1').update(raw).digest('hex').slice(0, 8);
+      const out = s.file.replace(/\.woff2$/, '') + '-' + h + '.woff2';
+      copyFileSync(join('node_modules/@fontsource', pkg, 'files', s.file), join(OUT_DIR, out));
+      bytes += raw.length;
+      named.push({ ...s, out });
     }
-    console.log(`  ${family} ${w}: 选中 ${keep.length}/${slices.length} 片，${(bytes / 1024).toFixed(0)} KB`);
-    for (const s of keep) {
+    console.log(`  ${family} ${w}: 选中 ${named.length}/${slices.length} 片，${(bytes / 1024).toFixed(0)} KB`);
+    for (const s of named) {
       faces.push(`@font-face {
   font-family: '${family}';
   font-style: normal;
   font-weight: ${w};
   font-display: swap;
-  src: url('/fonts/${s.file}') format('woff2');
+  src: url('/fonts/${s.out}') format('woff2');
   unicode-range: ${s.range};
 }`);
     }

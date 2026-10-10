@@ -302,40 +302,30 @@ console.log('=== 阶段 A（独立数据目录 #1）：加载案例 → 修字�
   })()`);
   await sleep(600);
 
-  // 范围外论文：粘贴导入一篇（本机解析，不调用模型）
+  // 范围外论文：导入一篇真实 PDF（本机解析，不调用模型）
+  // 2026-10-10：方法提取页按草稿 a6947252 的标记重写后，草稿**没有「粘贴正文」入口**（旧基线用的粘贴表单已随重写移除），
+  // 所以这里改走草稿自己的真实路径：「上传 PDF → 开始梳理脉络」。
   await goMore(ev, '方法提取');
   await sleep(1000);
-  const pasteOpen = await click(ev, '粘贴论文正文');
-  await sleep(600);
-  const pasted = await ev(`(() => {
-    // 页面上还有模型配置输入框，必须先把范围收窄到「粘贴论文正文」这个分组里
-    // 2026-10-09 改版：方法提取页的粘贴表单容器经过两次重构（.quiet-group → .up-card → .up-prog），
-    // 现在给它一个固定类 .up-paste，并把历史类名一起作为兜底，避免再因容器改名而误报。
-    const submit = [...document.querySelectorAll('.main-inner button')].find((b) => /进入流程/.test(b.textContent));
-    const group = submit ? submit.closest('.up-paste, .quiet-group, .up-card, .up-prog') : null;
-    if (!group) return 'NO_GROUP';
-    const title = group.querySelector('input.f');
-    const text = group.querySelector('textarea.f');
-    if (!title || !text) return 'NO_FIELDS';
-    const tset = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-    tset.call(title, '范围外回归样例论文');
-    title.dispatchEvent(new Event('input', { bubbles: true }));
-    const body = 'Abstract\\n\\n' + 'This is an out-of-scope paper used by the reload-safety regression test. '.repeat(8) + '\\n\\n1 Introduction\\n' + 'Body text for local parsing only. '.repeat(10);
-    const aset = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
-    aset.call(text, body);
-    text.dispatchEvent(new Event('input', { bubbles: true }));
-    return 'FILLED';
-  })()`);
-  await sleep(400);
-  const pasteSubmitted = await click(ev, '进入流程');
-  await sleep(1500);
+  const OUT_PDF = resolve(process.cwd(), 'samples/pdfs/2006.11239.pdf');
+  const { root } = await send('DOM.getDocument', { depth: -1 });
+  const { nodeId: upNode } = await send('DOM.querySelector', { nodeId: root.nodeId, selector: '.main-inner input[type=file]' });
+  if (upNode) await send('DOM.setFileInputFiles', { files: [OUT_PDF], nodeId: upNode });
+  await sleep(900);
+  const started = await click(ev, '开始梳理脉络');
+  await waitFor(
+    ev,
+    `(async () => { const d = await (${READ_DB}); return d.papers.some((p) => p.corpusId === 'user-import'); })()`,
+    180000,
+    '范围外论文入库',
+  );
   const beforeReload = await ev(READ_DB);
   const outPaper = beforeReload.papers.find((p) => p.corpusId === 'user-import');
   check('范围外关系基线已就位（两端都不属于案例范围）', beforeReload.relations.some((r) => r.id === 'r_out_of_scope_regression'), `关系总数 ${beforeReload.relations.length}`);
   check(
-    '范围外论文基线已就位（粘贴导入，corpusId=user-import）',
-    pasteOpen && pasted === 'FILLED' && pasteSubmitted && !!outPaper,
-    `打开表单=${pasteOpen} 填表=${pasted} 提交=${pasteSubmitted} 论文=${outPaper ? outPaper.title : '未导入'}`,
+    '范围外论文基线已就位（上传 PDF 导入，corpusId=user-import）',
+    !!upNode && !!started && !!outPaper,
+    `找到上传控件=${!!upNode} 已点开始=${!!started} 论文=${outPaper ? outPaper.title : '未导入'}`,
   );
   await shot(send, '01-修正后（重载前）.png');
 

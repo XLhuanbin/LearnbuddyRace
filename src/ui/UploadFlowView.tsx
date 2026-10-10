@@ -4,12 +4,11 @@ import type { JobState } from './Library';
 import { verifiedOf } from './Library';
 import { FIELD_KEYS_ORDER } from '../core/cache';
 import type { CorpusScope } from '../core/corpus';
-import { Status } from './common';
+import { DraftIcon } from '../draft-icons';
 import type { ImportResult } from '../App';
 
 interface Props {
   papers: Paper[];
-  /** 当前分析范围（案例 = 当前语料全部论文；我上传 = 用户自传）。计数必须与它一致 */
   scope: CorpusScope;
   methods: Method[];
   jobs: Record<string, JobState>;
@@ -19,104 +18,67 @@ interface Props {
   onTest: (c: { baseUrl: string; apiKey: string; model: string }) => void;
   testing: boolean;
   testResult?: string;
-  onPaste: (title: string, text: string) => void;
-  /**
-   * 草稿的前端逻辑：把攒好的文件一次性交给底层分析（导入解析 → 已配置模型时逐篇抽取），
-   * 返回**逐文件**的真实结果，队列据此按文件如实显示状态。
-   */
+  /** 保留字段：本页按草稿重写后不再有「粘贴正文」入口（草稿没有），但接口先留着，避免改 App 的接线 */
+  onPaste?: (title: string, text: string) => void;
+  /** 草稿的前端逻辑：把攒好的文件一次性交给底层分析（导入解析 → 已配置模型时逐篇抽取），返回逐文件结果 */
   onAnalyze: (files: File[]) => Promise<ImportResult[]>;
   onEnterMap: () => void;
-  /** 点队列里的一篇 → 跳去论文集合看详情（字段/证据/重解析/取消都在那） */
   onOpenPaper: (paperId: string) => void;
   lastImportedId?: string | null;
   onUseOwnScope: () => void;
   onUseCaseScope: () => void;
-  /** 页脚的真实导航（兼容新增：草稿页脚指向的「使用指南 / 法律条款」并不存在，改为真实入口） */
   onGo?: (tab: string) => void;
 }
 
 type StepState = 'done' | 'running' | 'waiting' | 'failed';
-
 interface Step {
   no: string;
   name: string;
-  desc: string;
-  result: string;
-  next: string;
   state: StepState;
+  result: string;
 }
 
-const STATE_TEXT: Record<StepState, string> = { done: '已完成', running: '进行中', waiting: '等待中', failed: '失败' };
-
 /**
- * 五步处理流程：上传论文 → 解析文本 → 提取方法字段 → 校验原文证据 → 进入研究地图。
- * 每一步都给出真实状态与已得到的结果；等待模型绝不显示成「分析完成」。
+ * 五步处理流程（真实状态，不用百分比或转圈代替）。
  */
 function stepsOf(p: Paper, m: Method | undefined, job: JobState | undefined, modelReady: boolean): Step[] {
   const parsed = p.parseStatus === 'ok';
   const parseFailed = p.parseStatus === 'failed';
   const extracting = job?.status === 'running';
   const extractFailed = job?.status === 'failed';
-  const canceled = job?.status === 'canceled';
   const hasMethod = !!m;
   const verified = m ? verifiedOf(m) : 0;
   const withValue = m ? FIELD_KEYS_ORDER.filter((k) => m.fields[k]?.value).length : 0;
 
   return [
-    {
-      no: '01',
-      name: '上传论文',
-      desc: '文件进入本机浏览器',
-      state: 'done',
-      result: `${p.pageCount ?? '?'} 页 · ${p.charCount ?? '?'} 字符`,
-      next: '解析出全文与页码，供证据定位使用',
-    },
+    { no: '01', name: '上传论文', state: 'done', result: `${p.pageCount ?? '?'} 页 · ${p.charCount ?? '?'} 字符` },
     {
       no: '02',
       name: '解析文本',
-      desc: '本机完成，不上传服务器',
       state: parseFailed ? 'failed' : parsed ? 'done' : 'waiting',
       result: parseFailed ? `失败：${p.parseError || '未知原因'}` : parsed ? '已得到按页存储的全文' : '等待解析',
-      next: '调用模型抽取 7 个方法字段',
     },
     {
       no: '03',
       name: '提取方法字段',
-      desc: '需要模型接口',
       state: extractFailed ? 'failed' : extracting ? 'running' : hasMethod ? 'done' : 'waiting',
       result: extracting
-        ? `正在等待模型响应（${job?.message || '已发出请求'}）—— 等待不代表完成`
+        ? `正在等待模型响应（${job?.message || '已发出请求'}）`
         : hasMethod
-          ? `已得到 ${withValue}/7 个字段有值${m?.cached ? '（缓存结果）' : ''}`
+          ? `已得到 ${withValue}/7 个字段有值`
           : extractFailed
             ? `失败：${job?.error || '模型调用失败'}`
-            : canceled
-              ? '已停止等待：本次调用未完成，原结果保留'
-              : modelReady
-                ? '等待开始'
-                : '未配置模型：不会产生替代结果',
-      next: '把每条引文回到论文全文做定位校验',
+            : modelReady
+              ? '等待开始'
+              : '未配置模型：不会产生替代结果',
     },
     {
       no: '04',
       name: '校验原文证据',
-      desc: '引文必须能在全文中定位',
       state: hasMethod ? (verified > 0 ? 'done' : 'waiting') : 'waiting',
-      result: hasMethod
-        ? verified > 0
-          ? `${verified}/7 个字段的引文已通过全文定位校验`
-          : '没有字段通过定位校验，统一标「待人工核对 / 未找到证据」'
-        : '等待方法字段',
-      next: '进入研究地图，看方法分组与真实关系',
+      result: hasMethod ? (verified > 0 ? `${verified}/7 个字段的引文已通过全文定位校验` : '没有字段通过定位校验') : '等待方法字段',
     },
-    {
-      no: '05',
-      name: '进入研究地图',
-      desc: '看分组、关系与阅读顺序',
-      state: hasMethod ? 'done' : 'waiting',
-      result: hasMethod ? '可以进入研究地图' : '需要先完成方法字段提取',
-      next: '',
-    },
+    { no: '05', name: '进入研究地图', state: hasMethod ? 'done' : 'waiting', result: hasMethod ? '可以进入研究地图' : '需要先完成方法字段提取' },
   ];
 }
 
@@ -124,7 +86,6 @@ function stepsOf(p: Paper, m: Method | undefined, job: JobState | undefined, mod
 interface Queued {
   id: string;
   file: File;
-  /** 分析后拿到的真实结果（没有 = 还没分析） */
   result?: ImportResult;
 }
 
@@ -132,16 +93,20 @@ const uid = () => Math.random().toString(36).slice(2, 11);
 const sizeMB = (n: number) => (n / 1024 / 1024).toFixed(2);
 
 /**
- * 方法提取页 —— **按 Superdesign 草稿 a6947252 的前端逻辑与美术实现**。
+ * 方法提取页 —— **按 Superdesign 草稿 a6947252 的标记逐行搬过来的**。
  *
- * 草稿的逻辑（本页严格照此实现，底层已改来适配它）：
- *   1. 拖拽/浏览 → 文件进入「待处理队列」（文件卡：图标 + 文件名 + 大小 • PDF + 悬停删除），计数「N 个文件」
- *   2. 「开始梳理脉络」→ 按钮变「分析中…」+ 转圈，拖拽区变灰且禁用
- *   3. 分析卡出现 → 进度条 + 大号百分比 + 步骤文案；完成时按钮变绿「分析完成」
+ * 标记与类名照草稿原样（Tailwind 工具类 + 草稿自带 .upload-zone / .file-card / .btn-primary / .text-link 等），
+ * 结构也照草稿：内容在 `<main class="max-w-[var(--content-max)] mx-auto px-6 …">` 里，
+ * `<footer>` 是它的**兄弟节点**（所以页脚通栏到屏幕两边，和页眉一样）。
  *
- * 与草稿的唯一差别：草稿那 45% / 「预计剩余 1分20秒」是写死的假进度，
- * 这里换成**真实的**步骤进度（同一套结构，只换数值来源）；
- * 每个文件卡下面额外给一行**真实状态**（已解析 / 提取中 / 解析失败…），这行草稿没有、是必需的诚实信息。
+ * 与草稿的差异（仅以下 4 类，逐处注明）：
+ *  1) 草稿 `pt-32` 是给它自己的 **fixed** 头部留位；本项目顶栏是 sticky（在文档流内），
+ *     故本页改用 `pt-14`，使「顶栏底 → 内容顶」的视觉间距与草稿一致（约 56px），而不是照抄会让内容多下移 72px 的数值。
+ *  2) 草稿的假数据一律换成真实来源：进度条 45%→真实百分比、`预计剩余时间: 1分20秒`→真实的「共 N 步 · 已完成 M 步」、
+ *     `正在提取核心算法参数...`→当前步骤的真实结果。
+ *  3) 草稿的虚假承诺不采纳：「所有上传文件将进行加密处理」→ 实为本机解析、不上传（改成真实说法）；
+ *     草稿页脚/协议里指向的「数据使用协议 / 使用指南 / 法律条款」并不存在 → 换成真实入口。
+ *  4) 文件卡多一行**真实状态**（等待分析 / 已解析 / 提取中 / 解析失败…）——草稿没有，但必须如实给出。
  */
 export function UploadFlowView({
   papers,
@@ -154,27 +119,20 @@ export function UploadFlowView({
   onTest,
   testing,
   testResult,
-  onPaste,
   onAnalyze,
-  onEnterMap,
   onOpenPaper,
   lastImportedId,
   onUseOwnScope,
-  onUseCaseScope,
   onGo,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [queue, setQueue] = useState<Queued[]>([]);
   const [phase, setPhase] = useState<'idle' | 'running' | 'done'>('idle');
-  const [pasteOpen, setPasteOpen] = useState(false);
-  const [pasteTitle, setPasteTitle] = useState('');
-  const [pasteText, setPasteText] = useState('');
   const [draft, setDraft] = useState(config);
   const [dragOver, setDragOver] = useState(false);
 
   const running = phase === 'running';
-  const stayAsIs = phase !== 'idle';
-
+  const showAnalysis = phase !== 'idle';
   const casePapers = scope.presetPapers;
   const ownPapers = scope.ownPapers;
   const listMode: 'case' | 'own' = scope.mode === 'own' || (casePapers.length === 0 && ownPapers.length > 0) ? 'own' : 'case';
@@ -182,7 +140,6 @@ export function UploadFlowView({
   const hasMethod = (p: Paper) => methods.some((m) => m.paperId === p.id);
   const needModel = !modelReady && papers.some((p) => p.parseStatus === 'ok' && !hasMethod(p));
 
-  /** 把攒下的文件加进队列（按 名字+大小 去重，避免同一个文件重复占位） */
   const addFiles = (files: FileList | File[]) => {
     const list = Array.from(files);
     if (!list.length) return;
@@ -205,7 +162,6 @@ export function UploadFlowView({
     setQueue((q) => q.filter((x) => x.id !== id));
   };
 
-  /** 「开始梳理脉络」：把没分析过的文件交给底层一次性分析，再把逐文件结果贴回队列 */
   const start = async () => {
     const todo = queue.filter((x) => !x.result);
     if (!todo.length || running) return;
@@ -227,11 +183,9 @@ export function UploadFlowView({
     }
   };
 
-  /** 队列里所有文件对应的论文（用于页级总览与到论文集合的跳转） */
   const queuedPapers = queue.map((x) => x.result?.paper).filter(Boolean) as Paper[];
   const stagePapers = queuedPapers.length ? queuedPapers : papers;
 
-  /** 页级总览：把每篇的状态合并成一条流程（取最靠后的真实进度） */
   const overview: { no: string; name: string; state: StepState; result: string }[] = (() => {
     const anyUploaded = stagePapers.length > 0;
     const anyParsed = stagePapers.some((p) => p.parseStatus === 'ok');
@@ -258,12 +212,7 @@ export function UploadFlowView({
         state: anyExtractFailed && !anyMethod ? 'failed' : extracting ? 'running' : anyMethod ? 'done' : 'waiting',
         result: anyMethod ? `${doneCount} 篇已生成` : extracting ? '等待模型响应' : modelReady ? '等待开始' : '未配置模型',
       },
-      {
-        no: '04',
-        name: '校验原文证据',
-        state: anyVerified ? 'done' : anyMethod ? 'running' : 'waiting',
-        result: anyVerified ? '至少一篇已通过定位' : anyMethod ? '正在逐条定位' : '等待方法字段',
-      },
+      { no: '04', name: '校验原文证据', state: anyVerified ? 'done' : anyMethod ? 'running' : 'waiting', result: anyVerified ? '至少一篇已通过定位' : anyMethod ? '正在逐条定位' : '等待方法字段' },
       { no: '05', name: '进入研究地图', state: anyMethod ? 'done' : 'waiting', result: anyMethod ? '可以进入' : '需先完成提取' },
     ];
   })();
@@ -281,65 +230,65 @@ export function UploadFlowView({
   const progStepLabel = `步骤: ${curOv.no} ${curOv.name} (${stepDone}/${stepTotal})`;
   const progNote = curOv.result.slice(0, 42);
 
-  /** 每个文件卡下面那行**真实状态**（草稿没有，但必须给） */
-  const statusOf = (q: Queued): { text: string; tone: 'ok' | 'bad' | 'run' | 'mute' } => {
+  /** 每个文件卡下面那行**真实状态**（草稿没有，但必须如实给） */
+  const statusOf = (q: Queued): { text: string; cls: string } => {
     const r = q.result;
-    if (!r) return { text: '等待分析', tone: 'mute' };
-    if (r.error) return { text: `异常：${r.error}`, tone: 'bad' };
-    if (r.skipped) return { text: r.skipped, tone: 'mute' };
+    if (!r) return { text: '等待分析', cls: 'text-[var(--fg-3)]' };
+    if (r.error) return { text: `异常：${r.error}`, cls: 'text-red-600' };
+    if (r.skipped) return { text: r.skipped, cls: 'text-[var(--fg-3)]' };
     const p = r.paper;
-    if (!p) return { text: '未入库', tone: 'bad' };
-    if (p.parseStatus === 'failed') return { text: `解析失败：${p.parseError || '未知原因'}`, tone: 'bad' };
+    if (!p) return { text: '未入库', cls: 'text-red-600' };
+    if (p.parseStatus === 'failed') return { text: `解析失败：${p.parseError || '未知原因'}`, cls: 'text-red-600' };
     const job = jobs[p.id];
-    if (job?.status === 'running') return { text: `提取中：${job.message || '等待模型响应'}`, tone: 'run' };
-    if (methods.some((m) => m.paperId === p.id)) return { text: '已完成：字段与证据已生成', tone: 'ok' };
-    if (job?.status === 'failed') return { text: `提取失败：${job.error || '模型调用失败'}`, tone: 'bad' };
-    return { text: modelReady ? '已解析，等待提取' : '已解析；未配置模型，不会产生替代结果', tone: 'mute' };
+    if (job?.status === 'running') return { text: `提取中：${job.message || '等待模型响应'}`, cls: 'text-[var(--accent)]' };
+    if (methods.some((m) => m.paperId === p.id)) return { text: '已完成：字段与证据已生成', cls: 'text-emerald-700' };
+    if (job?.status === 'failed') return { text: `提取失败：${job.error || '模型调用失败'}`, cls: 'text-red-600' };
+    return { text: modelReady ? '已解析，等待提取' : '已解析；未配置模型，不会产生替代结果', cls: 'text-[var(--fg-3)]' };
   };
 
   const pickFiles = () => fileRef.current?.click();
 
   return (
     <div className="uppage">
-      <div className="up-main">
-        {/* Editorial Accent（草稿原样） */}
-        <div className="up-spine" aria-hidden="true" />
+      {/* 草稿：<main class="max-w-[var(--content-max)] mx-auto px-6 pt-32 pb-64 relative"> */}
+      <div className="max-w-[var(--content-max)] mx-auto px-6 pt-14 pb-64 relative">
+        {/* Editorial Accent */}
+        <div className="editorial-spine-thin hidden lg:block" aria-hidden="true" />
 
-        {/* Hero（草稿结构：eyebrow → h1 → 一句说明） */}
-        <section className="up-hero">
-          <div className="up-hero-in">
-            <p className="up-eyebrow">方法提取 · Step 01 — 上传论文</p>
-            <h1 className="up-title">上传并梳理你的论文</h1>
-            <p className="up-lede">支持 PDF 批量导入。我们将自动识别方法论框架并生成你的研究地图。</p>
+        {/* Hero */}
+        <section className="mb-16 ml-0 lg:ml-20">
+          <div className="flex flex-col gap-4">
+            <p className="text-[var(--fg-3)] tracking-[0.3em] uppercase text-xs font-bold">Step 01 — Data Ingestion</p>
+            <h1 className="text-4xl md:text-5xl font-serif font-bold tracking-tight text-[var(--fg)]">上传并梳理你的论文</h1>
+            {/* 草稿写「Word 及主流学术格式」，本项目只支持 PDF —— 只改与事实不符的内容 */}
+            <p className="text-[var(--fg-2)] text-lg max-w-2xl leading-relaxed">支持 PDF 批量导入。我们将自动识别方法论框架并生成你的研究地图。</p>
           </div>
         </section>
 
-        {hiddenOwn > 0 && (
-          <div className="ownentry" role="status" style={{ marginBottom: 24 }}>
-            <div>
-              <strong>你上传的 {hiddenOwn} 篇论文不在当前列表里</strong>
-              <span className="small dim">
-                （列表显示的是{scope.meta.label}的 {casePapers.length} 篇预置论文）
-              </span>
-            </div>
-            <button className="btn-primary" onClick={onUseOwnScope}>
-              查看我上传的 {hiddenOwn} 篇论文 →
-            </button>
-          </div>
-        )}
-
-        <section className="up-grid">
+        {/* Main Upload Section */}
+        <section className="grid grid-cols-12 gap-10 ml-0 lg:ml-20">
           {/* Left: Upload Zone */}
-          <div className="up-col-main">
+          <div className="col-span-12 lg:col-span-7 space-y-8">
+            {/* 草稿没有这个横幅；自传论文存在但当前显示案例列表时，必须给用户醒目入口 */}
+            {hiddenOwn > 0 && (
+              <div data-own-entry className="bg-[var(--accent-soft)] border border-[var(--accent-line)] rounded-[20px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="text-sm text-[var(--fg)]">
+                  <strong>你上传的 {hiddenOwn} 篇论文不在当前列表里</strong>
+                  <span className="text-[var(--fg-3)]">（列表显示的是{scope.meta.label}的 {casePapers.length} 篇预置论文）</span>
+                </div>
+                <button className="btn-primary shrink-0" onClick={onUseOwnScope}>
+                  查看我上传的 {hiddenOwn} 篇论文 →
+                </button>
+              </div>
+            )}
+
             <div
-              className={`upload-zone${dragOver ? ' drag-over' : ''}${running ? ' is-dim' : ''}`}
+              className={`upload-zone rounded-[20px] p-12 md:p-20 text-center flex flex-col items-center justify-center cursor-pointer group${dragOver ? ' drag-over' : ''}`}
               role="button"
               tabIndex={0}
-              aria-label="拖拽 PDF 至此，或点击浏览本地文件"
-              aria-disabled={running}
-              onClick={() => !running && pickFiles()}
+              aria-label="拖拽 PDF 至此，或点击此处浏览本地文件"
+              onClick={pickFiles}
               onKeyDown={(e) => {
-                if (running) return;
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
                   pickFiles();
@@ -347,28 +296,23 @@ export function UploadFlowView({
               }}
               onDragOver={(e) => {
                 e.preventDefault();
-                if (!running) setDragOver(true);
+                setDragOver(true);
               }}
               onDragLeave={() => setDragOver(false)}
               onDrop={(e) => {
                 e.preventDefault();
                 setDragOver(false);
-                if (running) return;
                 const f = e.dataTransfer?.files;
                 if (f && f.length) addFiles(f);
               }}
             >
-              <div className="up-zone-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17.5 18a4.5 4.5 0 0 0 .5-8.97A6 6 0 0 0 6.1 10.2 4 4 0 0 0 6.5 18h11Z" />
-                  <path d="M12 12v6M9.5 14.5 12 12l2.5 2.5" />
-                </svg>
+              <div className="w-20 h-20 bg-[var(--accent-soft)] rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <DraftIcon name="upload-cloud" className="text-4xl text-[var(--accent)]" />
               </div>
-              <h3 className="up-zone-title">拖拽 PDF 至此</h3>
-              <p className="up-zone-sub">或点击此处浏览本地文件 (支持多选)</p>
+              <h3 className="text-2xl font-serif font-bold mb-3">拖拽文件至此</h3>
+              <p className="text-[var(--fg-3)] mb-8">或点击此处浏览本地文件 (支持多选)</p>
               <button
                 className="btn-ghost"
-                disabled={running}
                 onClick={(e) => {
                   e.stopPropagation();
                   pickFiles();
@@ -380,8 +324,8 @@ export function UploadFlowView({
                 ref={fileRef}
                 type="file"
                 accept="application/pdf,.pdf"
+                className="hidden"
                 multiple
-                style={{ display: 'none' }}
                 onChange={(e) => {
                   if (e.target.files?.length) addFiles(e.target.files);
                   e.target.value = '';
@@ -389,168 +333,118 @@ export function UploadFlowView({
               />
             </div>
 
-            {/* 分析进度卡：草稿是「开始时才出现」，这里同样只在分析中 / 已分析过时出现 */}
-            {stayAsIs && (
-              <div className="up-prog">
-                <div className="up-prog-head">
-                  <div>
-                    <h4 className="up-prog-title">{progTitle}</h4>
-                    <p className="up-prog-step">{progStepLabel}</p>
+            {/* Analysis Progress（草稿是 Initially Hidden，开始时才出现） */}
+            {showAnalysis && (
+              <div className="space-y-6">
+                <div className="bg-white rounded-[20px] border border-[var(--line)] p-8 shadow-sm">
+                  <div className="flex justify-between items-center mb-4">
+                    <div>
+                      <h4 className="text-lg font-bold">{progTitle}</h4>
+                      <p className="text-sm text-[var(--fg-3)]">{progStepLabel}</p>
+                    </div>
+                    <span className="text-2xl font-serif font-black text-[var(--accent)]">{pct}%</span>
                   </div>
-                  <span className="up-prog-pct">{pct}%</span>
-                </div>
-                <div className="up-prog-track">
-                  <div className="up-prog-fill" style={{ width: `${pct}%` }} />
-                </div>
-                <div className="up-prog-foot">
-                  <span>{`共 ${stepTotal} 步 · 已完成 ${stepDone} 步`}</span>
-                  <span className="up-prog-note">
-                    <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round">
-                      <circle cx="12" cy="12" r="9" />
-                      <path d="M12 11v5M12 8h.01" />
-                    </svg>
-                    {progNote}
-                  </span>
+                  <div className="w-full bg-[var(--bg-3)] h-2 rounded-full overflow-hidden mb-4">
+                    <div className="progress-bar-inner bg-[var(--accent)] h-full" style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="flex justify-between text-xs text-[var(--fg-3)]">
+                    {/* 草稿这里是「预计剩余时间: 1分20秒」（写死的假数据）→ 换成真实步数 */}
+                    <span>{`共 ${stepTotal} 步 · 已完成 ${stepDone} 步`}</span>
+                    <span className="flex items-center gap-1 italic">
+                      <DraftIcon name="info" className="text-xs" />
+                      {progNote}
+                    </span>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* 粘贴论文正文（原页面功能，兼容保留） */}
-            {pasteOpen && (
-              <div className="up-prog up-paste">
-                <div className="up-prog-head" style={{ marginBottom: 8 }}>
-                  <h4 className="up-prog-title">粘贴论文正文</h4>
-                </div>
-                <label className="f">论文标题</label>
-                <input
-                  className="f"
-                  value={pasteTitle}
-                  onChange={(e) => setPasteTitle(e.target.value)}
-                  placeholder="例如：Attention Is All You Need"
-                />
-                <label className="f" style={{ marginTop: 10 }}>
-                  论文正文（按页分隔存储，证据定位能力与 PDF 一致）
-                </label>
-                <textarea className="f" rows={5} value={pasteText} onChange={(e) => setPasteText(e.target.value)} />
-                <div className="row" style={{ marginTop: 8, gap: 8, flexWrap: 'wrap' }}>
-                  <button
-                    className="btn-primary"
-                    disabled={!pasteTitle.trim() || pasteText.trim().length < 200}
-                    onClick={() => {
-                      onPaste(pasteTitle.trim(), pasteText.trim());
-                      setPasteTitle('');
-                      setPasteText('');
-                      setPasteOpen(false);
-                    }}
-                  >
-                    进入流程（解析这段正文）
-                  </button>
-                  <button className="btn-ghost" onClick={() => setPasteOpen(false)}>
-                    收起
-                  </button>
-                  <span className="small dim">解析在本机完成；字段抽取需要模型接口</span>
-                </div>
-              </div>
-            )}
-
-            {/* 模型配置（原页面功能，兼容保留） */}
+            {/* 草稿没有这块；但未配置模型时抽取无法进行，必须就地把接口配置给出来（不让用户先去找设置） */}
             {needModel && (
-              <div className="up-prog" style={{ borderColor: 'var(--warn-line)', background: 'var(--warn-soft)' }}>
-                <div className="up-prog-head" style={{ marginBottom: 8 }}>
+              <div className="bg-white rounded-[20px] border border-[var(--line)] p-8 shadow-sm space-y-4">
+                <div className="flex justify-between items-center">
                   <div>
-                    <h4 className="up-prog-title">第 03 步需要模型接口</h4>
-                    <p className="up-prog-step">解析已经完成并保留；密钥只保存在本机浏览器，不会写入任何产物。</p>
-                  </div>
-                  <Status kind="warn">未配置</Status>
-                </div>
-                <div className="grid2">
-                  <div>
-                    <label className="f">接口地址（OpenAI 兼容）</label>
-                    <input className="f" value={draft.baseUrl} onChange={(e) => setDraft({ ...draft, baseUrl: e.target.value })} placeholder="https://api.deepseek.com/v1" />
-                  </div>
-                  <div>
-                    <label className="f">模型名</label>
-                    <input className="f" value={draft.model} onChange={(e) => setDraft({ ...draft, model: e.target.value })} placeholder="deepseek-chat" />
+                    <h4 className="text-lg font-bold">提取方法字段需要模型接口</h4>
+                    <p className="text-sm text-[var(--fg-3)]">解析已经完成并保留；密钥只保存在本机浏览器，不会写入任何产物。</p>
                   </div>
                 </div>
-                <label className="f" style={{ marginTop: 10 }}>
-                  密钥
-                </label>
-                <input className="f" type="password" value={draft.apiKey} onChange={(e) => setDraft({ ...draft, apiKey: e.target.value })} placeholder="sk-…" />
-                <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-[var(--fg-3)] mb-1">接口地址（OpenAI 兼容）</label>
+                    <input className="w-full border border-[var(--line-2)] rounded-[8px] px-3 py-2 text-sm bg-white" value={draft.baseUrl} onChange={(e) => setDraft({ ...draft, baseUrl: e.target.value })} placeholder="https://api.deepseek.com/v1" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--fg-3)] mb-1">模型名</label>
+                    <input className="w-full border border-[var(--line-2)] rounded-[8px] px-3 py-2 text-sm bg-white" value={draft.model} onChange={(e) => setDraft({ ...draft, model: e.target.value })} placeholder="deepseek-chat" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-[var(--fg-3)] mb-1">密钥</label>
+                  <input className="w-full border border-[var(--line-2)] rounded-[8px] px-3 py-2 text-sm bg-white" type="password" value={draft.apiKey} onChange={(e) => setDraft({ ...draft, apiKey: e.target.value })} placeholder="sk-…" />
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
                   <button className="btn-primary" onClick={() => onSaveConfig(draft)}>
                     保存并继续
                   </button>
                   <button className="btn-ghost" onClick={() => onTest(draft)} disabled={testing}>
                     {testing ? '测试中…' : '测试连接'}
                   </button>
-                  {testResult && <span className="small dim">{testResult}</span>}
+                  {testResult && <span className="text-xs text-[var(--fg-3)]">{testResult}</span>}
                 </div>
               </div>
             )}
           </div>
 
-          {/* Right: 待处理队列（草稿结构原样） */}
-          <div className="up-col-side">
-            <div className="up-side">
-              <div className="up-side-head">
-                <h4 className="up-side-title">待处理队列</h4>
-                <span className="up-count">{`${queue.length} 个文件`}</span>
+          {/* Right: File List & Action */}
+          <div className="col-span-12 lg:col-span-5">
+            <div className="bg-[var(--bg-2)] border border-[var(--line)] rounded-[20px] p-8 sticky top-32">
+              <div className="flex justify-between items-center mb-6">
+                <h4 className="font-serif font-bold text-xl">待处理队列</h4>
+                <span className="text-xs font-bold bg-[var(--accent-soft)] text-[var(--accent)] px-2 py-1 rounded">{`${queue.length} 个文件`}</span>
               </div>
-
-              <div className="up-list">
+              <div className="space-y-4 max-h-[400px] overflow-y-auto mb-8 pr-2 custom-scrollbar">
                 {queue.length > 0 ? (
                   queue.map((q) => {
                     const st = statusOf(q);
                     const p = q.result?.paper;
-                    const clickable = !!p;
                     return (
-                      <div key={q.id} className={`filecard${p && p.id === lastImportedId ? ' just' : ''}`}>
-                        <div className="fc-icon" aria-hidden="true">
-                          <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M14 3v5h5" />
-                            <path d="M19 21H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h9l5 5v12a1 1 0 0 1-1 1Z" />
-                            <path d="M8 13h8M8 17h5" />
-                          </svg>
+                      <div key={q.id} className={`file-card flex items-center gap-4 group${p && p.id === lastImportedId ? ' ring-1 ring-[var(--accent-line)]' : ''}`} data-file-card>
+                        <div className="w-10 h-10 bg-[var(--bg-3)] rounded flex items-center justify-center text-[var(--accent)] shrink-0">
+                          <DraftIcon name="file-text" className="text-xl" />
                         </div>
-                        <div className="fc-body">
-                          {clickable ? (
-                            <button className="fc-name" onClick={() => onOpenPaper(p!.id)} title="在论文集合里查看详情">
+                        <div className="flex-1 min-w-0">
+                          {p ? (
+                            <button data-file-name className="text-sm font-bold truncate block w-full text-left hover:text-[var(--accent)]" onClick={() => onOpenPaper(p.id)} title="在论文集合里查看详情">
                               {q.file.name}
                             </button>
                           ) : (
-                            <p className="fc-name">{q.file.name}</p>
+                            <p data-file-name className="text-sm font-bold truncate">{q.file.name}</p>
                           )}
-                          <p className="fc-meta">{`${sizeMB(q.file.size)} MB • PDF`}</p>
-                          {/* 草稿没有这一行；每个文件的真实状态必须如实给出来 */}
-                          <p className={`fc-status ${st.tone}`}>{st.text}</p>
+                          <p className="text-[10px] text-[var(--fg-3)] uppercase">{`${sizeMB(q.file.size)} MB • PDF`}</p>
+                          {/* 草稿没有这一行；每个文件的真实状态必须如实给出 */}
+                          <p data-file-status className={`text-[10px] mt-0.5 leading-relaxed ${st.cls}`}>{st.text}</p>
                         </div>
-                        <button className="fc-x" onClick={() => removeFile(q.id)} disabled={running} aria-label={`移除 ${q.file.name}`} title="移除">
-                          <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round">
-                            <path d="M18 6 6 18M6 6l12 12" />
-                          </svg>
+                        <button data-file-remove className="text-[var(--fg-3)] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeFile(q.id)} disabled={running} aria-label={`移除 ${q.file.name}`} title="移除">
+                          <DraftIcon name="x" className="text-lg" />
                         </button>
                       </div>
                     );
                   })
                 ) : (
-                  <div className="up-empty">
-                    <p>尚未选择任何文件</p>
+                  <div className="text-center py-10" data-queue-empty>
+                    <p className="text-[var(--fg-3)] text-sm">尚未选择任何文件</p>
                   </div>
                 )}
               </div>
-
-              <div className="up-side-foot">
+              <div className="pt-6 border-t border-[var(--line)] space-y-4">
                 <button
-                  className={`btn-primary${running ? ' is-running' : ''}${phase === 'done' ? ' is-done' : ''}`}
+                  className={`w-full disabled:opacity-50 disabled:cursor-not-allowed ${phase === 'done' ? 'btn-primary is-done' : 'btn-primary'}`}
                   disabled={running || !queue.some((x) => !x.result)}
                   onClick={() => void start()}
                 >
                   {running ? (
                     <>
-                      <svg className="spin" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round">
-                        <path d="M12 3a9 9 0 1 0 9 9" />
-                      </svg>
+                      <DraftIcon name="loader-2" className="animate-spin mr-2" />
                       分析中...
                     </>
                   ) : phase === 'done' ? (
@@ -559,10 +453,9 @@ export function UploadFlowView({
                     '开始梳理脉络'
                   )}
                 </button>
-                <button className="btn-ghost" onClick={() => setPasteOpen((v) => !v)}>
-                  粘贴论文正文
-                </button>
-                <p className="up-fineprint">
+                {/* 草稿这里承诺「所有上传文件将进行加密处理」——本项目是本机解析、根本不上传，按铁律改成真实说法；
+                    草稿指向的「数据使用协议」也不存在，不保留不存在的承诺。 */}
+                <p className="text-[10px] text-[var(--fg-3)] text-center px-4 leading-relaxed">
                   解析在本机浏览器完成，论文不会上传到服务器；只有在你配置模型接口后，才会把解析出的正文送去抽取。密钥只保存在本机。
                 </p>
               </div>
@@ -571,22 +464,22 @@ export function UploadFlowView({
         </section>
       </div>
 
-      <footer className="up-foot">
-        <div className="up-foot-in">
-          <div className="up-foot-brand">
-            <span className="b">ResearchPilot</span>
-            {/* 2026-10-10：恢复草稿原文。它是定位标语（不是与事实不符的编造），
-                而且必须是英文才能吃到 .up-foot-tag 的 uppercase + letter-spacing，改成中文那套字距就没了。 */}
-            <span className="up-foot-tag">Privacy &amp; Trust First</span>
+      {/* 草稿：<footer class="border-t border-[var(--line)] bg-white py-12">，是 <main> 的兄弟节点（通栏） */}
+      <footer className="border-t border-[var(--line)] bg-white py-12">
+        <div className="max-w-[var(--content-max)] mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-4">
+            <span className="font-serif font-bold">ResearchPilot</span>
+            <span className="text-xs text-[var(--fg-3)] uppercase tracking-widest border-l border-[var(--line)] pl-4">Privacy &amp; Trust First</span>
           </div>
-          <div className="up-foot-links">
+          {/* 草稿的「使用指南 / 法律条款」在本项目里并不存在 → 换成真实入口（结构与样式照草稿） */}
+          <div className="flex gap-8 text-sm">
             <button className="text-link" onClick={() => onGo?.('landing')}>
               返回首页
             </button>
-            <button className="dimlink" onClick={() => onGo?.('library')}>
+            <button className="text-[var(--fg-3)] hover:text-[var(--fg)]" onClick={() => onGo?.('library')}>
               查看论文集合
             </button>
-            <button className="dimlink" onClick={() => onGo?.('settings')}>
+            <button className="text-[var(--fg-3)] hover:text-[var(--fg)]" onClick={() => onGo?.('settings')}>
               打开设置
             </button>
           </div>
