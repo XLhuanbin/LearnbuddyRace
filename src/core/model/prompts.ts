@@ -11,7 +11,7 @@
  * 6. 分歧发现区分数值结果与定性主张，要求给出共同比较范围；措辞改为「条件不一致，无法归因于方法」。
  */
 
-export const PROMPT_VERSION = 'v3.0.0';
+export const PROMPT_VERSION = 'v3.1.0';
 
 const TRUTH_RULES = `
 硬性要求（违反则本次结果作废）：
@@ -60,6 +60,10 @@ ${scopeNote}
 
 请抽取以下内容，只返回一个 JSON 对象（不要输出任何解释文字）：
 
+其中 fields 是「论文里**写了什么**」的事实抽取；assessment 是你在读完原文后做出的**评估**
+（论文不会写「我的创新度是 8.4」这类数字）。所以 assessment 的每一项都必须给出支撑它的原文片段（quote）作为依据，
+note 里写清判断理由；**给不出依据就填 null，不要凭空打分**。
+
 {
   "paperTitle": "论文完整标题",
   "fields": {
@@ -70,6 +74,11 @@ ${scopeNote}
     "datasets":        { "value": "该论文用于评估/实验的数据集名称，逗号分隔（不要填预训练语料）", "quote": "原文引文或 null", "page": 数字或 null, "status": "ok|missing", "note": "" },
     "metrics":         { "value": "该论文用于评估的评价指标名称，逗号分隔", "quote": "原文引文或 null", "page": 数字或 null, "status": "ok|missing", "note": "" },
     "limitations":     { "value": "论文明确承认的局限，或作者明确写出的适用范围限制", "quote": "原文引文或 null", "page": 数字或 null, "status": "ok|missing", "note": "" }
+  },
+  "assessment": {
+    "innovation": { "score": 0~10 的数字（可一位小数）,"quote": "支撑这个评分的原文片段（如论文自述的核心贡献），或 null", "page": 数字或 null, "note": "一句话说明为什么给这个分" },
+    "complexity": { "level": "低|中|高", "quote": "体现模型规模/计算量/结构复杂度的原文片段，或 null", "page": 数字或 null, "note": "一句话依据" },
+    "relevance":  { "percent": 0~100 的整数, "quote": "体现该方法与所属领域主流研究方向关系的原文片段，或 null", "page": 数字或 null, "note": "一句话依据" }
   },
   "experiments": [
     {

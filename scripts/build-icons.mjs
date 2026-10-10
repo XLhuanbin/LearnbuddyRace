@@ -20,6 +20,33 @@ const NAMES = [
   'file-text',
   'x',
   'loader-2',
+  // 分析结果页（草稿 f3570956）
+  'share-2',
+  'download',
+  'plus',
+  'sparkles',
+  'layers',
+  'link-2',
+  'chevron-down',
+  'chevron-right',
+  'lightbulb',
+  'arrow-up-right',
+  'map',
+  'arrow-right',
+  // 分析结果页 v2「指标优化版」：六张指标卡换了标志图标
+  'check-circle-2',
+  'table-2',
+  'book-open',
+  // 研究地图（草稿 17763ea3 v3）
+  'network',
+  'git-branch',
+  'search',
+  'filter',
+  'zoom-in',
+  'zoom-out',
+  'maximize',
+  'mouse-pointer-2',
+  'star',
 ];
 
 const url = `https://api.iconify.design/lucide.json?icons=${NAMES.join(',')}`;

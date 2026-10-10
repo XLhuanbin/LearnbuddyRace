@@ -22,24 +22,24 @@
    否则这里的 `.uppage button { color: inherit }` 会因为特异性比单类工具类高，把 `text-[var(--fg-3)]` 这类工具类压掉
    （实测过：页脚链接会从灰色变成 --fg）。放在 utilities 之前，工具类就能正常覆盖它。
    --------------------------------------------------------------------------- */
-.uppage :where(*, ::before, ::after) {
+:is(.uppage, .rspage, .mapnet) :where(*, ::before, ::after) {
   box-sizing: border-box;
   border-width: 0;
   border-style: solid;
   border-color: var(--line);
 }
 
-.uppage :where(h1, h2, h3, h4, p, figure, blockquote) {
+:is(.uppage, .rspage, .mapnet) :where(h1, h2, h3, h4, p, figure, blockquote) {
   margin: 0;
   font-size: inherit;
   font-weight: inherit;
 }
 
-.uppage :where(ul, ol) { margin: 0; padding: 0; list-style: none; }
+:is(.uppage, .rspage, .mapnet) :where(ul, ol) { margin: 0; padding: 0; list-style: none; }
 
-.uppage :where(a) { color: inherit; text-decoration: inherit; }
+:is(.uppage, .rspage, .mapnet) :where(a) { color: inherit; text-decoration: inherit; }
 
-.uppage :where(button, input, textarea, select) {
+:is(.uppage, .rspage, .mapnet) :where(button, input, textarea, select) {
   font: inherit;
   color: inherit;
   margin: 0;
@@ -48,11 +48,11 @@
   background-image: none;
   border: 0;
 }
-.uppage :where(button) { cursor: pointer; text-transform: none; -webkit-appearance: button; }
-.uppage :where(button:disabled) { cursor: not-allowed; }
+:is(.uppage, .rspage, .mapnet) :where(button) { cursor: pointer; text-transform: none; -webkit-appearance: button; }
+:is(.uppage, .rspage, .mapnet) :where(button:disabled) { cursor: not-allowed; }
 
 /* 内联图标：iconify-icon 是 inline 元素，这里保持与文字基线对齐 */
-.uppage :where(svg) { display: inline-block; vertical-align: -0.125em; }
+:is(.uppage, .rspage, .mapnet) :where(svg) { display: inline-block; vertical-align: -0.125em; }
 
 /* 工具类与组件层放在补齐的 preflight **之后**，保证 Tailwind 的单类工具类能正常覆盖上面的元素选择器 */
 @tailwind components;
@@ -200,4 +200,220 @@
   width: 1px;
   background-color: var(--line-2);
   z-index: 0;
+}
+
+/* =========================================================================
+   分析结果页（草稿 f3570956）—— 同上：逐行照搬草稿 style 块，收进本页容器 `.rspage`
+
+   ⚠️ 与上传页（.uppage）的下列差异是**两张草稿本身就不同**，不是我们改的，
+      所以只能按页作用域各给一份，绝不能并进 :root 或互相覆盖：
+      - 本草稿 `--content-max: 1280px`（上传页草稿是 1160px）
+      - 本草稿 `.btn-primary` = padding 8px 20px / 无阴影（上传页草稿是 12px 28px + 阴影）
+      - `--fig-brand` / `--fig-mid`：草稿用到了这两个图形色令牌，它们在 `.landing` 里定义；
+        这里按**同样的值**在本页作用域再给一份，不动 `.landing`。
+   ========================================================================= */
+
+.rspage {
+  --content-max: 1280px;
+  --fig-brand: #2d5b89;
+  --fig-mid: #8eafce;
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.rspage h1,
+.rspage h2,
+.rspage h3 {
+  font-family: var(--font-serif);
+}
+
+.rspage .btn-primary {
+  background-color: var(--accent);
+  color: white;
+  padding: 8px 20px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.rspage .btn-primary:hover {
+  background-color: var(--accent-2);
+  transform: translateY(-1px);
+}
+
+.rspage .btn-outline {
+  background: transparent;
+  border: 1px solid var(--line-2);
+  color: var(--fg-2);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  transition: all 0.2s;
+  font-size: 14px;
+}
+
+.rspage .btn-outline:hover {
+  background: var(--bg-3);
+  border-color: var(--fg-3);
+}
+
+.rspage .content-card {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 32px;
+  box-shadow: var(--shadow-2);
+}
+
+.rspage .nav-active {
+  color: var(--accent);
+  border-left: 2px solid var(--accent);
+  padding-left: 12px;
+  font-weight: 600;
+}
+
+.rspage .nav-inactive {
+  color: var(--fg-3);
+  border-left: 2px solid transparent;
+  padding-left: 12px;
+  transition: all 0.2s;
+}
+
+.rspage .nav-inactive:hover {
+  color: var(--fg-2);
+  border-left-color: var(--line-2);
+}
+
+.rspage .text-link {
+  color: var(--accent);
+  text-decoration: none;
+  position: relative;
+  font-weight: 600;
+  transition: color 0.3s;
+}
+
+/* =========================================================================
+   研究地图（草稿 17763ea3 v3）—— 同上：逐行照搬草稿 style 块，收进本页容器 `.mapnet`
+
+   ⚠️ 与前面两页的差异同样是**草稿本身就不同**，只能按页各给一份：
+      - 本草稿 `.btn-primary` = padding 10px 24px（上传页 12px 28px、分析结果页 8px 20px）
+      - 本草稿 `.btn-outline` = **白底** + 13px（分析结果页是透明底 + 14px）
+      - 本草稿是**整屏不滚动**的形态（草稿 body 带 `overflow:hidden`）
+   ========================================================================= */
+
+.mapnet {
+  /* 草稿是 h-screen（含它自己的顶栏）；本项目顶栏全站共享且占据文档流，
+     所以这里让开共享顶栏高度 —— 语义同样是「占满可视区」。 */
+  height: calc(100vh - var(--topbar-h));
+  min-height: 560px;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.mapnet h1,
+.mapnet h2,
+.mapnet h3 {
+  font-family: var(--font-serif);
+}
+
+.mapnet .btn-primary {
+  background-color: var(--accent);
+  color: white;
+  padding: 10px 24px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  transition: all 0.3s;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.mapnet .btn-primary:hover {
+  background-color: var(--accent-2);
+  transform: translateY(-1px);
+}
+
+.mapnet .btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.mapnet .btn-outline {
+  background: white;
+  border: 1px solid var(--line-2);
+  color: var(--fg-2);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  transition: all 0.2s;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.mapnet .btn-outline:hover {
+  background: var(--bg-3);
+  border-color: var(--fg-3);
+}
+
+.mapnet .btn-outline:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* 草稿里「当前视图」的按钮由 JS 加 active 类（品牌色描边 + 浅底） */
+.mapnet .btn-outline.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* 画布：草稿是点阵底 + 抓手光标 */
+.mapnet .map-canvas-container {
+  background-image: radial-gradient(var(--line) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+.mapnet .tag-pill {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* 详情面板滚动区（草稿 .info-panel 是高度受限 + 细滚动条） */
+.mapnet .info-panel {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-2) transparent;
+}
+
+.mapnet .info-panel::-webkit-scrollbar {
+  width: 4px;
+}
+
+.mapnet .info-panel::-webkit-scrollbar-thumb {
+  background: var(--line-2);
+  border-radius: 10px;
+}
+
+.mapnet .text-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mapnet .text-link:hover {
+  text-decoration: underline;
 }

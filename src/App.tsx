@@ -62,6 +62,7 @@ import { LandingView } from './ui/LandingView';
 import { MapView } from './ui/MapView';
 import { AppBrandBar } from './ui/mapChrome';
 import { UploadFlowView } from './ui/UploadFlowView';
+import { ResultPageView } from './ui/ResultPageView';
 import { MoreView } from './ui/MoreView';
 import { SettingsView, StatusView, capabilitiesList, MODEL_ERROR_HINT } from './ui/SettingsView';
 import { EvidencePopover, Banner } from './ui/common';
@@ -79,6 +80,7 @@ type Tab =
   | 'more'
   | 'home'
   | 'library'
+  | 'result'
   | 'experiments'
   | 'compare'
   | 'graph'
@@ -112,10 +114,12 @@ export default function App() {
     const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('rp.tab2') : null;
     const allowed: Tab[] = [
       'landing', 'map', 'upload', 'more',
-      'library', 'experiments', 'compare', 'graph', 'decision', 'divergence', 'settings', 'status',
+      'library', 'result', 'experiments', 'compare', 'graph', 'decision', 'divergence', 'settings', 'status',
     ];
     return saved && (allowed as string[]).includes(saved) ? (saved as Tab) : 'landing';
   });
+  /** 「分析结果页」正在看哪一篇论文（从论文集合点「查看分析结果」进来） */
+  const [resultPaperId, setResultPaperId] = useState<string | null>(null);
   /**
    * 每次从顶栏「目录」点进研究地图就自增一次，用来把研究地图的子视图复位到「方法地图」。
    * 不带 signal 的话，子视图（关系与比较 / 阅读起点）是页面内部状态，再点一次目录也回不去。
@@ -1355,7 +1359,7 @@ export default function App() {
       <div className={`app-body${tab === 'map' ? ' mapbody' : ''}`}>
         {/* 默认不显示侧栏：页面切换走顶部「目录」浮层 */}
 
-        <main className={`main${tab === 'landing' ? ' plain' : ''}${tab === 'map' ? ' mapmain' : ''}${tab === 'upload' ? ' uploadmain' : ''}`}>
+        <main className={`main${tab === 'landing' ? ' plain' : ''}${tab === 'map' ? ' mapmain' : ''}${tab === 'upload' ? ' uploadmain' : ''}${tab === 'result' ? ' resultmain' : ''}`}>
           <div className="main-inner">
           {pendingDependents.length > 0 && (
             <Banner kind="warn">
@@ -1543,6 +1547,20 @@ export default function App() {
             />
           )}
 
+          {/* 分析结果页（草稿 f3570956）：从论文集合点某篇「查看分析结果」进来 */}
+          {tab === 'result' && resultPaperId && papers.some((p) => p.id === resultPaperId) && (
+            <ResultPageView
+              paper={papers.find((p) => p.id === resultPaperId)!}
+              method={methods.find((m) => m.paperId === resultPaperId)}
+              papers={papers}
+              methods={methods}
+              onBack={() => setTab('library')}
+              onGoMap={() => setTab('map')}
+              onGoCompare={() => setTab('compare')}
+              onGoUpload={() => setTab('upload')}
+              onOpenEvidence={(ev) => openEvidence(ev, '原文依据', papers.find((x) => x.id === ev.paperId))}
+            />
+          )}
           {tab === 'library' && (
             <LibraryView
               scope={scope}
@@ -1559,6 +1577,10 @@ export default function App() {
               onOpenExperiments={(paperId) => {
                 setExpFocus(paperId);
                 setTab('experiments');
+              }}
+              onOpenResult={(paperId) => {
+                setResultPaperId(paperId);
+                setTab('result');
               }}
               onGoGraph={() => setTab('graph')}
               papers={papers}

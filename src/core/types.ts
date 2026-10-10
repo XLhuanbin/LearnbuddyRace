@@ -285,12 +285,43 @@ export interface UserOverride {
   at: number;
 }
 
+/** 评估型指标的一项（创新度 / 复杂度 / 相关性 三选一） */
+export interface MethodAssessmentItem {
+  /** 创新度=0~10 的数字；复杂度='低'|'中'|'高'；相关性=0~100 的数字 */
+  value: number | string;
+  /** 判断依据：论文里支撑这项评估的原文片段（走与普通字段相同的原文定位校验） */
+  evidence?: Evidence;
+  /** 模型自述的简短理由 */
+  note?: string;
+}
+
+/**
+ * 评估型指标（2026-10-10 新增，对应草稿 f3570956 的三张指标卡）
+ *
+ * ⚠️ **诚实口径：这三个数值不是论文里写的**，是模型读完原文后做出的**评估**。
+ * 因此每一项都必须给出「判断依据」的引文并过原文定位校验，界面也必须标明「模型评估」，
+ * 既不能让用户误以为这是论文给出的数字，也不能拿它给方法排名。
+ *
+ * 它与 `fields`（论文里**写了什么**的事实抽取）是两类东西，不混在一起：
+ * 加进 `fields` 会让「已核验字段 X/7」这类统计口径失真，也会波及大量既有断言。
+ */
+export interface MethodAssessment {
+  /** 创新度评分（0~10） */
+  innovation?: MethodAssessmentItem;
+  /** 方法复杂度（低 / 中 / 高） */
+  complexity?: MethodAssessmentItem;
+  /** 领域相关性（0~100） */
+  relevance?: MethodAssessmentItem;
+}
+
 export interface Method {
   id: string;
   /** 该分析结果属于哪个语料集 */
   corpusId?: CorpusId;
   paperId: string;
   fields: Record<FieldKey, MethodFieldResult>;
+  /** 评估型指标（模型评估，不是原文事实；可能为 undefined —— 老结果没有这一项） */
+  assessment?: MethodAssessment;
   /** 实验记录（一篇论文可有多条模型/设置组合，分类比较以实验为单位） */
   experiments?: ExperimentRecord[];
   /** 结构化实验条件，用于不可比检测 */

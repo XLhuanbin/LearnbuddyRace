@@ -782,7 +782,57 @@
           "action": "该条件按「信息不足」处理，不参与一致性判断。",
           "at": 1791450205245
         }
-      ]
+      ],
+      "assessment": {
+        "innovation": {
+          "value": 9,
+          "evidence": {
+            "paperId": "p_arxiv_1512.03385",
+            "quote": "We\n\npresent a residual learning framework to ease the training\n\nof networks that are substantially deeper than those used\n\npreviously. We explicitly reformulate the layers as learn-\n\ning residual functions with reference to the layer inputs, in-\n\nstead of learning unreferenced functions.",
+            "page": 1,
+            "start": 222,
+            "end": 510,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "提出残差学习这一通用且影响深远的框架，并在多个任务上取得当时最优结果。"
+        },
+        "complexity": {
+          "value": "中",
+          "evidence": {
+            "paperId": "p_arxiv_1512.03385",
+            "quote": "Remarkably, although the depth is significantly\n\nincreased, the 152-layer ResNet (11.3 billion FLOPs) still\n\nhas lower complexity than VGG-16/19 nets (15.3/19.6 bil-\n\nlion FLOPs).",
+            "page": 7,
+            "start": 29081,
+            "end": 29260,
+            "section": "method top-5 err. (test)",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "152 层 ResNet 仅 11.3 GFLOPs，低于 VGG-16/19，结构虽深但计算量可控。"
+        },
+        "relevance": {
+          "value": 95,
+          "evidence": {
+            "paperId": "p_arxiv_1512.03385",
+            "quote": "This strong evidence shows that\n\nthe residual learning principle is generic, and we expect that\n\nit is applicable in other vision and non-vision problems.",
+            "page": 2,
+            "start": 7341,
+            "end": 7495,
+            "section": "method. We show that: 1) Our extremely deep residual nets",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "残差学习成为视觉识别乃至更广泛深度网络的主流基础结构，与领域主流方向高度相关。"
+        }
+      }
     },
     {
       "id": "m_p_arxiv_2010.11929",
@@ -1370,7 +1420,57 @@
           "action": "需要人工回到原文确认后再用于比较。",
           "at": 1791450205346
         }
-      ]
+      ],
+      "assessment": {
+        "innovation": {
+          "value": 9,
+          "evidence": {
+            "paperId": "p_arxiv_2010.11929",
+            "quote": "We show that this reliance on CNNs is not necessary\n\nand a pure transformer applied directly to sequences of image patches can perform\n\nvery well on image classification tasks.",
+            "page": 1,
+            "start": 833,
+            "end": 1009,
+            "section": "ABSTRACT",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "首次证明纯 Transformer 直接处理图像 patch 即可在图像分类上达到 SOTA，思路简洁且影响深远。"
+        },
+        "complexity": {
+          "value": "高",
+          "evidence": {
+            "paperId": "p_arxiv_2010.11929",
+            "quote": "ViT-Huge 32 1280 5120 16 632M",
+            "page": 5,
+            "start": 15422,
+            "end": 15451,
+            "section": "Model Layers Hidden size D MLP size Heads Params",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "最大模型 ViT-Huge 参数量达 632M，且需大规模预训练，计算复杂度高。"
+        },
+        "relevance": {
+          "value": 95,
+          "evidence": {
+            "paperId": "p_arxiv_2010.11929",
+            "quote": "While the Transformer architecture has become the de-facto standard for natural\n\nlanguage processing tasks, its applications to computer vision remain limited.",
+            "page": 1,
+            "start": 475,
+            "end": 634,
+            "section": "ABSTRACT",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "将 NLP 主流 Transformer 引入视觉，直接回应视觉领域对 CNN 依赖的核心问题，相关性极高。"
+        }
+      }
     },
     {
       "id": "m_p_arxiv_2012.12877",
@@ -2004,7 +2104,57 @@
       "extractedAt": 1789725130282,
       "cached": true,
       "paperTitleGuess": "Training data-efficient image transformers & distillation through attention",
-      "validation": []
+      "validation": [],
+      "assessment": {
+        "innovation": {
+          "value": 7.5,
+          "evidence": {
+            "paperId": "p_arxiv_2012.12877",
+            "quote": "More importantly, we introduce a teacher-student strategy specific to\n\ntransformers. It relies on a distillation token ensuring that the student\n\nlearns from the teacher through attention.",
+            "page": 1,
+            "start": 815,
+            "end": 1003,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "核心创新是面向 Transformer 的 distillation token 蒸馏机制，并证明可用 convnet 作教师；但整体架构沿用 ViT，属训练策略与蒸馏机制层面的创新。"
+        },
+        "complexity": {
+          "value": "中",
+          "evidence": {
+            "paperId": "p_arxiv_2012.12877",
+            "quote": "Our reference vision transformer (86M parameters) achieves top-1\n\naccuracy of 83.1% (single-crop) on ImageNet with no external data.",
+            "page": 1,
+            "start": 681,
+            "end": 813,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "参考模型 86M 参数，规模与 ViT-B 相当，结构为纯注意力 Transformer，复杂度中等。"
+        },
+        "relevance": {
+          "value": 90,
+          "evidence": {
+            "paperId": "p_arxiv_2012.12877",
+            "quote": "Recently, neural networks purely based on attention were shown to ad-\n\ndress image understanding tasks such as image classification.",
+            "page": 1,
+            "start": 232,
+            "end": 364,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "直接针对视觉 Transformer 的数据效率与蒸馏这一主流热点问题，与领域主流方向高度相关。"
+        }
+      }
     },
     {
       "id": "m_p_arxiv_2103.14030",
@@ -2664,7 +2814,56 @@
           "action": "需要人工回到原文确认后再用于比较。",
           "at": 1791450205437
         }
-      ]
+      ],
+      "assessment": {
+        "innovation": {
+          "value": 8,
+          "evidence": {
+            "paperId": "p_arxiv_2103.14030",
+            "quote": "To address these\n\ndifferences, we propose a hierarchical Transformer whose\n\nrepresentation is computed with Shifted windows. The\n\nshifted windowing scheme brings greater efficiency by lim-\n\niting self-attention computation to non-overlapping local\n\nwindows while also allowing for cross-window connection.",
+            "page": 1,
+            "start": 659,
+            "end": 964,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "提出层级式 + 移位窗口的通用视觉骨干，在分类/检测/分割上均刷新 SOTA，创新性较强但仍是 ViT 路线的架构改进。"
+        },
+        "complexity": {
+          "value": "中",
+          "evidence": {
+            "paperId": "p_arxiv_2103.14030",
+            "quote": "We build our base model, called Swin-B, to have of\n\nmodel size and computation complexity similar to ViT-\n\nB/DeiT-B. We also introduce Swin-T, Swin-S and Swin-L,\n\nwhich are versions of about 0.25×, 0.5× and 2× the model\n\nsize and computational complexity, respectively",
+            "page": 5,
+            "start": 22140,
+            "end": 22408,
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          },
+          "note": "模型规模与 ViT-B/DeiT-B 相当，提供 0.25×~2× 多个变体，结构复杂度中等。"
+        },
+        "relevance": {
+          "value": 95,
+          "evidence": {
+            "paperId": "p_arxiv_2103.14030",
+            "quote": "Our work ex-\n\nplores the adaptation of Transformers for basic visual fea-\n\nture extraction and is complementary to these works.",
+            "page": 3,
+            "start": 11487,
+            "end": 11614,
+            "section": "model throughout computer vision. While the CNN has ex-",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "直接对接视觉 Transformer 骨干这一主流方向，与 ViT/DeiT 等高度相关。"
+        }
+      }
     },
     {
       "id": "m_p_arxiv_2201.03545",
@@ -3355,7 +3554,57 @@
           "action": "该条件按「信息不足」处理，不参与一致性判断。",
           "at": 1791450205486
         }
-      ]
+      ],
+      "assessment": {
+        "innovation": {
+          "value": 7.5,
+          "evidence": {
+            "paperId": "p_arxiv_2201.03545",
+            "quote": "model itself is not completely new — many design choices\n\nhave all been examined separately over the last decade, but\n\nnot collectively.",
+            "page": 9,
+            "start": 43459,
+            "end": 43595,
+            "section": "5. Related Work",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "论文承认设计选择并非全新，但集体整合并系统现代化ConvNet，挑战了Transformer优于ConvNet的普遍观点，创新度中等偏上。"
+        },
+        "complexity": {
+          "value": "中",
+          "evidence": {
+            "paperId": "p_arxiv_2201.03545",
+            "quote": "ConvNeXt-T 224\n2\n29M 4.5G 774.7 82.1",
+            "page": 7,
+            "start": 31939,
+            "end": 31975,
+            "section": "model",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "模型参数量从29M到350M，FLOPs从4.5G到179G，结构复杂度中等，与Swin Transformer相当。"
+        },
+        "relevance": {
+          "value": 95,
+          "evidence": {
+            "paperId": "p_arxiv_2201.03545",
+            "quote": "We hope that the new results reported in this\n\nstudy will challenge several widely held views and prompt\n\npeople to rethink the importance of convolution in computer\n\nvision.",
+            "page": 9,
+            "start": 43596,
+            "end": 43770,
+            "section": "model itself is not completely new — many design choices",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "论文直接针对视觉识别领域的主流Transformer趋势，重新审视卷积网络的重要性，与领域高度相关。"
+        }
+      }
     }
   ],
   "relations": [

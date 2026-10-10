@@ -679,6 +679,18 @@
 .main.uploadmain { padding-left: 0; padding-right: 0; padding-bottom: 0; }
 .main.uploadmain .main-inner { max-width: none; }
 
+/* 分析结果页（草稿 f3570956）同理：草稿的 <main> / <footer> 各自 `max-w-[var(--content-max)] mx-auto px-6`
+   （本草稿的 --content-max 是 1280px，已在 .rspage 作用域里给出），外壳不能再限制宽度或留左右内边距，
+   否则页面的内容宽、尤其是页脚会被缩进容器里。 */
+.main.resultmain { padding-left: 0; padding-right: 0; padding-bottom: 0; }
+.main.resultmain .main-inner { max-width: none; }
+
+/* 研究地图（草稿 17763ea3 v3）是**整屏不滚动**的形态：页面自己用 calc(100vh - 顶栏) 撑满，
+   外壳不能留左右内边距、也不能再限宽，否则右侧 400px 详情面板会被挤出可视区。
+   顶栏仍占文档流，所以这里只去掉内边距 —— 高度由 .mapnet 自己算。 */
+.main.netmapmain { padding-left: 0; padding-right: 0; padding-top: 0; padding-bottom: 0; }
+.main.netmapmain .main-inner { max-width: none; }
+
 .uppage { position: relative; }
 
 /* main：max-w-1160 mx-auto px-6 pt-32 pb-64 relative

@@ -108,6 +108,7 @@ export function LibraryView({
   onGoHome,
   onGoExperiments,
   onOpenExperiments,
+  onOpenResult,
   onGoGraph,
   corpus,
   corpusLabel,
@@ -151,6 +152,8 @@ export function LibraryView({
   onGoExperiments: () => void;
   /** 打开实验比较页并聚焦某篇论文 */
   onOpenExperiments: (paperId: string) => void;
+  /** 打开「分析结果页」并展示这篇论文的完整分析结果 */
+  onOpenResult: (paperId: string) => void;
   onGoGraph: () => void;
   corpus: 'vision' | 'nlp-dev';
   corpusLabel: string;
@@ -537,6 +540,9 @@ export function LibraryView({
                             查看实验（{exps.length} 条）→
                           </button>
                         )}
+                        <button className="btn ghost sm" onClick={() => onOpenResult(p.id)}>
+                          查看分析结果 →
+                        </button>
                       </div>
                       <div className="row" style={{ marginBottom: 12, gap: 8 }}>
                         <Status kind={m.cached ? 'cached' : 'live'}>{m.cached ? '缓存结果（离线真实模型生成）' : '实时分析结果'}</Status>

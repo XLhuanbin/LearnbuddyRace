@@ -418,7 +418,57 @@
           "action": "该条件按「信息不足」处理，不参与一致性判断。",
           "at": 1791450212832
         }
-      ]
+      ],
+      "assessment": {
+        "innovation": {
+          "value": 9,
+          "evidence": {
+            "paperId": "p_arxiv_1706.03762",
+            "quote": "We propose a new simple network architecture, the Transformer,\n\nbased solely on attention mechanisms, dispensing with recurrence and convolutions\n\nentirely.",
+            "page": 1,
+            "start": 855,
+            "end": 1011,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "完全摒弃循环与卷积、仅基于注意力，是架构层面的重大创新。"
+        },
+        "complexity": {
+          "value": "中",
+          "evidence": {
+            "paperId": "p_arxiv_1706.03762",
+            "quote": "The encoder is composed of a stack of N = 6 identical layers.",
+            "page": 3,
+            "start": 7518,
+            "end": 7579,
+            "section": "3 Model Architecture",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "6 层堆叠、8 头注意力、dmodel=512，结构相对简洁但规模中等。"
+        },
+        "relevance": {
+          "value": 95,
+          "evidence": {
+            "paperId": "p_arxiv_1706.03762",
+            "quote": "The dominant sequence transduction models are based on complex recurrent or\n\nconvolutional neural networks that include an encoder and a decoder.",
+            "page": 1,
+            "start": 611,
+            "end": 756,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "直接针对序列转换这一主流方向提出替代方案，领域相关度极高。"
+        }
+      }
     },
     {
       "id": "m_p_arxiv_1810.04805",
@@ -719,7 +769,57 @@
           "action": "该条件按「信息不足」处理，不参与一致性判断。",
           "at": 1791450212879
         }
-      ]
+      ],
+      "assessment": {
+        "innovation": {
+          "value": 9,
+          "evidence": {
+            "paperId": "p_arxiv_1810.04805",
+            "quote": "BERT is designed to pre-\n\ntrain deep bidirectional representations from\n\nunlabeled text by jointly conditioning on both\n\nleft and right context in all layers.",
+            "page": 1,
+            "start": 459,
+            "end": 617,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "首次提出深度双向预训练表示并用统一微调框架刷新 11 项 NLP 任务，创新度高。"
+        },
+        "complexity": {
+          "value": "高",
+          "evidence": {
+            "paperId": "p_arxiv_1810.04805",
+            "quote": "BERTBASE (L=12, H=768, A=12, Total Param-\n\neters=110M) and BERTLARGE (L=24, H=1024,\n\nA=16, Total Parameters=340M).",
+            "page": 3,
+            "start": 11785,
+            "end": 11899,
+            "section": "Model Architecture BERT’s model architec-",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "最大模型 340M 参数、24 层，预训练需大量算力。"
+        },
+        "relevance": {
+          "value": 95,
+          "evidence": {
+            "paperId": "p_arxiv_1810.04805",
+            "quote": "The most comparable existing pre-training\n\nmethod to BERT is OpenAI GPT, which trains a\n\nleft-to-right Transformer LM on a large text cor-\n\npus.",
+            "page": 14,
+            "start": 56644,
+            "end": 56788,
+            "section": "approach.",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "直接对标当时主流的 GPT 预训练方向，属于 NLP 表示学习核心议题。"
+        }
+      }
     },
     {
       "id": "m_p_arxiv_1907.11692",
@@ -1072,7 +1172,45 @@
           "action": "需要人工回到原文确认后再用于比较。",
           "at": 1791450212914
         }
-      ]
+      ],
+      "assessment": {
+        "innovation": {
+          "value": 6.5,
+          "note": "贡献主要是对已有 BERT 的系统性复现与设计选择优化，而非全新架构，故创新度中等偏上。"
+        },
+        "complexity": {
+          "value": "高",
+          "evidence": {
+            "paperId": "p_arxiv_1907.11692",
+            "quote": "We pretrain our model using\n\n1024 V100 GPUs for approximately one day.",
+            "page": 7,
+            "start": 26160,
+            "end": 26230,
+            "section": "Appendix.",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "使用 1024 块 V100 GPU 预训练约一天，计算规模很大。"
+        },
+        "relevance": {
+          "value": 95,
+          "evidence": {
+            "paperId": "p_arxiv_1907.11692",
+            "quote": "Overall, we re-establish that BERT’s masked lan-\n\nguage model training objective is competitive\n\nwith other recently proposed training objectives\n\nsuch as perturbed autoregressive language model-\n\ning (Yang et al., 2019).",
+            "page": 1,
+            "start": 3315,
+            "end": 3536,
+            "section": "model achieves a score of 88.5 on the public",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "直接针对预训练语言模型这一主流方向，与 BERT/XLNet 等核心工作紧密相关。"
+        }
+      }
     },
     {
       "id": "m_p_arxiv_1910.01108",
@@ -1390,7 +1528,57 @@
           "action": "该条件按「信息不足」处理，不参与一致性判断。",
           "at": 1791450212927
         }
-      ]
+      ],
+      "assessment": {
+        "innovation": {
+          "value": 7.5,
+          "evidence": {
+            "paperId": "p_arxiv_1910.01108",
+            "quote": "While most prior work investigated the use of distillation for building task-specific\n\nmodels, we leverage knowledge distillation during the pre-training phase",
+            "page": 1,
+            "start": 697,
+            "end": 856,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "将蒸馏用于预训练阶段而非仅任务特定模型，具有创新性，但方法本身基于已有蒸馏技术。"
+        },
+        "complexity": {
+          "value": "中",
+          "evidence": {
+            "paperId": "p_arxiv_1910.01108",
+            "quote": "DistilBERT has 40% fewer parameters than BERT and is 60% faster than BERT.",
+            "page": 4,
+            "start": 11530,
+            "end": 11604,
+            "section": "4 Experiments",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "模型规模减小但结构仍为 Transformer，训练需 8 块 V100 约 90 小时。"
+        },
+        "relevance": {
+          "value": 90,
+          "evidence": {
+            "paperId": "p_arxiv_1910.01108",
+            "quote": "As Transfer Learning from large-scale pre-trained models becomes more prevalent\n\nin Natural Language Processing (NLP), operating these large models in on-the-\n\nedge and/or under constrained computational training or inference budgets remains\n\nchallenging",
+            "page": 1,
+            "start": 206,
+            "end": 460,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          },
+          "note": "直接针对大规模预训练模型部署与计算预算问题，与领域主流方向高度相关。"
+        }
+      }
     },
     {
       "id": "m_p_arxiv_2005.14165",
@@ -1781,7 +1969,57 @@
           "action": "该条件按「信息不足」处理，不参与一致性判断。",
           "at": 1791450213111
         }
-      ]
+      ],
+      "assessment": {
+        "innovation": {
+          "value": 8,
+          "evidence": {
+            "paperId": "p_arxiv_2005.14165",
+            "quote": "Here we show that scaling up language models greatly improves task-agnostic,\n\nfew-shot performance, sometimes even reaching competitiveness with prior state-of-the-art fine-\n\ntuning approaches",
+            "page": 1,
+            "start": 1027,
+            "end": 1219,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "loose",
+            "coverage": 1
+          },
+          "note": "通过大规模扩展（175B 参数）实现无需微调的少样本学习，并达到与微调方法竞争的性能，创新性高。"
+        },
+        "complexity": {
+          "value": "高",
+          "evidence": {
+            "paperId": "p_arxiv_2005.14165",
+            "quote": "Specifically, we train GPT-3, an autoregressive language model with 175 billion\n\nparameters, 10x more than any previous non-sparse language model, and test its performance in\n\nthe few-shot setting.",
+            "page": 1,
+            "start": 1221,
+            "end": 1418,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "模型参数量达 1750 亿，是此前非稀疏语言模型的 10 倍，计算和工程复杂度极高。"
+        },
+        "relevance": {
+          "value": 95,
+          "evidence": {
+            "paperId": "p_arxiv_2005.14165",
+            "quote": "Recent work has demonstrated substantial gains on many NLP tasks and benchmarks by pre-training\n\non a large corpus of text followed by fine-tuning on a specific task.",
+            "page": 1,
+            "start": 517,
+            "end": 683,
+            "section": "Abstract",
+            "locator": "page+offset",
+            "verified": true,
+            "matchType": "strict",
+            "coverage": 1
+          },
+          "note": "该工作直接延续并挑战了 NLP 领域主流的预训练+微调范式，与领域核心方向高度相关。"
+        }
+      }
     }
   ],
   "relations": [

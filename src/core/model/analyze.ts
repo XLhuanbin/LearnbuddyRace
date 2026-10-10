@@ -15,6 +15,8 @@ import type {
   ExperimentConditions,
   FieldKey,
   Method,
+  MethodAssessment,
+  MethodAssessmentItem,
   MethodFieldResult,
   Paper,
   PlanStep,
@@ -362,12 +364,44 @@ export async function extractMethod(
   // ---------- 实验记录（以实验为单位；含表格语境核查与来源名称规范化）----------
   const experiments = parseExperimentRecords(paper, raw as Record<string, unknown>);
 
+  // ---------- 评估型指标（创新度 / 复杂度 / 领域相关性）----------
+  // ⚠️ 这三项是**模型评估**，不是原文事实（论文不会写「我的创新度是 8.4」）。
+  // 因此：只有模型给出支撑它的引文、且引文通过原文定位校验，才把 evidence 挂上（界面据此显示「依据已定位」）；
+  // 给不出依据、或引文没过校验 → 不挂 evidence；数值本身缺失 → 整项留空。**绝不凭空补数。**
+  const rawAssessment = (raw.assessment ?? {}) as Record<string, Record<string, unknown> | undefined>;
+  const assessItem = (item: Record<string, unknown> | undefined, max?: number): MethodAssessmentItem | undefined => {
+    if (!item || typeof item !== 'object') return undefined;
+    const num = typeof item.score === 'number' ? item.score : typeof item.percent === 'number' ? item.percent : NaN;
+    const level = asString(item.level).trim();
+    let value: number | string | undefined;
+    if (Number.isFinite(num)) value = max === undefined ? num : Math.max(0, Math.min(max, num));
+    else if (/^(低|中|高)$/.test(level)) value = level;
+    if (value === undefined) return undefined;
+    const quote = asString(item.quote);
+    const evidence = quote ? buildEvidence(paper, { quote }) : undefined;
+    return {
+      value,
+      // 引文未通过校验就不挂：挂上去会让界面把「模型评估」显示成「依据已定位」，属于夸大
+      evidence: evidence?.verified ? evidence : undefined,
+      note: asString(item.note) || undefined,
+    };
+  };
+  const assessment: MethodAssessment = {};
+  const aInnovation = assessItem(rawAssessment.innovation, 10);
+  const aComplexity = assessItem(rawAssessment.complexity);
+  const aRelevance = assessItem(rawAssessment.relevance, 100);
+  if (aInnovation) assessment.innovation = aInnovation;
+  if (aComplexity) assessment.complexity = aComplexity;
+  if (aRelevance) assessment.relevance = aRelevance;
+
   const method: Method = {
     id: `m_${paper.id}`,
     paperId: paper.id,
     fields,
     conditions: normalized,
     experiments,
+    assessment: Object.keys(assessment).length ? assessment : undefined,
+
     overrides: [],
     model: cfg.model,
     promptVersion: PROMPT_VERSION,
