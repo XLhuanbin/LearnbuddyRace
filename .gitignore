@@ -33,3 +33,6 @@ docs/**/*.png
 docs/**/*.jpg
 docs/**/*.jpeg
 docs/**/*.webp
+
+# Vite 生成的临时配置文件
+vite.config.ts.timestamp-*.mjs
