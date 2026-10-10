@@ -11,6 +11,50 @@
    ========================================================================= */
 
 @tailwind base;
+
+/* ---------------------------------------------------------------------------
+   ⚠️ 本页依赖的 Tailwind Preflight —— **局部补齐**（2026-10-10）
+   tailwind.config.js 里 `preflight:false`（为了保护尚未重构的其他页面），但草稿的标记**是依赖 preflight 的**：
+   它假设浏览器默认样式已被清空 —— 标题/段落没有 margin、`button` 没有灰底和边框、字体继承父级、`a` 不自动变色。
+   少了这层，草稿标记会「渲染错误」（例如页脚用 `<button>` 写的链接会露出浏览器的原生按钮外观）。
+
+   ⚠️ 位置很关键：必须放在 `@tailwind utilities` **之前**（等同官方 preflight 在 base 层的语义）——
+   否则这里的 `.uppage button { color: inherit }` 会因为特异性比单类工具类高，把 `text-[var(--fg-3)]` 这类工具类压掉
+   （实测过：页脚链接会从灰色变成 --fg）。放在 utilities 之前，工具类就能正常覆盖它。
+   --------------------------------------------------------------------------- */
+.uppage :where(*, ::before, ::after) {
+  box-sizing: border-box;
+  border-width: 0;
+  border-style: solid;
+  border-color: var(--line);
+}
+
+.uppage :where(h1, h2, h3, h4, p, figure, blockquote) {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.uppage :where(ul, ol) { margin: 0; padding: 0; list-style: none; }
+
+.uppage :where(a) { color: inherit; text-decoration: inherit; }
+
+.uppage :where(button, input, textarea, select) {
+  font: inherit;
+  color: inherit;
+  margin: 0;
+  padding: 0;
+  background-color: transparent;
+  background-image: none;
+  border: 0;
+}
+.uppage :where(button) { cursor: pointer; text-transform: none; -webkit-appearance: button; }
+.uppage :where(button:disabled) { cursor: not-allowed; }
+
+/* 内联图标：iconify-icon 是 inline 元素，这里保持与文字基线对齐 */
+.uppage :where(svg) { display: inline-block; vertical-align: -0.125em; }
+
+/* 工具类与组件层放在补齐的 preflight **之后**，保证 Tailwind 的单类工具类能正常覆盖上面的元素选择器 */
 @tailwind components;
 @tailwind utilities;
 
