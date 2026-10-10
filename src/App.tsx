@@ -1559,6 +1559,15 @@ export default function App() {
               onGoCompare={() => setTab('compare')}
               onGoUpload={() => setTab('upload')}
               onOpenEvidence={(ev) => openEvidence(ev, '原文依据', papers.find((x) => x.id === ev.paperId))}
+              /* ↓ 按篇操作：论文集合改成表格后，这些功能从展开行迁到分析结果页 */
+              job={resultPaperId ? jobs[resultPaperId] : undefined}
+              modelReady={modelReady}
+              onExtract={extract}
+              onReparse={reparsePaper}
+              canReparseInPlace={canReparseInPlace}
+              onCancel={cancelExtract}
+              onOverride={overrideField}
+              onRemove={removePaper}
             />
           )}
           {tab === 'library' && (

@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import type { Evidence, Method, Paper, Relation } from '../core/types';
 import { buildMethodProfile, shortContribution } from '../core/grouping';
 import { DraftIcon } from '../draft-icons';
-import { Status } from './common';
+import { INNOVATION_TIERS, innovationColor } from './innovationScale';
 
 interface Props {
   papers: Paper[];
@@ -30,23 +30,6 @@ const PATH_STYLE: Record<string, { color: string; dash?: string; width: number; 
   combines: { color: '#3B82F6', width: 2, label: '融合创新' },
   similar: { color: '#A78BFA', dash: '2 4', width: 1.6, label: '应用扩展' },
   unclear: { color: '#9CA3AF', dash: '2 4', width: 1.4, label: '关系待核查' },
-};
-
-/**
- * 节点配色按**创新度分档**（草稿图例的口径）。
- * ⚠️ 创新度是**模型评估**（不是论文给出的分数），所以图例里写明这一点；
- *    没有评估结果的论文一律用中性灰，绝不凭猜测上色。
- */
-const INNOVATION_TIERS = [
-  { min: 8.5, color: '#10B981', label: '革命性创新 (创新度 > 8.5)' },
-  { min: 7.0, color: '#F59E0B', label: '重要改进 (7.0 - 8.5)' },
-  { min: -Infinity, color: '#A78BFA', label: '常规优化 (< 7.0)' },
-];
-const NEUTRAL = '#9CA3AF';
-
-const innovationColor = (score: number | undefined) => {
-  if (typeof score !== 'number') return NEUTRAL;
-  return INNOVATION_TIERS.find((t) => score >= t.min)?.color ?? NEUTRAL;
 };
 
 const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
@@ -218,7 +201,7 @@ export function MapNetworkView({
   };
 
   return (
-    <div className="mapnet">
+    <div className="mapnet sdpage">
       {/* ---------- 子头（72px） ---------- */}
       <div className="h-[72px] shrink-0 bg-white border-b border-[var(--line)] px-6 flex justify-between items-center gap-4">
         <div className="flex items-center gap-6 min-w-0">

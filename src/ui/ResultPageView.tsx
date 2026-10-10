@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { Evidence, Method, MethodAssessmentItem, MethodFieldResult, Paper } from '../core/types';
+import type { Evidence, FieldKey, Method, MethodAssessmentItem, MethodFieldResult, Paper } from '../core/types';
 import { METHOD_FIELD_LABELS, FIELD_STATUS_TEXT } from '../core/types';
 import { FIELD_KEYS_ORDER } from '../core/cache';
 import { buildMethodProfile } from '../core/grouping';
 import { DraftIcon } from '../draft-icons';
-import { verifiedOf } from './Library';
+import { verifiedOf, type JobState } from './Library';
+import { FieldCard } from './common';
 
 interface Props {
   /** 当前查看的论文 */
@@ -22,6 +23,25 @@ interface Props {
   /** 去上传页继续分析其他论文 */
   onGoUpload: () => void;
   onOpenEvidence?: (ev: Evidence) => void;
+
+  /* ↓↓↓ 以下按篇操作**草稿里没有**，是为「论文集合改成表格」做的必要兼容：
+     表格行只留「查看报告」，原先挂在论文集合展开行里的这些功能必须有个去处，
+     否则一改表格功能就丢。集中放在本页末尾的「本篇操作」区，并注明来源。 */
+  /** 本次分析任务状态（运行中要能停止等待） */
+  job?: JobState;
+  modelReady: boolean;
+  /** 解析成功但还没抽字段 → 抽取 */
+  onExtract: (paperId: string, force: boolean) => void;
+  /** 重新解析 PDF（真正重跑解析；必要时会请用户重选文件） */
+  onReparse: (paperId: string) => void;
+  /** 这份 PDF 现在能否直接重解析（文件还在本次会话内存里） */
+  canReparseInPlace: (paperId: string) => boolean;
+  /** 停止等待（只停止本次等待，不代表服务端已停止计算） */
+  onCancel?: (paperId: string) => void;
+  /** 人工修正某个字段 */
+  onOverride: (paperId: string, field: FieldKey, value: string) => void;
+  /** 移除本篇（只删本机数据，可撤销） */
+  onRemove?: (paperId: string) => void;
 }
 
 /**
@@ -61,6 +81,14 @@ export function ResultPageView({
   onGoCompare,
   onGoUpload,
   onOpenEvidence,
+  job,
+  modelReady,
+  onExtract,
+  onReparse,
+  canReparseInPlace,
+  onCancel,
+  onOverride,
+  onRemove,
 }: Props) {
   const [openKeys, setOpenKeys] = useState<Set<string>>(new Set(['coreIdea']));
   const [activeNav, setActiveNav] = useState('overview');
@@ -224,7 +252,7 @@ export function ResultPageView({
 
   if (!method) {
     return (
-      <div className="rspage pb-20">
+      <div className="rspage sdpage pb-20">
         <div className="max-w-[var(--content-max)] mx-auto px-6 pt-16 pb-20">
           <div className="content-card bg-white">
             <h1 className="text-xl font-serif font-bold tracking-tight">这篇论文还没有分析结果</h1>
@@ -246,7 +274,7 @@ export function ResultPageView({
   }
 
   return (
-    <div className="rspage pb-20">
+    <div className="rspage sdpage pb-20">
       {/* ---------- 子头（草稿：白底 + 下边框 + sticky） ---------- */}
       <div className="bg-white border-b border-[var(--line)] sticky top-[var(--topbar-h)] z-40">
         <div className="max-w-[var(--content-max)] mx-auto px-6 py-4 flex justify-between items-center gap-4">
@@ -554,6 +582,76 @@ export function ResultPageView({
                 </p>
               )}
             </div>
+          </section>
+
+          {/* ===== 本篇操作 =====
+               ⚠️ 这一块**草稿里没有**，是为「论文集合改成表格」做的必要兼容：
+               表格行只留「查看报告」，原先挂在论文集合展开行里的抽取 / 重新解析 / 停止等待 /
+               人工修正 / 移除 必须有去处，否则一改表格功能就丢。集中放在本页末尾并注明来源。 */}
+          <section className="content-card bg-white">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-1 bg-[var(--fg-3)] h-6" />
+              <h2 className="text-2xl font-serif font-bold">本篇操作</h2>
+            </div>
+
+            {job?.status === 'running' && (
+              <p className="text-sm text-[var(--fg-2)] leading-relaxed" style={{ marginBottom: 16 }}>
+                正在等待模型响应（{job.message}）。分析期间原结果仍然保留，可随时停止等待。
+              </p>
+            )}
+            {job?.status === 'canceled' && (
+              <p className="text-sm leading-relaxed" style={{ marginBottom: 16, color: 'var(--fg-2)' }}>
+                已停止等待：本次调用未完成，原结果保持不变。停止等待不代表服务端已停止计算或不再计费。
+              </p>
+            )}
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: method ? 16 : 0 }}>
+              {paper.parseStatus === 'ok' && !method && (
+                <button className="btn-primary" disabled={job?.status === 'running'} onClick={() => onExtract(paper.id, false)}>
+                  {modelReady ? '分析方法字段' : '配置模型后分析'}
+                </button>
+              )}
+              {paper.parseStatus === 'failed' && (
+                /* 必须真正重跑 PDF 解析，不能拿模型抽取冒充「解析重试」 */
+                <button className="btn-primary" disabled={job?.status === 'running'} onClick={() => onReparse(paper.id)}>
+                  {canReparseInPlace(paper.id) ? '重新解析这份 PDF' : '重新选择 PDF 并重新解析'}
+                </button>
+              )}
+              {job?.status === 'running' && onCancel && (
+                <button className="btn-outline" onClick={() => onCancel(paper.id)}>
+                  停止等待
+                </button>
+              )}
+              {onRemove && (
+                <button className="btn-outline" onClick={() => onRemove(paper.id)}>
+                  移除本篇
+                </button>
+              )}
+            </div>
+
+            {method && (
+              <details>
+                <summary style={{ cursor: 'pointer', fontSize: 14, fontWeight: 700, color: 'var(--fg-2)' }}>
+                  字段与人工修正（{FIELD_KEYS_ORDER.length} 项）
+                </summary>
+                <div style={{ marginTop: 16 }}>
+                  {FIELD_KEYS_ORDER.map((k) => {
+                    const ov = method.overrides?.find((o) => o.field === k);
+                    return (
+                      <FieldCard
+                        key={k}
+                        field={k}
+                        result={method.fields[k]}
+                        paper={paper}
+                        override={ov ? { newValue: ov.newValue, at: ov.at } : undefined}
+                        onOverride={(field, value) => onOverride(paper.id, field, value)}
+                        onOpenEvidence={(e) => onOpenEvidence?.(e)}
+                      />
+                    );
+                  })}
+                </div>
+              </details>
+            )}
           </section>
         </div>
 

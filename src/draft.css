@@ -417,3 +417,94 @@
 .mapnet .text-link:hover {
   text-decoration: underline;
 }
+
+/* =========================================================================
+   共享层：所有「按草稿重做的页面」共用的令牌与组件类
+   ---------------------------------------------------------------------------
+   用法：页面根容器加 `sdpage` 类（与各自的页面作用域并存，如 `rspage sdpage`）。
+
+   为什么要有这一层：同一套东西会被 5 张稿用到（见 src/ui/innovationScale.ts 的说明），
+   写进某个页面的作用域里其他页取不到，写进全局又会波及尚未重构的页面。
+   `.sdpage` 是「已按草稿重做的页面」的显式标记，两边都不误伤。
+
+   以下数值**逐行照抄草稿 6db41280 的 style 块**（本草稿是唯一把这些定义成令牌的一张）。
+   ========================================================================= */
+
+:root {
+  /* 创新度分档色 —— 五张稿共用同一套阈值（8.5+ / 7.0-8.5 / <7.0） */
+  --score-high: #10B981;
+  --score-mid: #f59e0b;
+  --score-low: #8b5cf6;
+  /* 没有评估结果时的中性色（草稿没有这一档，是诚实展示所需） */
+  --score-none: #9ca3af;
+}
+
+/* 创新度徽标：浅底 + 彩色字（不是实心块 —— 草稿原文如此）
+   用于 论文库表格每行 / 对比表列头 / 阅读路线每步 */
+.sdpage .score-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.sdpage .score-badge.score-high {
+  background-color: #ecfdf5;
+  color: var(--score-high);
+}
+
+.sdpage .score-badge.score-mid {
+  background-color: #fffbeb;
+  color: var(--score-mid);
+}
+
+.sdpage .score-badge.score-low {
+  background-color: #f5f3ff;
+  color: var(--score-low);
+}
+
+.sdpage .score-badge.score-none {
+  background-color: var(--bg-3);
+  color: var(--fg-3);
+}
+
+/* 统计条：论文库右栏「创新度分布」 */
+.sdpage .stat-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bg-3);
+  overflow: hidden;
+}
+
+.sdpage .stat-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 1s ease-out;
+}
+
+/* 自定义复选框：论文库「全选」与每行 */
+.sdpage .custom-checkbox {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--line-2);
+  border-radius: 4px;
+  appearance: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.sdpage .custom-checkbox:checked {
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+
+.sdpage .custom-checkbox:checked::after {
+  content: '\2713';
+  color: white;
+  position: absolute;
+  top: -2px;
+  left: 2px;
+  font-size: 12px;
+  font-weight: bold;
+}
