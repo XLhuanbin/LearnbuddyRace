@@ -1359,7 +1359,7 @@ export default function App() {
       <div className={`app-body${tab === 'map' ? ' mapbody' : ''}`}>
         {/* 默认不显示侧栏：页面切换走顶部「目录」浮层 */}
 
-        <main className={`main${tab === 'landing' ? ' plain' : ''}${tab === 'map' ? ' mapmain' : ''}${tab === 'upload' ? ' uploadmain' : ''}${tab === 'result' ? ' resultmain' : ''}`}>
+        <main className={`main${tab === 'landing' ? ' plain' : ''}${tab === 'map' ? ' mapmain' : ''}${tab === 'upload' ? ' uploadmain' : ''}${tab === 'result' ? ' resultmain' : ''}${tab === 'map' ? ' netmapmain' : ''}`}>
           <div className="main-inner">
           {pendingDependents.length > 0 && (
             <Banner kind="warn">
@@ -1446,6 +1446,10 @@ export default function App() {
                 };
               })}
               modelReady={modelReady}
+              onOpenResult={(paperId) => {
+                setResultPaperId(paperId);
+                setTab('result');
+              }}
               busy={planBusy || hydratingScope}
               onCancelGenerate={() => cancelTask('plan', '生成阅读路线')}
               mode={mapMode}

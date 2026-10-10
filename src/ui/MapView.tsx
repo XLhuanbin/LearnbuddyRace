@@ -4,10 +4,12 @@ import { relationsInScope, type CorpusKey, type CorpusScope, type ScopeMode } fr
 import { Crumb, Status } from './common';
 import { buildMethodOverview, buildMethodProfile } from '../core/grouping';
 import { MethodMap } from './MethodMap';
+import { MapNetworkView } from './MapNetworkView';
+import { EvolutionView } from './EvolutionView';
 import { MapRelationsView } from './MapRelationsView';
 import { MapStartView } from './MapStartView';
 
-type SubView = 'map' | 'relations' | 'start';
+type SubView = 'map' | 'timeline' | 'relations' | 'start';
 export type { ScopeMode };
 
 interface Props {
@@ -27,6 +29,8 @@ interface Props {
   /** 停止等待正在生成的阅读路线（只停止本地等待） */
   onCancelGenerate?: () => void;
   onOpenEvidence: (ev: Evidence) => void;
+  /** 打开某篇论文的分析结果页（网络视图详情面板底部的「查看完整分析报告」） */
+  onOpenResult?: (paperId: string) => void;
   onAddPapers: () => void;
   onSwitchCase: () => void;
   onReloadCase: () => void;
@@ -64,6 +68,7 @@ export function MapView({
   onGenerate,
   onCancelGenerate,
   onOpenEvidence,
+  onOpenResult,
   onAddPapers,
   onSwitchCase,
   onReloadCase,
@@ -442,24 +447,31 @@ export function MapView({
       ) : (
         <>
           {sub === 'map' && (
-            <MethodMap
+            /* 研究地图按草稿 17763ea3 v3 重做：整屏网络视图（节点按创新度着色 + 400px 常驻详情面板） */
+            <MapNetworkView
               papers={view.papers}
               methods={view.methods}
               relations={view.relations}
+              scopeLabel={view.isCase ? corpusScope.meta.domain : '我自己上传的论文'}
               onOpenEvidence={onOpenEvidence}
-              onOpenPair={(a, b) => {
-                setPair([a, b]);
+              onOpenResult={onOpenResult ?? (() => undefined)}
+              onAddToCompare={(paperId) => {
+                const m = view.methods.find((x) => x.paperId === paperId);
+                setPair(m ? [m.id] : []);
                 setSub('relations');
               }}
-              onCompareExperiments={(a, b) => {
-                // 去重：绝不允许同一个 methodId 和自己比较
-                const next = [...new Set([a, b].filter(Boolean))].slice(0, 2);
-                setPair(next);
-                setSub('relations');
-              }}
-              relationVisible={relVisible}
-              legendNote={legendNote}
-              startHint={startHint}
+              onOpenRelations={() => setSub('relations')}
+              onOpenStart={() => setSub('start')}
+              onOpenTimeline={() => setSub('timeline')}
+            />
+          )}
+          {sub === 'timeline' && (
+            <EvolutionView
+              papers={view.papers}
+              methods={view.methods}
+              relations={view.relations}
+              plan={plan}
+              onOpenEvidence={onOpenEvidence}
             />
           )}
           {sub === 'relations' && (
