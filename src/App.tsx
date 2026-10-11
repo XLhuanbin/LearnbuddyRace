@@ -66,6 +66,7 @@ import { ResultPageView } from './ui/ResultPageView';
 import { MoreView } from './ui/MoreView';
 import { SettingsView, StatusView, capabilitiesList, MODEL_ERROR_HINT } from './ui/SettingsView';
 import { VersionView } from './ui/VersionView';
+import { FutureView } from './ui/FutureView';
 import { EvidencePopover, Banner } from './ui/common';
 import {
   describeDependents,
@@ -89,7 +90,8 @@ type Tab =
   | 'divergence'
   | 'settings'
   | 'status'
-  | 'version';
+  | 'version'
+  | 'future';
 
 /**
  * 逐文件的导入结果（2026-10-10）。
@@ -116,7 +118,7 @@ export default function App() {
     const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('rp.tab2') : null;
     const allowed: Tab[] = [
       'landing', 'map', 'upload', 'more',
-      'library', 'result', 'experiments', 'compare', 'graph', 'decision', 'divergence', 'settings', 'status', 'version',
+      'library', 'result', 'experiments', 'compare', 'graph', 'decision', 'divergence', 'settings', 'status', 'version', 'future',
     ];
     return saved && (allowed as string[]).includes(saved) ? (saved as Tab) : 'landing';
   });
@@ -1747,6 +1749,8 @@ export default function App() {
           )}
 
           {tab === 'version' && <VersionView onBack={() => setTab('more')} onGo={(t) => setTab(t as Tab)} />}
+
+          {tab === 'future' && <FutureView onBack={() => setTab('more')} onGo={(t) => setTab(t as Tab)} />}
 
           {/*
             2026-10-10：原先这里在所有非首页 tab 的底部固定渲染一个

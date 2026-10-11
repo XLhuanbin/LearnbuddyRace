@@ -78,6 +78,12 @@ const NAMES = [
   'brain-circuit',
   'terminal',
   'eye',
+  // 未来展望与功能建议（草稿 4bdccae1）
+  'plus-circle',
+  'arrow-up-circle',
+  'arrow-up',
+  'check-circle',
+  'timer',
 ];
 
 const url = `https://api.iconify.design/lucide.json?icons=${NAMES.join(',')}`;

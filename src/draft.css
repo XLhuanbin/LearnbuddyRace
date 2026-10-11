@@ -22,24 +22,24 @@
    否则这里的 `.uppage button { color: inherit }` 会因为特异性比单类工具类高，把 `text-[var(--fg-3)]` 这类工具类压掉
    （实测过：页脚链接会从灰色变成 --fg）。放在 utilities 之前，工具类就能正常覆盖它。
    --------------------------------------------------------------------------- */
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage, .verpage) :where(*, ::before, ::after) {
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage, .verpage, .futpage) :where(*, ::before, ::after) {
   box-sizing: border-box;
   border-width: 0;
   border-style: solid;
   border-color: var(--line);
 }
 
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage, .verpage) :where(h1, h2, h3, h4, p, figure, blockquote) {
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage, .verpage, .futpage) :where(h1, h2, h3, h4, p, figure, blockquote) {
   margin: 0;
   font-size: inherit;
   font-weight: inherit;
 }
 
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage, .verpage) :where(ul, ol) { margin: 0; padding: 0; list-style: none; }
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage, .verpage, .futpage) :where(ul, ol) { margin: 0; padding: 0; list-style: none; }
 
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage, .verpage) :where(a) { color: inherit; text-decoration: inherit; }
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage, .verpage, .futpage) :where(a) { color: inherit; text-decoration: inherit; }
 
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage, .verpage) :where(button, input, textarea, select) {
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage, .verpage, .futpage) :where(button, input, textarea, select) {
   font: inherit;
   color: inherit;
   margin: 0;
@@ -48,11 +48,11 @@
   background-image: none;
   border: 0;
 }
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage) :where(button) { cursor: pointer; text-transform: none; -webkit-appearance: button; }
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage) :where(button:disabled) { cursor: not-allowed; }
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage, .verpage, .futpage) :where(button) { cursor: pointer; text-transform: none; -webkit-appearance: button; }
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage, .verpage, .futpage) :where(button:disabled) { cursor: not-allowed; }
 
 /* 内联图标：iconify-icon 是 inline 元素，这里保持与文字基线对齐 */
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage) :where(svg) { display: inline-block; vertical-align: -0.125em; }
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage, .verpage, .futpage) :where(svg) { display: inline-block; vertical-align: -0.125em; }
 
 /* 工具类与组件层放在补齐的 preflight **之后**，保证 Tailwind 的单类工具类能正常覆盖上面的元素选择器 */
 @tailwind components;
@@ -950,4 +950,99 @@
 }
 .verpage :where(.animate-scroll:hover) {
   animation-play-state: paused;
+}
+
+/* ===========================================================================
+   未来展望与功能建议（草稿 4bdccae1 v1）—— **形态 A：本机标记 + 导出**
+   ---------------------------------------------------------------------------
+   逐行照搬草稿的 style 块，作用域收在本页容器 `.futpage` 下。
+   这一页是 12 张稿里唯一整页建立在「多用户后端」上的（投票计数、社群排行、用户墙），
+   而本作品是纯静态单机应用 ⇒ 必须改造才能落地。改造只发生在**交互层与内容层**，
+   视觉骨架（五段结构 / 卡片 / 进度条 / 排行号 / 虚线卡 / 头像卡）全部照草稿：
+
+   1. 「N 人也想要」→ 换成该方向**真实的前提或阻碍**（这类数字我们根本没有）。
+      「我也想要」按钮保留，但只改本机状态：写入 localStorage，文案改成「已标记」，
+      并在区块导语里明说「只记录在你自己的浏览器里，不是全站统计」。
+   2. 进度条不写百分比（那是编的）→ 改成真实可数的「已完成 X / 共 Y 项」。
+   3. 「已采纳的智慧」里 `@学术小王 · 研究生 · CS` 等用户全是虚构的 ⇒
+      换成**这条改动真实的来源**（自查 / 走查脚本 / 用户反馈）+ 真实结论。
+   4. 草稿的「预计 2024.05 发布」「2024 Q4」等排期 ⇒ 全部去掉，只写「有没有排期」。
+   5. 颜色：草稿的 --progress-green / --progress-yellow 直接映射到本项目已有的
+      --ok / --warn（绿=已修复、黄=待处理），不引入新的装饰色。
+   =========================================================================== */
+
+.futpage {
+  /* 草稿把这两个令牌写在 :root，这里收进本页作用域，避免波及尚未重构的页面 */
+  --progress-green: var(--ok);
+  --progress-yellow: var(--warn);
+}
+
+.futpage :where(.content-card) {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 32px;
+  box-shadow: var(--shadow-2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.futpage :where(.content-card:hover) {
+  transform: translateY(-4px);
+  border-color: var(--line-2);
+}
+
+.futpage :where(.btn-primary) {
+  background-color: var(--accent);
+  color: white;
+  padding: 12px 32px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  transition: all 0.3s;
+  box-shadow: 0 4px 12px rgba(31, 71, 114, 0.15);
+}
+.futpage :where(.btn-primary:hover) {
+  background-color: var(--accent-2);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(31, 71, 114, 0.25);
+}
+
+.futpage :where(.btn-vote) {
+  border: 1px solid var(--line-2);
+  color: var(--fg-2);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+.futpage :where(.btn-vote:hover) {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+/* 已标记：草稿是整只按钮换成 .btn-primary 并禁用；这里同样换成主按钮形态 */
+.futpage :where(.btn-vote.on) {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.futpage :where(.progress-bar) {
+  background: var(--bg-4);
+  height: 8px;
+  border-radius: 99px;
+  overflow: hidden;
+  position: relative;
+}
+.futpage :where(.progress-fill) {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 1.5s ease-in-out;
+}
+
+.futpage :where(.rank-number) {
+  font-family: var(--font-serif);
+  font-size: 32px;
+  font-weight: 900;
+  color: var(--bg-4);
+  line-height: 1;
 }

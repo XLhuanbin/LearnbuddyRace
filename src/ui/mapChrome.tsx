@@ -26,6 +26,7 @@ const ICONS: Record<string, string> = {
   cross: 'M4.5 10h11 M10 4.5v11 M6.6 6.6l6.8 6.8 M13.4 6.6l-6.8 6.8',
   status: 'M4.5 15.5l3.5-3.5 2.5 2.5 5-5.5 M4.5 4.5v11h11',
   version: 'M5.5 3.5h9v13h-9z M7.8 7h4.4 M7.8 10h4.4 M7.8 13h2.6',
+  future: 'M10 3.5l1.7 4.4 4.3 1.6-4.3 1.6L10 15.5l-1.7-4.4L4 9.5l4.3-1.6z M15.5 14.5h.01 M16.5 5.5h.01',
   settings: 'M10 7.4a2.6 2.6 0 1 0 0 5.2 2.6 2.6 0 0 0 0-5.2z M10 3.4v1.8 M10 14.8v1.8 M3.4 10h1.8 M14.8 10h1.8 M5.5 5.5l1.3 1.3 M13.2 13.2l1.3 1.3 M14.5 5.5l-1.3 1.3 M6.8 13.2l-1.3 1.3',
 };
 
@@ -111,6 +112,7 @@ export function AppBrandBar({
   const DEV: [string, string, string][] = [
     ['status', '开发状态', 'status'],
     ['version', '版本信息', 'version'],
+    ['future', '未来展望', 'future'],
     ['settings', '设置', 'settings'],
   ];
 
