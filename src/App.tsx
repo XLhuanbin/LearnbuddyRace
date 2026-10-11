@@ -62,6 +62,7 @@ import { LandingView } from './ui/LandingView';
 import { MapView } from './ui/MapView';
 import { AppBrandBar } from './ui/mapChrome';
 import { UploadFlowView } from './ui/UploadFlowView';
+import type { Queued, UploadPhase } from './ui/UploadFlowView';
 import { ResultPageView } from './ui/ResultPageView';
 import { MoreView } from './ui/MoreView';
 import { SettingsView, StatusView, capabilitiesList, MODEL_ERROR_HINT } from './ui/SettingsView';
@@ -104,6 +105,8 @@ export interface ImportResult {
   paper?: Paper;
   /** 没入库的原因（内容重复被去重 / 解析器没返回论文对象） */
   skipped?: string;
+  /** skippedPaperId（2026-10-11）：内容重复被跳过时，指向库里已有的那篇论文 —— 上传页靠它把「已跳过」的文件卡对回真实论文，判断是否已完成梳理 */
+  skippedPaperId?: string;
   /** 抛异常时的原因 */
   error?: string;
 }
@@ -187,6 +190,13 @@ export default function App() {
   const reparseTargetRef = useRef<string | null>(null);
   /** 刚刚导入的论文 id：方法提取页据此自动选中并给出「查看刚导入的论文」 */
   const [lastImportedId, setLastImportedId] = useState<string | null>(null);
+  /**
+   * 上传页的「待处理队列 / 阶段」提升到 App（2026-10-11）：
+   * 放在 UploadFlowView 内部时，切到其他页组件被卸载、状态清零 —— 用户实测切页回来队列就空了。
+   * App 常驻不卸载，队列（含 File 对象）在会话内一直保留。
+   */
+  const [uploadQueue, setUploadQueue] = useState<Queued[]>([]);
+  const [uploadPhase, setUploadPhase] = useState<UploadPhase>('idle');
   /**
    * 各语料集**预置缓存里到底有什么**（论文数 / 实验记录数）。
    * 实验可比性页据此如实说明「这份语料有没有实验记录」，
@@ -379,6 +389,8 @@ export default function App() {
     const titleByHash = new Map<string, string>(
       papers.filter((p) => p.contentHash).map((p) => [p.contentHash as string, p.title]),
     );
+    /** 同上，但记 id：跳过重复时上传页要把文件卡对回库里这篇论文 */
+    const idByHash = new Map<string, string>(papers.filter((p) => p.contentHash).map((p) => [p.contentHash as string, p.id]));
     /** 本次真正写进库里的论文（去重跳过的不算），用于导入后切范围与给出入口 */
     const added: Paper[] = [];
     /** 逐文件结果（2026-10-10）：草稿的「待处理队列」是按**文件**展示的，界面需要把每个文件对上它的真实结果 */
@@ -393,7 +405,7 @@ export default function App() {
           log(
             `  跳过：与已导入的「${titleByHash.get(hash) ?? file.name}」内容相同（按内容哈希去重，不重复消耗模型额度）`,
           );
-          results.push({ fileName: file.name, skipped: `内容与「${titleByHash.get(hash) ?? ''}」相同，已跳过（不重复消耗额度）` });
+          results.push({ fileName: file.name, skipped: `内容与「${titleByHash.get(hash) ?? ''}」相同，已跳过（不重复消耗额度）`, skippedPaperId: idByHash.get(hash) });
           continue;
         }
         seenHashes.add(hash);
@@ -1493,6 +1505,10 @@ export default function App() {
               scope={scope}
               methods={methods}
               jobs={jobs}
+              queue={uploadQueue}
+              setQueue={setUploadQueue}
+              phase={uploadPhase}
+              setPhase={setUploadPhase}
               lastImportedId={lastImportedId}
               onUseOwnScope={() => setMapMode('own')}
               onUseCaseScope={() => setMapMode('case')}

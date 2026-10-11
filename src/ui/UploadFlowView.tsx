@@ -25,6 +25,11 @@ interface Props {
   onEnterMap: () => void;
   /** 对单篇论文重跑「提取方法字段」——用于本轮分析结束但没有生成任何方法框架时的重试 */
   onExtract: (paperId: string) => Promise<void>;
+  /** 待处理队列与阶段（提升到 App，切页再回来不丢） */
+  queue: Queued[];
+  setQueue: React.Dispatch<React.SetStateAction<Queued[]>>;
+  phase: UploadPhase;
+  setPhase: React.Dispatch<React.SetStateAction<UploadPhase>>;
   onOpenPaper: (paperId: string) => void;
   lastImportedId?: string | null;
   onUseOwnScope: () => void;
@@ -85,11 +90,14 @@ function stepsOf(p: Paper, m: Method | undefined, job: JobState | undefined, mod
 }
 
 /** 队列里的一项：占位 = 已攒下但还没分析的文件 */
-interface Queued {
+export interface Queued {
   id: string;
   file: File;
   result?: ImportResult;
 }
+
+/** 上传流程的阶段。**状态提升到 App**（2026-10-11）：放在本组件里，切到其他页再切回来就被清空（组件卸载） */
+export type UploadPhase = 'idle' | 'running' | 'done';
 
 const uid = () => Math.random().toString(36).slice(2, 11);
 const sizeMB = (n: number) => (n / 1024 / 1024).toFixed(2);
@@ -124,14 +132,16 @@ export function UploadFlowView({
   onAnalyze,
   onEnterMap,
   onExtract,
+  queue,
+  setQueue,
+  phase,
+  setPhase,
   onOpenPaper,
   lastImportedId,
   onUseOwnScope,
   onGo,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [queue, setQueue] = useState<Queued[]>([]);
-  const [phase, setPhase] = useState<'idle' | 'running' | 'done'>('idle');
   const [draft, setDraft] = useState(config);
   const [dragOver, setDragOver] = useState(false);
 
@@ -187,14 +197,24 @@ export function UploadFlowView({
     }
   };
 
-  const queuedPapers = queue.map((x) => x.result?.paper).filter(Boolean) as Paper[];
+  /** 跳过重复的条目也要能对回库里那篇论文（2026-10-11）：否则重新上传同一批文件时，
+   * 全是「已跳过」、没有 paper，下一按钮会误判成「0 篇有成果」，明明梳理已经完成了 */
+  const resolvePaper = (r: ImportResult | undefined): Paper | undefined =>
+    r?.paper ?? (r?.skippedPaperId ? papers.find((p) => p.id === r.skippedPaperId) : undefined);
+
+  const queuedPapers = queue.map((x) => resolvePaper(x.result)).filter(Boolean) as Paper[];
   const stagePapers = queuedPapers.length ? queuedPapers : papers;
 
-  /** 本轮分析结束后：多少篇真正生成了方法框架、多少篇解析成功但还没提取 */
-  const extractedCount = queue.filter((x) => x.result?.paper && hasMethod(x.result.paper)).length;
+  /** 本轮分析结束后：多少篇真正有方法框架（含跳过重复=库里已有）、多少篇解析成功但还没提取 */
+  const extractedCount = queue.filter((x) => {
+    const p = resolvePaper(x.result);
+    return !!p && hasMethod(p);
+  }).length;
   const retryPapers = queue
-    .map((x) => x.result?.paper)
+    .map((x) => resolvePaper(x.result))
     .filter((p): p is Paper => !!p && p.parseStatus === 'ok' && !hasMethod(p));
+  /** done 态能否给「进入研究地图」：本轮涉及的论文里至少一篇已有方法框架 */
+  const doneNav = queue.length > 0 && queue.every((x) => x.result) && extractedCount > 0;
 
   /** 本轮结束但没提取成（典型：点开始时还没配模型，之后才保存配置）→ 逐篇重跑提取，不再重新解析 */
   const retryExtract = async () => {
@@ -472,11 +492,11 @@ export function UploadFlowView({
                     没成果 → 重跑提取（不重新解析、不重复消耗解析额度）。 */}
                 <button
                   className={`w-full disabled:opacity-50 disabled:cursor-not-allowed ${phase === 'done' ? 'btn-primary is-done' : 'btn-primary'}`}
-                  disabled={running}
+                  disabled={running || (phase === 'idle' && !queue.some((x) => !x.result)) || (phase === 'done' && !doneNav && retryPapers.length === 0)}
                   onClick={() => {
                     if (running) return;
                     if (phase === 'done') {
-                      if (extractedCount > 0) onEnterMap();
+                      if (doneNav) onEnterMap();
                       else void retryExtract();
                     } else {
                       void start();
@@ -489,7 +509,7 @@ export function UploadFlowView({
                       分析中...
                     </>
                   ) : phase === 'done' ? (
-                    extractedCount > 0 ? (
+                    doneNav ? (
                       '进入研究地图 →'
                     ) : (
                       '重新提取方法字段'
@@ -498,7 +518,7 @@ export function UploadFlowView({
                     '开始梳理脉络'
                   )}
                 </button>
-                {phase === 'done' && extractedCount > 0 && retryPapers.length > 0 && (
+                {phase === 'done' && doneNav && retryPapers.length > 0 && (
                   <button className="btn-ghost w-full" disabled={running} onClick={() => void retryExtract()}>
                     {`还有 ${retryPapers.length} 篇未完成提取，重试`}
                   </button>
