@@ -25,6 +25,7 @@ const ICONS: Record<string, string> = {
   question: 'M10 3.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13z M10 7.4v3.6 M10 13.4h.01',
   cross: 'M4.5 10h11 M10 4.5v11 M6.6 6.6l6.8 6.8 M13.4 6.6l-6.8 6.8',
   status: 'M4.5 15.5l3.5-3.5 2.5 2.5 5-5.5 M4.5 4.5v11h11',
+  version: 'M5.5 3.5h9v13h-9z M7.8 7h4.4 M7.8 10h4.4 M7.8 13h2.6',
   settings: 'M10 7.4a2.6 2.6 0 1 0 0 5.2 2.6 2.6 0 0 0 0-5.2z M10 3.4v1.8 M10 14.8v1.8 M3.4 10h1.8 M14.8 10h1.8 M5.5 5.5l1.3 1.3 M13.2 13.2l1.3 1.3 M14.5 5.5l-1.3 1.3 M6.8 13.2l-1.3 1.3',
 };
 
@@ -109,6 +110,7 @@ export function AppBrandBar({
   ];
   const DEV: [string, string, string][] = [
     ['status', '开发状态', 'status'],
+    ['version', '版本信息', 'version'],
     ['settings', '设置', 'settings'],
   ];
 

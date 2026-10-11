@@ -15,7 +15,8 @@ type Tab =
   | 'decision'
   | 'divergence'
   | 'settings'
-  | 'status';
+  | 'status'
+  | 'version';
 
 interface Props {
   scope: CorpusScope;
@@ -39,6 +40,7 @@ export function MoreView({ scope, corpus, onGo, onSwitchCorpus, modelReady, coun
     { tab: 'divergence', title: '待调查问题', desc: '跨论文的分歧与仍未解决的问题' },
     { tab: 'compare', title: '跨论文比较（论文级）', desc: '以整篇论文为单位比较评估口径是否一致' },
     { tab: 'status', title: '开发状态与记录', desc: '规则版本、缓存版本、验证范围、模型调用记录与运行日志' },
+    { tab: 'version', title: '版本信息与更新历史', desc: '真实版本线、当前能力边界、技术栈与致谢' },
     { tab: 'settings', title: '设置', desc: '模型接口配置（密钥只保存在本机，不会写入产物）' },
   ];
 

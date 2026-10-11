@@ -22,24 +22,24 @@
    否则这里的 `.uppage button { color: inherit }` 会因为特异性比单类工具类高，把 `text-[var(--fg-3)]` 这类工具类压掉
    （实测过：页脚链接会从灰色变成 --fg）。放在 utilities 之前，工具类就能正常覆盖它。
    --------------------------------------------------------------------------- */
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage) :where(*, ::before, ::after) {
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage, .verpage) :where(*, ::before, ::after) {
   box-sizing: border-box;
   border-width: 0;
   border-style: solid;
   border-color: var(--line);
 }
 
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage) :where(h1, h2, h3, h4, p, figure, blockquote) {
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage, .verpage) :where(h1, h2, h3, h4, p, figure, blockquote) {
   margin: 0;
   font-size: inherit;
   font-weight: inherit;
 }
 
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage) :where(ul, ol) { margin: 0; padding: 0; list-style: none; }
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage, .verpage) :where(ul, ol) { margin: 0; padding: 0; list-style: none; }
 
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage) :where(a) { color: inherit; text-decoration: inherit; }
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage, .verpage) :where(a) { color: inherit; text-decoration: inherit; }
 
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage) :where(button, input, textarea, select) {
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage, .verpage) :where(button, input, textarea, select) {
   font: inherit;
   color: inherit;
   margin: 0;
@@ -869,3 +869,85 @@
 .dvpage :where(.cmp-dot.cmp-limited) { background: var(--warn); }
 .dvpage :where(.cmp-dot.cmp-not_comparable) { background: var(--bad); }
 .dvpage :where(.cmp-dot.cmp-unknown) { background: var(--fg-3); }
+
+/* ===========================================================================
+   版本信息与更新历史（草稿 0b5dcfda v3）
+   ---------------------------------------------------------------------------
+   逐行照搬草稿的 style 块，作用域收在本页容器 `.verpage` 下（不覆写全局）。
+   三处必须写明的适配（都是「内容/语义」或本项目外壳差异，不是重做外观）：
+
+   1. `.badge-live`：草稿是浅绿底 + #10b981 绿字。本项目**绿/橙/红只表真实状态**
+      （见 .dvpage 段同款处理），而这三张卡的分类标签不承载对错状态，
+      故保留几何（10px / 700 / 99px 圆角），配色换成中性的「品牌浅底 + 深蓝字」。
+   2. 草稿 `<main>` 的 `pt-32` 是不顶头的固定页头偏移。本项目页头是文档流内的 sticky
+      （`.topbar` 72px），已经有统一的外框留白，再加 128px 会空一大块 ⇒ 本页不套 pt-32。
+   3. 草稿技术栈用 `logos:*` 品牌图标（运行时 CDN）。本项目自包含静态站不能依赖 CDN
+      ⇒ 换成 lucide 里表达同一件东西的图标，形状仍由 `text-3xl` / `text-2xl` 控制。
+   =========================================================================== */
+
+.verpage :where(.card-published) {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow-2);
+  transition: transform 0.2s;
+}
+.verpage :where(.card-published:hover) { transform: translateY(-4px); }
+
+.verpage :where(.badge-live) {
+  background: var(--bg-3);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 99px;
+}
+
+.verpage :where(.timeline-dot) {
+  width: 10px;
+  height: 10px;
+  background: var(--accent);
+  border-radius: 50%;
+  position: absolute;
+  left: -5.5px;
+  top: 8px;
+  z-index: 10;
+  /* 草稿是 4px 白圈（垫在白底上）；本页时间线落在 --bg 上，跟着换成页面底色 */
+  box-shadow: 0 0 0 4px var(--bg);
+}
+
+.verpage :where(.tech-tag) {
+  background: white;
+  border: 1px solid var(--line);
+  padding: 16px 24px;
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg);
+  min-width: 180px;
+  box-shadow: var(--shadow-2);
+  transition: all 0.3s;
+}
+.verpage :where(.tech-tag:hover) {
+  border-color: var(--accent);
+  transform: scale(1.05);
+}
+
+@keyframes verScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.verpage :where(.animate-scroll) {
+  display: flex;
+  width: max-content;
+  animation: verScroll 40s linear infinite;
+}
+.verpage :where(.animate-scroll:hover) {
+  animation-play-state: paused;
+}

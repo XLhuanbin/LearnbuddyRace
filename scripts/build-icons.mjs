@@ -66,6 +66,18 @@ const NAMES = [
   // 待调查问题（草稿 2b574366）：草稿的 star / check-circle 换成了真实操作，
   // 只新增「加载更多问题」用的 refresh-cw（book-open / download / search / sparkles / arrow-up-right 上面已有）
   'refresh-cw',
+  // 版本信息与更新历史（草稿 0b5dcfda）
+  'git-graph',
+  'compass',
+  // 同上：草稿这页用 logos:* 品牌图标画技术栈，本项目自包含不能依赖 CDN，统一换成 lucide 表意图标
+  'file-code',
+  'zap',
+  'wind',
+  'database',
+  'cloud',
+  'brain-circuit',
+  'terminal',
+  'eye',
 ];
 
 const url = `https://api.iconify.design/lucide.json?icons=${NAMES.join(',')}`;
