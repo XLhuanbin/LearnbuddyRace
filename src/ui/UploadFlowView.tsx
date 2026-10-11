@@ -23,6 +23,8 @@ interface Props {
   /** 草稿的前端逻辑：把攒好的文件一次性交给底层分析（导入解析 → 已配置模型时逐篇抽取），返回逐文件结果 */
   onAnalyze: (files: File[]) => Promise<ImportResult[]>;
   onEnterMap: () => void;
+  /** 对单篇论文重跑「提取方法字段」——用于本轮分析结束但没有生成任何方法框架时的重试 */
+  onExtract: (paperId: string) => Promise<void>;
   onOpenPaper: (paperId: string) => void;
   lastImportedId?: string | null;
   onUseOwnScope: () => void;
@@ -120,6 +122,8 @@ export function UploadFlowView({
   testing,
   testResult,
   onAnalyze,
+  onEnterMap,
+  onExtract,
   onOpenPaper,
   lastImportedId,
   onUseOwnScope,
@@ -186,6 +190,23 @@ export function UploadFlowView({
   const queuedPapers = queue.map((x) => x.result?.paper).filter(Boolean) as Paper[];
   const stagePapers = queuedPapers.length ? queuedPapers : papers;
 
+  /** 本轮分析结束后：多少篇真正生成了方法框架、多少篇解析成功但还没提取 */
+  const extractedCount = queue.filter((x) => x.result?.paper && hasMethod(x.result.paper)).length;
+  const retryPapers = queue
+    .map((x) => x.result?.paper)
+    .filter((p): p is Paper => !!p && p.parseStatus === 'ok' && !hasMethod(p));
+
+  /** 本轮结束但没提取成（典型：点开始时还没配模型，之后才保存配置）→ 逐篇重跑提取，不再重新解析 */
+  const retryExtract = async () => {
+    if (running || !retryPapers.length) return;
+    setPhase('running');
+    try {
+      for (const p of retryPapers) await onExtract(p.id);
+    } finally {
+      setPhase('done');
+    }
+  };
+
   const overview: { no: string; name: string; state: StepState; result: string }[] = (() => {
     const anyUploaded = stagePapers.length > 0;
     const anyParsed = stagePapers.some((p) => p.parseStatus === 'ok');
@@ -221,7 +242,16 @@ export function UploadFlowView({
   const stepDone = overview.filter((s) => s.state === 'done').length;
   const pct = Math.round((stepDone / stepTotal) * 100);
   const anyRunning = overview.some((s) => s.state === 'running');
-  const progTitle = phase === 'done' && pct === 100 ? '方法论梳理已完成' : anyRunning || running ? '正在深度分析方法论...' : '等待开始梳理';
+  // 本轮分析结束但没到 100% 时，不能显示「等待开始梳理」（用户会以为卡住了）——如实说明本轮已结束、还差什么
+  const progTitle = running
+    ? '正在深度分析方法论...'
+    : phase === 'done'
+      ? pct === 100
+        ? '方法论梳理已完成'
+        : '本轮分析已结束，还有步骤未完成'
+      : anyRunning
+        ? '正在深度分析方法论...'
+        : '等待开始梳理';
   const curOv =
     overview.find((s) => s.state === 'running') ??
     overview.find((s) => s.state === 'failed') ??
@@ -437,10 +467,21 @@ export function UploadFlowView({
                 )}
               </div>
               <div className="pt-6 border-t border-[var(--line)] space-y-4">
+                {/* 分析结束后主按钮必须给出**真实的下一步**：
+                    有成果 → 进入研究地图（onEnterMap 此前已传入但漏接，导致「分析完成」是禁用死端）；
+                    没成果 → 重跑提取（不重新解析、不重复消耗解析额度）。 */}
                 <button
                   className={`w-full disabled:opacity-50 disabled:cursor-not-allowed ${phase === 'done' ? 'btn-primary is-done' : 'btn-primary'}`}
-                  disabled={running || !queue.some((x) => !x.result)}
-                  onClick={() => void start()}
+                  disabled={running}
+                  onClick={() => {
+                    if (running) return;
+                    if (phase === 'done') {
+                      if (extractedCount > 0) onEnterMap();
+                      else void retryExtract();
+                    } else {
+                      void start();
+                    }
+                  }}
                 >
                   {running ? (
                     <>
@@ -448,11 +489,20 @@ export function UploadFlowView({
                       分析中...
                     </>
                   ) : phase === 'done' ? (
-                    '分析完成'
+                    extractedCount > 0 ? (
+                      '进入研究地图 →'
+                    ) : (
+                      '重新提取方法字段'
+                    )
                   ) : (
                     '开始梳理脉络'
                   )}
                 </button>
+                {phase === 'done' && extractedCount > 0 && retryPapers.length > 0 && (
+                  <button className="btn-ghost w-full" disabled={running} onClick={() => void retryExtract()}>
+                    {`还有 ${retryPapers.length} 篇未完成提取，重试`}
+                  </button>
+                )}
                 {/* 草稿这里承诺「所有上传文件将进行加密处理」——本项目是本机解析、根本不上传，按铁律改成真实说法；
                     草稿指向的「数据使用协议」也不存在，不保留不存在的承诺。 */}
                 <p className="text-[10px] text-[var(--fg-3)] text-center px-4 leading-relaxed">

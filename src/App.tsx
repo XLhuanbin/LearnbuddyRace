@@ -475,7 +475,8 @@ export default function App() {
     }
     for (const r of results) {
       if (!r.paper || r.paper.parseStatus !== 'ok') continue;
-      await extract(r.paper.id, false);
+      // 必须把 paper 对象带上：此刻 setPapers 还没反映到闭包，extract 内部按 id 找不到刚导入的论文
+      await extract(r.paper.id, false, r.paper);
     }
     return results;
   };
@@ -877,8 +878,13 @@ export default function App() {
     }
     log('已请求停止等待：' + paperId + '（原结果保持不变；不代表服务端已停止计算或不再计费）');
   };
-  const extract = async (paperId: string, force = false) => {
-    const paper = papers.find((p) => p.id === paperId);
+  /**
+   * paperObj（2026-10-11）：`analyzeFiles` 在 `setPapers` 之后**立刻**调用 extract，
+   * 此时闭包里的 `papers` 还是旧的（不含刚导入的论文），`papers.find` 会找不到并静默 return ——
+   * 实测症状就是全部文件停在「已解析，等待提取」、进度 40% 不动。所以允许调用方把论文对象直接传进来。
+   */
+  const extract = async (paperId: string, force = false, paperObj?: Paper) => {
+    const paper = paperObj ?? papers.find((p) => p.id === paperId);
     if (!paper) return;
 
     if (!modelReady) {
@@ -1502,6 +1508,8 @@ export default function App() {
               onAnalyze={analyzeFiles}
               onPaste={importPaste}
               onEnterMap={() => setTab('map')}
+              /* 本轮分析结束但没有生成方法框架时的重试出口（逐篇重跑提取，不重新解析） */
+              onExtract={extract}
               onOpenPaper={(paperId) => {
                 setExpFocus(paperId);
                 setTab('library');
