@@ -634,3 +634,9 @@
 }
 .cmppage :where(.tag-fair-true) { background: #ecfdf5; color: #10b981; }
 .cmppage :where(.tag-fair-false) { background: #fff7ed; color: #f97316; }
+
+/* 对比表页的两个按钮统一规格：文案长度不同导致 8px 宽度差，统一最小宽度并对齐居中 */
+.cmppage :where(.cmpbtn) {
+  min-width: 168px;
+  justify-content: center;
+}

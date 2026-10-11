@@ -164,6 +164,8 @@ export function CompareView({
   const paperById = new Map(papers.map((p) => [p.id, p]));
   const chosen = methods.filter((m) => selected.includes(m.paperId));
   const cmp = chosen.length >= 2 ? buildComparison(chosen, papers) : undefined;
+  /** 「修改选中」面板的展开状态：由真按钮控制，面板独立成块（不再用 <details> 的 summary 当按钮） */
+  const [selectOpen, setSelectOpen] = React.useState(false);
 
   const exportMarkdown = () => {
     const rel = relations.map((r) => {
@@ -232,55 +234,65 @@ export function CompareView({
   return (
     <div className="cmppage sdpage">
       <div className="max-w-[1440px] mx-auto px-10 pt-14 pb-24">
-        {/* 标题行：eyebrow + 4xl 衬线标题 → 右上两个按钮（草稿结构） */}
-        <div className="flex justify-between items-end mb-8">
-          <div className="space-y-1">
-            <p className="text-[var(--fg-3)] tracking-[0.3em] uppercase text-xs font-bold">Comparative Analysis</p>
-            <h1 className="text-4xl font-serif font-bold tracking-tight">跨论文比较</h1>
-          </div>
-          <div className="flex gap-3">
-            {/* 草稿的「修改选中 (N)」：选择面板收进折叠，不占首屏 */}
-            <details className="fold cmpselect">
-              <summary className="btn-outline">
-                <DraftIcon name="edit-3" />
-                修改选中（{selected.length}）
-              </summary>
-              <div className="fold-body" style={{ marginTop: 12 }}>
-                <div className="row" style={{ flexWrap: 'wrap' }}>
-                  {methods.length === 0 && <span className="muted">还没有已完成抽取的论文。</span>}
-                  {methods.map((m) => {
-                    const p = paperById.get(m.paperId);
-                    const on = selected.includes(m.paperId);
-                    return (
-                      <button
-                        key={m.paperId}
-                        className={`btn sm ${on ? 'primary' : ''}`}
-                        onClick={() => onToggle(m.paperId)}
-                      >
-                        {on ? '✓ ' : ''}
-                        {(p?.title ?? m.paperId).slice(0, 30)}
-                      </button>
-                    );
-                  })}
-                  {methods.length > 0 && (
-                    <button className="btn ghost sm" onClick={() => onSelectedChange(methods.map((m) => m.paperId))}>
-                      全选
-                    </button>
-                  )}
-                </div>
-              </div>
-            </details>
-            <button className="btn-outline" onClick={exportMarkdown} disabled={!cmp}>
-              <DraftIcon name="download" />
-              导出对比报告
-            </button>
-          </div>
+        {/* 标题行：只有 eyebrow + 4xl 衬线标题（按钮挪到下一行，
+            否则展开「修改选中」的面板会把标题挤换行） */}
+        <div className="space-y-1 mb-6">
+          <p className="text-[var(--fg-3)] tracking-[0.3em] uppercase text-xs font-bold">Comparative Analysis</p>
+          <h1 className="text-4xl font-serif font-bold tracking-tight">跨论文比较</h1>
         </div>
+
+        {/* 按钮行：两个等规格的按钮（都用真 button，宽度由文案决定，不再因展开面板而变形） */}
+        <div className="flex items-center gap-3 mb-8">
+          <button className="btn-outline cmpbtn" onClick={() => setSelectOpen((v) => !v)} aria-expanded={selectOpen}>
+            <DraftIcon name="edit-3" />
+            修改选中（{selected.length}）
+          </button>
+          <button className="btn-outline cmpbtn" onClick={exportMarkdown} disabled={!cmp}>
+            <DraftIcon name="download" />
+            导出对比报告
+          </button>
+        </div>
+
+        {/* 选择面板：独立区块（展开与否都不改变上面按钮的尺寸） */}
+        {selectOpen && (
+          <div className="content-card bg-white mb-8">
+            <div className="row" style={{ flexWrap: 'wrap' }}>
+              {methods.length === 0 && <span className="muted">还没有已完成抽取的论文。</span>}
+              {methods.map((m) => {
+                const p = paperById.get(m.paperId);
+                const on = selected.includes(m.paperId);
+                return (
+                  <button
+                    key={m.paperId}
+                    className={`btn sm ${on ? 'primary' : ''}`}
+                    onClick={() => onToggle(m.paperId)}
+                  >
+                    {on ? '✓ ' : ''}
+                    {(p?.title ?? m.paperId).slice(0, 30)}
+                  </button>
+                );
+              })}
+              {methods.length > 0 && (
+                <>
+                  <button className="btn ghost sm" onClick={() => onSelectedChange(methods.map((m) => m.paperId))}>
+                    全选
+                  </button>
+                  <button className="btn ghost sm" onClick={() => onSelectedChange([])}>
+                    清空
+                  </button>
+                </>
+              )}
+            </div>
+            <p className="text-xs text-[var(--fg-3)] mt-3">
+              至少选两篇才会生成对比表；可比性由程序按当前规则实时计算，条件不一致时禁止直接比较数值。
+            </p>
+          </div>
+        )}
 
         {!cmp && (
           <div className="content-card bg-white">
             <p className="text-sm text-[var(--fg-2)] leading-relaxed">
-              请至少选择两篇论文（点右上「修改选中」）。选好后会先用规则检查数据集、数据划分、指标、
+              请至少选择两篇论文（点上方「修改选中」）。选好后会先用规则检查数据集、数据划分、指标、
               额外训练数据、预训练模型与实验设置，给出「可以直接比较 / 只能有限比较 / 当前不能直接比较」的结论；
               条件不一致时禁止直接比较数值，系统也不做排名。可比性判断由程序按当前规则实时计算。
             </p>
