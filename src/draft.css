@@ -977,6 +977,28 @@
   --progress-yellow: var(--warn);
 }
 
+/* 草稿把标题字体写在全局 `h1,h2,h3,h4` 上；这里收进本页作用域（见文件头的说明） */
+.futpage :where(h1, h2, h3, h4) { font-family: var(--font-serif); }
+
+/*
+  草稿的 <footer> 在 <main>（max-w-1440 / px-10）之外，是**整屏宽的白底**。
+  本项目的页面被 App 的外框包着（内容区约 920px），直接照抄会变成一条窄白块，
+  所以这里用负外边距把页脚拉回视口宽度，内部再按草稿的 1200px 居中 —— 视觉与草稿一致。
+*/
+.futpage > footer {
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+}
+
+/*
+  `100vw` 含竖直滚动条的宽度（本例 1418 视口 / 1403 内容区），负外边距按 vw 居中后会
+  在右侧多出半个滚动条约 8px ⇒ 页面出现横向滚动条。这里只在未来展望页把横向溢出裁掉：
+  `clip` 不创建滚动容器（不影响纵向滚动与 sticky），且用 :has 收在本页，别页不受影响。
+*/
+body:has(.futpage) {
+  overflow-x: clip;
+}
+
 .futpage :where(.content-card) {
   background: var(--bg-2);
   border: 1px solid var(--line);
