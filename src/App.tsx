@@ -1510,7 +1510,12 @@ export default function App() {
               phase={uploadPhase}
               setPhase={setUploadPhase}
               lastImportedId={lastImportedId}
-              onUseOwnScope={() => setMapMode('own')}
+              /* 横幅按钮承诺「查看我上传的 N 篇论文」→ 必须跳到论文集合页：上传页不显示论文列表，
+                 只切范围不跳页的话，用户看到的就是横幅消失、什么都没发生（2026-10-12 用户实测） */
+              onUseOwnScope={() => {
+                setMapMode('own');
+                setTab('library');
+              }}
               onUseCaseScope={() => setMapMode('case')}
               modelReady={modelReady}
               config={config}
