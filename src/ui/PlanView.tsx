@@ -613,11 +613,19 @@ export function DecisionView({
 
           {/* 右栏：个性化配置 + AI 建议（草稿 4 栏，sticky） */}
           <aside className="col-span-12 lg:col-span-4">
-            {/* 右侧常驻栏：sticky 让它在页面滚动时不移动（实测滚动 900/2400px 后顶部始终钉在 32px）。
-                把面板压到能整块放下之后，max-height/overflow 只作为极窄窗口的兜底 —— 正常情况下
-                没有内部滚动条，整块面板完整可见（原来内容 800px > 可用 706px，底部 94px 被藏起来）。 */}
-            <div className="sticky top-8" style={{ maxHeight: 'calc(100vh - 80px)', overflowY: 'auto' }}>
-              <div className="content-card bg-white" style={{ border: '2px solid var(--accent)', boxShadow: '0 4px 24px rgba(22,38,61,.10)', padding: 22 }}>
+            {/* 右侧常驻栏：**让这张卡把右侧这块区域整个填满**（高度＝可视区高度），
+                这样它天然不可能被截断，也不需要任何内部滚动条；
+                同时 sticky 保证页面上下滚动时它不移动（实测滚动 900/2400px 后顶部恒为 32px）。
+                卡内用 flex 纵向排布：标题与条件在上，按钮与 AI 建议用 mt-auto 贴到底部。
+                height 用 calc(100vh - 80px) = 上下各留 32/48px 呼吸位；minHeight 兜住极窄窗口。 */}
+            <div
+              className="sticky top-8 flex"
+              style={{ height: 'calc(100vh - 80px)', minHeight: 420, overflowY: 'auto' }}
+            >
+              <div
+                className="content-card bg-white flex flex-col w-full"
+                style={{ border: '2px solid var(--accent)', boxShadow: '0 4px 24px rgba(22,38,61,.10)', padding: 22 }}
+              >
                 <h3 className="text-xl font-serif font-bold mb-4 flex items-center gap-2">
                   <DraftIcon name="settings-2" className="text-[var(--accent)]" />
                   个性化路线配置
@@ -667,8 +675,12 @@ export function DecisionView({
                       />
                     </div>
                   </div>
+                </div>
+
+                {/* mt-auto：按钮与 AI 建议贴到满高卡的底部（条件区在上，操作区在下） */}
+                <div className="mt-auto pt-4 space-y-2">
                   <button
-                    className="w-full btn-primary mt-2"
+                    className="w-full btn-primary"
                     style={{ justifyContent: 'center' }}
                     disabled={busy || methods.length === 0}
                     onClick={() => {
