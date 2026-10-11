@@ -70,6 +70,8 @@ export function DecisionView({
   const [profileOpen, setProfileOpen] = useState(false);
   /** 路线图里当前选中的步骤（一次只展开一个） */
   const [graphStep, setGraphStep] = useState<number | null>(null);
+  /** 侧栏「AI 建议」默认只显示首句，完整条件敏感性按需展开（草稿 v7 把它收成配置卡底部一行） */
+  const [adviceOpen, setAdviceOpen] = useState(false);
 
   const paperById = new Map(papers.map((p) => [p.id, p]));
   const methodById = new Map(methods.map((m) => [m.id, m]));
@@ -80,6 +82,19 @@ export function DecisionView({
   const set = (k: keyof UserProfile) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setProfile({ ...profile, [k]: e.target.value });
   const pad2 = (n: number) => String(n).padStart(2, '0');
+
+  /** 侧栏 AI 建议：完整内容 = 模型自述的条件敏感性；默认只显示首句，避免把侧栏撑高 */
+  const adviceFull = plan?.conditionSensitivity?.trim() || '';
+  const adviceShort = (() => {
+    if (!adviceFull) {
+      return plan
+        ? '本次路线基于语料里已完成抽取的论文与你填写的条件；条件里没提到的因素不会替你做假设。'
+        : '填写条件后点「生成路线」：系统会给出候选方法、阅读顺序与每一步的理由与依据。';
+    }
+    const hit = adviceFull.match(/^[^。；;!?！？]{1,200}[。；;!?！？]/);
+    const first = (hit ? hit[0] : adviceFull).trim();
+    return first.length > 46 ? `${first.slice(0, 46)}…` : first;
+  })();
 
   /** 阶段词只取真实数据（方法家族 + 首个已抽取的技术策略），不发明阶段结论 */
   const stageWordOf = (paperId: string): string => {
@@ -676,25 +691,33 @@ export function DecisionView({
                     </p>
                   )}
                 </div>
-              </div>
 
-              <div className="rounded-2xl p-6 border border-[var(--line)]" style={{ background: 'var(--bg-4)' }}>
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-[var(--accent)] shadow-sm">
-                    <DraftIcon name="lightbulb" className="text-xl" />
+                {/* AI 建议：草稿 v7 就是配置卡底部的一行（分隔线 + 灯泡 + 11px 短句），不是独立大卡 ——
+                    原来独立成卡时那一整段条件敏感性把侧栏撑得比视口还高，滚动时上下被截断。
+                    这里按草稿收成一行：默认只显示首句，完整内容按需展开（不丢真实信息）。 */}
+                <div className="mt-8 pt-6 border-t border-[var(--line)] flex items-start gap-3">
+                  <DraftIcon name="lightbulb" className="text-[var(--accent)] text-lg shrink-0" />
+                  <div className="min-w-0">
+                    {/* 草稿这里是 text-[11px]，但项目有 12px 字号下限（11px 不在元数据白名单里）——
+                        这是承载解释的整句，按项目规则取 12px（长度仍然很短，不影响侧栏高度） */}
+                    <p className="text-xs text-[var(--fg-2)] leading-relaxed">{adviceShort}</p>
+                    {adviceFull && (
+                      <button
+                        className="text-[10px] font-bold text-[var(--accent)] hover:underline mt-1"
+                        onClick={() => setAdviceOpen((v) => !v)}
+                        aria-expanded={adviceOpen}
+                      >
+                        {adviceOpen ? '收起' : '展开完整条件敏感性'}
+                      </button>
+                    )}
+                    {adviceOpen && adviceFull && (
+                      <>
+                        <p className="text-xs text-[var(--fg-2)] leading-relaxed mt-2">{adviceFull}</p>
+                        <p className="text-[10px] text-[var(--fg-3)] mt-1">以上为模型自述的条件敏感性，未经验证。</p>
+                      </>
+                    )}
                   </div>
-                  <p className="text-sm font-bold">AI 建议</p>
                 </div>
-                <p className="text-xs text-[var(--fg-2)] leading-relaxed">
-                  {plan?.conditionSensitivity
-                    ? plan.conditionSensitivity
-                    : plan
-                      ? '本次路线基于语料里已完成抽取的论文与你填写的条件；条件里没提到的因素不会替你做假设。'
-                      : '填写条件后点「生成路线」：系统会给出候选方法、阅读顺序与每一步的理由与依据。'}
-                </p>
-                {plan?.conditionSensitivity && (
-                  <p className="text-[10px] text-[var(--fg-3)] mt-3">以上为模型自述的条件敏感性，未经验证。</p>
-                )}
               </div>
             </div>
           </aside>
