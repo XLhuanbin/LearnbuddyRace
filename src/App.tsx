@@ -1370,7 +1370,7 @@ export default function App() {
       <div className={`app-body${tab === 'map' ? ' mapbody' : ''}`}>
         {/* 默认不显示侧栏：页面切换走顶部「目录」浮层 */}
 
-        <main className={`main${tab === 'landing' ? ' plain' : ''}${tab === 'map' ? ' mapmain' : ''}${tab === 'upload' ? ' uploadmain' : ''}${tab === 'result' ? ' resultmain' : ''}${tab === 'map' ? ' netmapmain' : ''}${tab === 'library' ? ' libmain' : ''}`}>
+        <main className={`main${tab === 'landing' ? ' plain' : ''}${tab === 'map' ? ' mapmain' : ''}${tab === 'upload' ? ' uploadmain' : ''}${tab === 'result' ? ' resultmain' : ''}${tab === 'map' ? ' netmapmain' : ''}${tab === 'library' ? ' libmain' : ''}${tab === 'compare' ? ' cmpmain' : ''}`}>
           <div className="main-inner">
           {pendingDependents.length > 0 && (
             <Banner kind="warn">

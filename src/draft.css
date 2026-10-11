@@ -22,24 +22,24 @@
    否则这里的 `.uppage button { color: inherit }` 会因为特异性比单类工具类高，把 `text-[var(--fg-3)]` 这类工具类压掉
    （实测过：页脚链接会从灰色变成 --fg）。放在 utilities 之前，工具类就能正常覆盖它。
    --------------------------------------------------------------------------- */
-:is(.uppage, .rspage, .mapnet, .libpage) :where(*, ::before, ::after) {
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage) :where(*, ::before, ::after) {
   box-sizing: border-box;
   border-width: 0;
   border-style: solid;
   border-color: var(--line);
 }
 
-:is(.uppage, .rspage, .mapnet, .libpage) :where(h1, h2, h3, h4, p, figure, blockquote) {
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage) :where(h1, h2, h3, h4, p, figure, blockquote) {
   margin: 0;
   font-size: inherit;
   font-weight: inherit;
 }
 
-:is(.uppage, .rspage, .mapnet, .libpage) :where(ul, ol) { margin: 0; padding: 0; list-style: none; }
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage) :where(ul, ol) { margin: 0; padding: 0; list-style: none; }
 
-:is(.uppage, .rspage, .mapnet, .libpage) :where(a) { color: inherit; text-decoration: inherit; }
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage) :where(a) { color: inherit; text-decoration: inherit; }
 
-:is(.uppage, .rspage, .mapnet, .libpage) :where(button, input, textarea, select) {
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage) :where(button, input, textarea, select) {
   font: inherit;
   color: inherit;
   margin: 0;
@@ -48,11 +48,11 @@
   background-image: none;
   border: 0;
 }
-:is(.uppage, .rspage, .mapnet, .libpage) :where(button) { cursor: pointer; text-transform: none; -webkit-appearance: button; }
-:is(.uppage, .rspage, .mapnet, .libpage) :where(button:disabled) { cursor: not-allowed; }
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage) :where(button) { cursor: pointer; text-transform: none; -webkit-appearance: button; }
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage) :where(button:disabled) { cursor: not-allowed; }
 
 /* 内联图标：iconify-icon 是 inline 元素，这里保持与文字基线对齐 */
-:is(.uppage, .rspage, .mapnet, .libpage) :where(svg) { display: inline-block; vertical-align: -0.125em; }
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage) :where(svg) { display: inline-block; vertical-align: -0.125em; }
 
 /* 工具类与组件层放在补齐的 preflight **之后**，保证 Tailwind 的单类工具类能正常覆盖上面的元素选择器 */
 @tailwind components;
@@ -573,3 +573,64 @@
 .libpage :where(.paper-row):hover { background-color: rgba(31, 71, 114, 0.02); }
 /* 刚导入的那篇高亮一下（草稿没有，但导入后找不到自己刚传的论文是个真实问题） */
 .libpage :where(.paper-row.just-imported) { background-color: var(--accent-soft); }
+
+/* ===========================================================================
+   跨论文对比表（草稿 bab0a034 v5）
+   逐行照搬草稿的 style 块，作用域收在本页容器 `.cmppage` 下（不覆写全局）。
+   与 .libpage 一样：不设 background（草稿每张卡都自带 bg 工具类），
+   本文件在 utilities 之后，同特异性会把工具类压掉。
+   --------------------------------------------------------------------------- */
+.cmppage :where(.btn-outline) {
+  background: white;
+  border: 1px solid var(--line-2);
+  color: var(--fg-2);
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  transition: all 0.2s;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.cmppage :where(.btn-outline:hover) { background: var(--bg-3); border-color: var(--fg-3); }
+.cmppage :where(.btn-outline:disabled) { opacity: 0.45; cursor: not-allowed; }
+
+.cmppage :where(.content-card) {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow-2);
+}
+
+.cmppage :where(.comparison-table) { border-collapse: separate; border-spacing: 0; }
+/* 草稿用 top: 72px（它的顶栏是 fixed）；本应用顶栏在文档流内，故 sticky 取 0 */
+.cmppage :where(.comparison-header) {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--bg);
+  border-bottom: 2px solid var(--line-2);
+}
+.cmppage :where(.comparison-row:not(:last-child)) { border-bottom: 1px solid var(--line); }
+.cmppage :where(.dim-label) {
+  width: 160px;
+  min-width: 160px;
+  font-weight: 800;
+  color: var(--fg);
+  font-size: 15px;
+  padding: 32px 20px;
+  background: var(--bg-4);
+  border-left: 4px solid var(--accent);
+  letter-spacing: 0.5px;
+}
+.cmppage :where(.paper-cell) { padding: 24px; min-width: 320px; }
+.cmppage :where(.tag-fair) {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+.cmppage :where(.tag-fair-true) { background: #ecfdf5; color: #10b981; }
+.cmppage :where(.tag-fair-false) { background: #fff7ed; color: #f97316; }

@@ -1,8 +1,11 @@
 import React from 'react';
-import type { Evidence, Method, Paper, Relation } from '../core/types';
-import { FIELD_STATUS_TEXT, RELATION_LABELS, RELATION_STATE_LABELS } from '../core/types';
+import type { Evidence, FieldKey, Method, Paper, Relation } from '../core/types';
+import { FIELD_STATUS_TEXT, METHOD_FIELD_LABELS, RELATION_LABELS, RELATION_STATE_LABELS } from '../core/types';
 import { LEVEL_LABELS, type ComparabilityReport } from '../core/comparability';
 import { buildComparison, toMarkdown } from '../core/compare';
+import { buildMethodProfile } from '../core/grouping';
+import { DraftIcon } from '../draft-icons';
+import { innovationColor } from './innovationScale';
 import { Banner, Tag, downloadText } from './common';
 
 const LEVEL_KIND: Record<ComparabilityReport['overall']['level'], string> = {
@@ -11,6 +14,19 @@ const LEVEL_KIND: Record<ComparabilityReport['overall']['level'], string> = {
   not_comparable: 'bad',
   unknown: '',
 };
+
+/**
+ * 对比维度：草稿 5 行 → 我们真实的字段（不新增维度，只把草稿的编造文案换成真实取值）
+ * 草稿行名保留（解决什么问题 / 核心方法是什么 / 使用什么数据场景 / 效果如何 / 有什么局限），
+ * 「效果如何」那行额外挂**真实的可比性判定**（规则计算，不是模型自评）。
+ */
+const DIMENSIONS: { label: string; field: FieldKey; compare?: boolean }[] = [
+  { label: '解决什么问题', field: 'researchTask' },
+  { label: '核心方法是什么', field: 'coreIdea' },
+  { label: '使用什么数据/场景', field: 'datasets' },
+  { label: '效果如何', field: 'metrics', compare: true },
+  { label: '有什么局限', field: 'limitations' },
+];
 
 export function ComparabilityPanel({
   report,
@@ -214,133 +230,190 @@ export function CompareView({
   };
 
   return (
-    <div>
-      <h2 className="page">跨论文比较</h2>
-      <p className="sub">
-        勾选两篇及以上论文，系统会先用规则检查数据集、数据划分、指标、额外训练数据、预训练模型与实验设置，
-        给出「可以直接比较 / 只能有限比较 / 当前不能直接比较」的结论。条件不一致时禁止直接比较数值。
-      </p>
-
-      <div className="card">
-        <h3>选择要比较的论文（{selected.length} 篇已选）</h3>
-        <div className="row">
-          {methods.length === 0 && <span className="muted">还没有已完成抽取的论文。</span>}
-          {methods.map((m) => {
-            const p = paperById.get(m.paperId);
-            const on = selected.includes(m.paperId);
-            return (
-              <button
-                key={m.paperId}
-                className={`btn sm ${on ? 'primary' : ''}`}
-                onClick={() => onToggle(m.paperId)}
-              >
-                {on ? '✓ ' : ''}
-                {(p?.title ?? m.paperId).slice(0, 30)}
-              </button>
-            );
-          })}
-          {methods.length > 0 && (
-            <button className="btn ghost sm" onClick={() => onSelectedChange(methods.map((m) => m.paperId))}>
-              全选
-            </button>
-          )}
-        </div>
-      </div>
-
-      {!cmp && <Banner kind="info">请至少选择两篇论文以生成可比性判断与比较表。</Banner>}
-
-      {cmp && (
-        <>
-          <div className="row between" style={{ marginBottom: 10 }}>
-            <div className="row">
-              <Tag kind="ok">已选 {cmp.columns.length} 篇</Tag>
-              <Tag kind="warn">系统不做排名</Tag>
-            </div>
-            <div className="row">
-              <button className="btn sm" onClick={exportMarkdown}>
-                导出 Markdown
-              </button>
-              <button className="btn sm" onClick={exportJson}>
-                导出 JSON
-              </button>
-            </div>
+    <div className="cmppage sdpage">
+      <div className="max-w-[1440px] mx-auto px-10 pt-14 pb-24">
+        {/* 标题行：eyebrow + 4xl 衬线标题 → 右上两个按钮（草稿结构） */}
+        <div className="flex justify-between items-end mb-8">
+          <div className="space-y-1">
+            <p className="text-[var(--fg-3)] tracking-[0.3em] uppercase text-xs font-bold">Comparative Analysis</p>
+            <h1 className="text-4xl font-serif font-bold tracking-tight">跨论文比较</h1>
           </div>
-
-          <ComparabilityPanel report={cmp.comparability} onOpenEvidence={onOpenEvidence} paperById={paperById} />
-
-          {cmp.globalWarnings.slice(1).map((w, i) => (
-            <Banner key={i} kind="warn">
-              {w}
-            </Banner>
-          ))}
-
-          <div className="table-wrap">
-            <table className="cmp">
-              <thead>
-                <tr>
-                  <th className="rowhead">字段</th>
-                  {cmp.columns.map((m) => {
+          <div className="flex gap-3">
+            {/* 草稿的「修改选中 (N)」：选择面板收进折叠，不占首屏 */}
+            <details className="fold cmpselect">
+              <summary className="btn-outline">
+                <DraftIcon name="edit-3" />
+                修改选中（{selected.length}）
+              </summary>
+              <div className="fold-body" style={{ marginTop: 12 }}>
+                <div className="row" style={{ flexWrap: 'wrap' }}>
+                  {methods.length === 0 && <span className="muted">还没有已完成抽取的论文。</span>}
+                  {methods.map((m) => {
                     const p = paperById.get(m.paperId);
+                    const on = selected.includes(m.paperId);
                     return (
-                      <th key={m.paperId}>
-                        {p?.title ?? m.paperId}
-                        <div className="small dim" style={{ fontWeight: 400 }}>
-                          {p?.year ?? '年份未识别'} {m.cached ? '· 缓存' : '· 实时'}
-                        </div>
-                      </th>
+                      <button
+                        key={m.paperId}
+                        className={`btn sm ${on ? 'primary' : ''}`}
+                        onClick={() => onToggle(m.paperId)}
+                      >
+                        {on ? '✓ ' : ''}
+                        {(p?.title ?? m.paperId).slice(0, 30)}
+                      </button>
                     );
                   })}
-                </tr>
-              </thead>
-              <tbody>
-                {cmp.rows.map((row) => (
-                  <tr key={row.field}>
-                    <td className="rowhead">{row.label}</td>
-                    {row.cells.map((c, i) => (
-                      <td key={i} className={c.state === 'missing' ? 'missing' : c.state === 'verified' ? '' : 'partial'}>
-                        {c.display}
-                        <div className="small" style={{ marginTop: 3 }}>
-                          <Tag kind={c.state === 'verified' ? 'ok' : c.state === 'missing' ? 'bad' : 'warn'}>{c.stateText}</Tag>
-                        </div>
-                        {c.note && c.state !== 'verified' && (
-                          <div className="small" style={{ color: 'var(--warn)', marginTop: 4 }}>
-                            {c.note}
+                  {methods.length > 0 && (
+                    <button className="btn ghost sm" onClick={() => onSelectedChange(methods.map((m) => m.paperId))}>
+                      全选
+                    </button>
+                  )}
+                </div>
+              </div>
+            </details>
+            <button className="btn-outline" onClick={exportMarkdown} disabled={!cmp}>
+              <DraftIcon name="download" />
+              导出对比报告
+            </button>
+          </div>
+        </div>
+
+        {!cmp && (
+          <div className="content-card bg-white">
+            <p className="text-sm text-[var(--fg-2)] leading-relaxed">
+              请至少选择两篇论文（点右上「修改选中」）。选好后会先用规则检查数据集、数据划分、指标、
+              额外训练数据、预训练模型与实验设置，给出「可以直接比较 / 只能有限比较 / 当前不能直接比较」的结论；
+              条件不一致时禁止直接比较数值，系统也不做排名。可比性判断由程序按当前规则实时计算。
+            </p>
+          </div>
+        )}
+
+        {cmp && (
+          <>
+            <div className="w-full overflow-x-auto rounded-2xl border border-[var(--line)] bg-white shadow-sm">
+              <table className="w-full comparison-table">
+                <thead className="comparison-header">
+                  <tr>
+                    <th className="dim-label bg-[var(--bg-4)]">对比维度</th>
+                    {cmp.columns.map((m, i) => {
+                      const p = paperById.get(m.paperId);
+                      const prof = buildMethodProfile(m, p, papers);
+                      const score = m.assessment?.innovation?.value;
+                      return (
+                        <th className="paper-cell bg-white" key={m.paperId}>
+                          <div className="flex flex-col gap-2">
+                            <span className="text-[10px] font-bold text-[var(--fg-3)]">
+                              {String(i + 1).padStart(2, '0')}
+                            </span>
+                            <h3 className="text-lg font-bold leading-tight">{p?.title ?? m.paperId}</h3>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span
+                                className="text-xs font-bold"
+                                style={{ color: innovationColor(typeof score === 'number' ? score : undefined) }}
+                                title="创新度是模型评估，不是论文给出的分数"
+                              >
+                                {typeof score === 'number' ? `${score.toFixed(1)} / 10` : '未评估'}
+                              </span>
+                              {/* 草稿这里写「• Devlin et al.」—— 我们没有作者数据，统一换成真实的方法族 */}
+                              <span className="text-[10px] text-[var(--fg-3)]">• {prof.family.name}</span>
+                            </div>
                           </div>
-                        )}
-                        {(() => {
-                          const ev = c.method?.fields[row.field]?.evidence;
-                          if (!ev) return null;
-                          return (
-                            <div style={{ marginTop: 6 }}>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {DIMENSIONS.map((dim) => (
+                    <tr className="comparison-row" key={dim.field}>
+                      <td className="dim-label">{dim.label}</td>
+                      {cmp.columns.map((m) => {
+                        const p = paperById.get(m.paperId);
+                        const cell = m.fields[dim.field];
+                        const ev = cell?.evidence;
+                        return (
+                          <td className="paper-cell" key={m.paperId}>
+                            {/* 可比性判定：程序按规则算出来的，不是模型自评（草稿的标签是编的文案） */}
+                            {dim.compare && (
+                              <div className="mb-2">
+                                <span
+                                  className={`tag-fair ${
+                                    cmp.comparability.overall.level === 'comparable'
+                                      ? 'tag-fair-true'
+                                      : 'tag-fair-false'
+                                  }`}
+                                  title={cmp.comparability.overall.summary}
+                                >
+                                  {cmp.comparability.overall.level === 'comparable'
+                                    ? '可公平比较'
+                                    : cmp.comparability.overall.level === 'not_comparable'
+                                      ? '当前不能直接比较'
+                                      : `慎重对比：${cmp.comparability.overall.summary.slice(0, 24)}`}
+                                </span>
+                              </div>
+                            )}
+                            <p className="text-sm text-[var(--fg-2)] leading-relaxed">
+                              {cell?.value || <span className="text-[var(--fg-3)]">—</span>}
+                            </p>
+                            <div className="mt-2">
+                              <Tag kind={cell?.status === 'verified' ? 'ok' : cell?.status === 'missing' ? 'bad' : 'warn'}>
+                                {FIELD_STATUS_TEXT[cell?.status ?? 'missing']}
+                              </Tag>
+                            </div>
+                            {ev && (
                               <button
-                                className={`ev-btn ${ev.verified ? '' : 'bad'}`}
+                                className="ev-btn text-[10px] font-bold text-[var(--accent)] mt-3 flex items-center gap-1 hover:underline"
                                 onClick={() =>
-                                  onOpenEvidence(
-                                    ev,
-                                    `${(paperById.get(cmp.columns[i].paperId)?.title ?? '').slice(0, 26)} · ${row.label}`,
-                                    paperById.get(cmp.columns[i].paperId),
-                                  )
+                                  onOpenEvidence(ev, `${(p?.title ?? '').slice(0, 26)} · ${dim.label}`, p)
                                 }
                               >
-                                {ev.verified ? `原文 p.${ev.page ?? '?'}` : '引文未通过校验'}
+                                {ev.verified ? `查看原文证据 p.${ev.page ?? '?'}` : '查看实际匹配位置'}
+                                <DraftIcon name="chevron-down" />
                               </button>
-                            </div>
-                          );
-                        })()}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-          <p className="small dim" style={{ marginTop: 10 }}>
-            「论文未报告」表示该论文原文中确实没有该信息，「未提取到」表示本次片段中没有，两者都不会用推测值填充。
-            点击「原文」按钮可查看该引文所在的真实上下文。
-          </p>
-        </>
-      )}
+            {/* 可比性明细：草稿没有这一块，但它是本页的核心证据，收进折叠保留 */}
+            <details className="fold" style={{ marginTop: 20 }}>
+              <summary>可比性判断明细（规则计算，非模型自评）</summary>
+              <div className="fold-body">
+                <ComparabilityPanel
+                  report={cmp.comparability}
+                  onOpenEvidence={onOpenEvidence}
+                  paperById={paperById}
+                />
+              </div>
+            </details>
+
+            {cmp.globalWarnings.slice(1).map((w, i) => (
+              <Banner key={i} kind="warn">
+                {w}
+              </Banner>
+            ))}
+
+            {/* 页脚（照草稿结构，内容换成真实的） */}
+            <div className="mt-12 flex items-center justify-between">
+              <button
+                className="text-sm font-bold text-[var(--fg-3)] hover:text-[var(--accent)] flex items-center gap-2 transition-colors"
+                onClick={() => onSelectedChange([])}
+              >
+                <DraftIcon name="arrow-left" /> 清空选择
+              </button>
+              <div className="flex items-center gap-4 text-xs text-[var(--fg-3)]">
+                <span>字段与引文由 ResearchPilot 从论文原文抽取并回原文定位</span>
+                <span className="w-1 h-1 bg-[var(--line-2)] rounded-full" />
+                <span>可比性由程序按当前规则实时计算 · 系统不做排名</span>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

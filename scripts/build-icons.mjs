@@ -50,6 +50,9 @@ const NAMES = [
   // 论文库主页（草稿 6db41280）
   'map-pin',
   'upload',
+  // 跨论文对比表（草稿 bab0a034）
+  'edit-3',
+  'library',
 ];
 
 const url = `https://api.iconify.design/lucide.json?icons=${NAMES.join(',')}`;
