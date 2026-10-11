@@ -22,24 +22,24 @@
    否则这里的 `.uppage button { color: inherit }` 会因为特异性比单类工具类高，把 `text-[var(--fg-3)]` 这类工具类压掉
    （实测过：页脚链接会从灰色变成 --fg）。放在 utilities 之前，工具类就能正常覆盖它。
    --------------------------------------------------------------------------- */
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage) :where(*, ::before, ::after) {
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage) :where(*, ::before, ::after) {
   box-sizing: border-box;
   border-width: 0;
   border-style: solid;
   border-color: var(--line);
 }
 
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage) :where(h1, h2, h3, h4, p, figure, blockquote) {
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage) :where(h1, h2, h3, h4, p, figure, blockquote) {
   margin: 0;
   font-size: inherit;
   font-weight: inherit;
 }
 
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage) :where(ul, ol) { margin: 0; padding: 0; list-style: none; }
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage) :where(ul, ol) { margin: 0; padding: 0; list-style: none; }
 
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage) :where(a) { color: inherit; text-decoration: inherit; }
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage) :where(a) { color: inherit; text-decoration: inherit; }
 
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage) :where(button, input, textarea, select) {
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage) :where(button, input, textarea, select) {
   font: inherit;
   color: inherit;
   margin: 0;
@@ -48,11 +48,11 @@
   background-image: none;
   border: 0;
 }
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage) :where(button) { cursor: pointer; text-transform: none; -webkit-appearance: button; }
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage) :where(button:disabled) { cursor: not-allowed; }
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage) :where(button) { cursor: pointer; text-transform: none; -webkit-appearance: button; }
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage) :where(button:disabled) { cursor: not-allowed; }
 
 /* 内联图标：iconify-icon 是 inline 元素，这里保持与文字基线对齐 */
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage) :where(svg) { display: inline-block; vertical-align: -0.125em; }
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage) :where(svg) { display: inline-block; vertical-align: -0.125em; }
 
 /* 工具类与组件层放在补齐的 preflight **之后**，保证 Tailwind 的单类工具类能正常覆盖上面的元素选择器 */
 @tailwind components;
@@ -642,4 +642,84 @@
 .cmppage :where(.cmpbtn) {
   min-width: 168px;
   justify-content: center;
+}
+
+/* ===========================================================================
+   阅读路线（草稿 c122c572 v1）
+   逐行照搬草稿的 style 块，作用域收在本页容器 `.decpage` 下。
+   与 .libpage / .cmppage 一样：content-card 不设 background（草稿每张卡自带 bg 工具类，
+   本文件在 utilities 之后，同特异性会压掉工具类）。
+   --------------------------------------------------------------------------- */
+.decpage :where(.btn-primary) {
+  background-color: var(--accent);
+  color: white;
+  padding: 12px 28px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: none;
+  font-size: 15px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(31, 71, 114, 0.15);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.decpage :where(.btn-primary:hover) { background-color: var(--accent-2); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(31, 71, 114, 0.25); }
+.decpage :where(.btn-primary:disabled) { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.decpage :where(.btn-outline) {
+  background: white;
+  border: 1px solid var(--line-2);
+  color: var(--fg-2);
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  transition: all 0.2s;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.decpage :where(.btn-outline:hover) { background: var(--bg-3); border-color: var(--fg-3); }
+.decpage :where(.btn-outline:disabled) { opacity: 0.45; cursor: not-allowed; }
+
+.decpage :where(.content-card) {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 32px;
+  box-shadow: var(--shadow-2);
+}
+
+/* 编号圆点 + 竖向连接线（草稿的「编辑脊椎」） */
+.decpage :where(.step-node) { position: relative; }
+.decpage :where(.step-node)::before {
+  content: '';
+  position: absolute;
+  left: 16px;
+  top: 40px;
+  bottom: -40px;
+  width: 2px;
+  background-color: var(--fig-brand, var(--accent));
+  opacity: 0.3;
+  z-index: 0;
+}
+.decpage :where(.step-node:last-child)::before { display: none; }
+.decpage :where(.step-number) {
+  width: 34px;
+  height: 34px;
+  background: var(--accent);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  z-index: 1;
+  position: relative;
+  /* 草稿用的是 JetBrains Mono；我们没有这个字体，改用项目的等宽令牌 */
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
 }

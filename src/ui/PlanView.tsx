@@ -6,8 +6,10 @@ import {
   GOAL_FIT_LABELS,
   TRAINING_STAGE_LABELS,
 } from '../core/types';
-import { Banner, Crumb, PageHead, SectionHead, Status, Tag, downloadText } from './common';
+import { Banner, SectionHead, Status, Tag, downloadText } from './common';
 import { buildMethodProfile, shortContribution } from '../core/grouping';
+import { DraftIcon } from '../draft-icons';
+import { innovationColor } from './innovationScale';
 
 const FIT_TEXT = {
   suitable: '条件匹配',
@@ -98,107 +100,31 @@ export function DecisionView({
   };
 
   return (
-    <div>
-      <Crumb trail={[{ label: '研究地图', on: () => onGo('map') }, { label: '阅读路线' }]} />
-
-      <PageHead
-        title="阅读路线"
-        sub={
-          <>
-            按你的基础、目标、时间和算力条件给出的<strong>一条连续阅读路径</strong>：先读哪一篇、为什么先读它、重点看什么，
-            以及读完后进哪一步。每一步的原文依据都可以打开核对；论文没有报告算力或训练时长时会明确说无法确认。
-          </>
-        }
-        badges={
-          <>
-            <Status kind={plan ? (plan.cached ? 'cached' : 'live') : 'pending'}>
-              {plan ? (plan.cached ? '示例路线（缓存）' : '个性化路线') : '尚未生成'}
-            </Status>
-            <Status kind="info">基于 {methods.length} 篇已完成抽取的论文</Status>
-            {plan?.steps?.length ? <Status kind="ok">{plan.steps.length} 步阅读顺序</Status> : null}
-          </>
-        }
-        actions={
-          <>
-            <button
-              className="btn primary"
-              disabled={busy || methods.length === 0}
-              onClick={() => {
-                setLastProfile(profile);
-                onGenerate(profile);
-              }}
-            >
-              {busy ? '生成中…' : modelReady ? (plan && !plan.cached ? '重新生成个性化路线' : '生成个性化路线') : '查看示例路线'}
-            </button>
-            {busy && onCancel && (
-              <button className="btn ghost" disabled={!modelReady} onClick={onCancel}>
-                停止等待
-              </button>
-            )}
-          </>
-        }
-      />
-
-      {/* 你的条件：默认收起，避免首屏堆叠 */}
-      <div className="toolbar">
-        <button className="btn ghost" onClick={() => setProfileOpen((v) => !v)} aria-expanded={profileOpen}>
-          {profileOpen ? '收起我的条件' : '填写 / 修改我的条件'}
-        </button>
-        <span className="lab">
-          {profile.compute || '未填写算力'} · {profile.time || '未填写时间'} · {profile.interest?.slice(0, 18) || '未填写目标'}
-        </span>
-        <span className="spacer" />
-        {plan?.cached && (
-          <button className="btn ghost" disabled={busy || methods.length === 0} onClick={onUseSample}>
-            重新载入示例路线
-          </button>
-        )}
-      </div>
-
-      {profileOpen && (
-        <div className="quiet-group tint expand-in" style={{ marginTop: 0 }}>
-          <div className="grid2">
-            <div>
-              <label className="f">基础</label>
-              <textarea className="f" rows={2} value={profile.background} onChange={set('background')} />
-            </div>
-            <div>
-              <label className="f">研究目标 / 兴趣</label>
-              <textarea className="f" rows={2} value={profile.interest} onChange={set('interest')} />
-            </div>
-            <div>
-              <label className="f">可用时间</label>
-              <input className="f" value={profile.time} onChange={set('time')} />
-            </div>
-            <div>
-              <label className="f">计算资源</label>
-              <input className="f" value={profile.compute} onChange={set('compute')} />
-            </div>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label className="f">具体目标</label>
-              <input className="f" value={profile.goal} onChange={set('goal')} />
-            </div>
-          </div>
-          <div className="row" style={{ marginTop: 10 }}>
-            <button
-              className="btn primary sm"
-              disabled={busy || methods.length === 0}
-              onClick={() => {
-                setLastProfile(profile);
-                onGenerate(profile);
-              }}
-            >
-              按这些条件生成路线
-            </button>
-            <span className="small dim">修改条件后重新生成，结果应随之变化</span>
-          </div>
-          {lastProfile && plan && !plan.cached && (
-            <p className="small dim" style={{ marginTop: 8, marginBottom: 0 }}>
-              本次结果对应的条件是「{lastProfile.compute || '未填写'} / {lastProfile.time || '未填写'}」。
-            </p>
-          )}
-        </div>
-      )}
+    <div className="decpage sdpage">
+      <div className="max-w-[1440px] mx-auto px-10 pt-14">
+        <div className="grid grid-cols-12 gap-12">
+          {/* 左栏：路线（草稿 8 栏） */}
+          <div className="col-span-12 lg:col-span-8">
+            {/* 草稿头部：eyebrow + 4xl 衬线标题 + 生成时间/篇数 */}
+            <header className="mb-12">
+              <div className="flex flex-col gap-4">
+                <p className="text-[var(--fg-3)] tracking-[0.3em] uppercase text-xs font-bold">Personalized Learning Path</p>
+                <h1 className="text-4xl font-serif font-bold tracking-tight">阅读路线</h1>
+                <div className="flex items-center gap-4 mt-2 text-sm text-[var(--fg-3)] flex-wrap">
+                  <span className="flex items-center gap-1.5">
+                    <DraftIcon name="calendar" />
+                    {plan ? `生成于 ${new Date(plan.generatedAt).toLocaleString('zh-CN')}` : '尚未生成'}
+                  </span>
+                  <span className="w-1 h-1 bg-[var(--line-2)] rounded-full" />
+                  <span className="flex items-center gap-1.5">
+                    <DraftIcon name="file-text" />
+                    包含 {plan?.steps?.length ?? 0} 篇核心论文
+                  </span>
+                  <span className="w-1 h-1 bg-[var(--line-2)] rounded-full" />
+                  <span>{plan ? (plan.cached ? '示例路线（缓存）' : '个性化路线') : '尚未生成'}</span>
+                </div>
+              </div>
+            </header>
 
       {methods.length === 0 && <Banner kind="info">还没有可用的论文分析结果。</Banner>}
 
@@ -213,108 +139,84 @@ export function DecisionView({
         <Banner kind="info">这是<strong>个性化路线</strong>：已按你填写的条件生成。条件里没提到的因素不会替你做假设。</Banner>
       ) : null}
 
-      {plan?.conditionSensitivity && (
-        <p className="small dim" style={{ margin: '0 0 12px' }}>
-          <Tag kind="info">模型自述的条件敏感性（未经验证）</Tag> {plan.conditionSensitivity}
+      {/* 研究路径：编号 + 竖向轨道 + 每步一个内容区 */}
+      {/* 推荐顺序摘要：只留一行（原来那套图与下面的步骤卡信息重复，草稿里也没有） */}
+      {plan && plan.steps.length > 0 && (
+        <p className="text-sm text-[var(--fg-2)] mb-8">
+          <span className="font-bold">推荐阅读顺序：</span>
+          {plan.steps.map((s2) => shortOf(s2.paperId)).join(' → ')}
         </p>
       )}
 
-      {/* 研究路径：编号 + 竖向轨道 + 每步一个内容区 */}
       {plan && plan.steps.length > 0 && (
-        <section className="routesum">
-          <p className="rs-line1">
-            推荐阅读顺序：
-            {plan.steps.map((s) => shortOf(s.paperId)).join(' → ')}
-          </p>
-          <p className="rs-line2">
-            {plan.cached ? '示例路线' : '个性化路线'} ·{' '}
-            {plan.steps
-              .slice(0, 2)
-              .map((s) => [s.reason, s.focus].filter(Boolean).join('；').slice(0, 60))
-              .filter(Boolean)
-              .join(' · ') || '每一步的理由与重点见下方路线图。'}
-          </p>
-          <ol className="routegraph">
-            {plan.steps.map((s, i) => (
-              <li key={`${s.paperId}-${i}`} className={`rgnode${graphStep === i ? ' on' : ''}`}>
-                <button
-                  onClick={() => setGraphStep(graphStep === i ? null : i)}
-                  aria-expanded={graphStep === i}
-                >
-                  <span className="no">{String(i + 1).padStart(2, '0')}</span>
-                  <span className="nm">{shortOf(s.paperId)}</span>
-                  <span className="yr">{paperById.get(s.paperId)?.year ?? ''}</span>
-                </button>
-                {i < plan.steps.length - 1 && (
-                  <span className="rgarrow" aria-hidden="true" style={{ ['--rgd' as never]: `${i * 90}ms` }} />
-                )}
-              </li>
-            ))}
-          </ol>
-          <p className="rgnote">箭头只表示阅读顺序，不是方法之间的关系。</p>
-          <div className={`rgexpand${graphStep !== null ? ' open' : ''}`}>
-            {graphStep !== null && plan.steps[graphStep] && (
-              <div className="rgbody">
-                <div className="sect">为什么先读</div>
-                <p>{plan.steps[graphStep].reason || '路线里没有给出这一步的理由（未生成或缺失）。'}</p>
-                <div className="sect">重点看什么</div>
-                <p>{plan.steps[graphStep].focus || '路线里没有给出这一步的重点。'}</p>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {plan && plan.steps.length > 0 && (
-        <>
-          <SectionHead title="研究路径" sub="按顺序读；每一步都给出理由、重点与下一步" />
-          <div className="railpath">
-            <div className="railend start">
-              <span className="dot" />
-              <span className="lab">起点：从这里开始</span>
-            </div>
-            {plan.steps.map((s, idx) => {
-              const p = paperById.get(s.paperId);
-              const m = methods.find((x) => x.paperId === s.paperId);
-              const prof = profileOf(s.paperId);
-              const ev = m?.fields.coreIdea?.evidence;
-              const next = plan.steps[idx + 1];
-              const nextProf = next ? profileOf(next.paperId) : undefined;
-              const open = isOpen(s.paperId);
-              const basisTag =
-                s.basis === 'profile'
-                  ? { kind: 'info', text: '依据你的条件' }
-                  : s.basis === 'gap'
-                    ? { kind: 'warn', text: '存在信息缺口' }
-                    : { kind: 'ok', text: '依据论文信息' };
-              return (
-                <div className={`railstep${open ? ' open cur' : ''}`} key={`${s.paperId}_${s.order}`}>
-                  <div className="rail" aria-hidden="true">
-                    <span className="no">{pad2(s.order)}</span>
-                    <span className="track" />
+        <div className="space-y-10">
+          {plan.steps.map((s2, idx) => {
+            const p = paperById.get(s2.paperId);
+            const m = methods.find((x) => x.paperId === s2.paperId);
+            const prof = profileOf(s2.paperId);
+            const ev = m?.fields.coreIdea?.evidence;
+            const score = m?.assessment?.innovation?.value;
+            const next = plan.steps[idx + 1];
+            const nextProf = next ? profileOf(next.paperId) : undefined;
+            const open = openStep === s2.paperId;
+            const basisText =
+              s2.basis === 'profile' ? '依据你的条件' : s2.basis === 'gap' ? '存在信息缺口' : '依据论文信息';
+            // 草稿第 1 步用高亮标签「起点文献」，其余用中性标签（这里放真实的推荐依据）
+            const first = idx === 0;
+            // 草稿的逐级变淡：这里用更克制的衰减，保证正文仍可读
+            const dim = Math.max(1 - idx * 0.08, 0.72);
+            return (
+              <div className="step-node flex gap-8" key={`${s2.paperId}_${s2.order}`}>
+                <div className="step-number shrink-0">{pad2(s2.order)}</div>
+                <div className="content-card flex-1" style={{ opacity: dim }}>
+                  <div className="flex justify-between items-start mb-4 gap-4">
+                    <div className="flex flex-col gap-1 min-w-0">
+                      <div>
+                        <span
+                          className="text-[10px] font-bold px-2 py-0.5 rounded uppercase"
+                          style={
+                            first
+                              ? { background: 'var(--accent-soft)', color: 'var(--accent)' }
+                              : { background: 'var(--bg-3)', color: 'var(--fg-3)' }
+                          }
+                        >
+                          {first ? '起点文献' : basisText}
+                        </span>
+                      </div>
+                      <h3 className="text-2xl font-serif font-bold leading-tight">{p?.title ?? s2.paperId}</h3>
+                      {/* 草稿这里是「作者 • 年份」——我们没有作者数据，统一换成真实的方法族 */}
+                      <p className="text-sm text-[var(--fg-3)]">
+                        {prof?.family.name ?? '方法未提取'} • {p?.year ?? '年份未识别'}
+                      </p>
+                    </div>
+                    <div
+                      className="flex items-center gap-1 font-bold text-lg shrink-0"
+                      style={{ color: innovationColor(typeof score === 'number' ? score : undefined) }}
+                      title="创新度是模型评估，不是论文给出的分数"
+                    >
+                      <DraftIcon name="sparkles" />
+                      <span>{typeof score === 'number' ? score.toFixed(1) : '—'}</span>
+                    </div>
                   </div>
-                  <div className="body">
-                    <div className="hd">
-                      <span className="nm">{prof?.shortName ?? p?.title?.slice(0, 16) ?? s.paperId}</span>
-                      {p?.year && <span className="small dim">{p.year}</span>}
-                      <Tag kind={basisTag.kind}>{basisTag.text}</Tag>
-                    </div>
 
-                    <div className="ln">
-                      <span className="k">为什么先读它</span>
-                      <span className="v">{s.reason}</span>
+                  <div className="space-y-4">
+                    <p className="text-[var(--fg-2)] leading-relaxed">
+                      <span className="font-bold">为什么先读它：</span>
+                      {s2.reason}
+                    </p>
+                    <div className="bg-[var(--bg-3)] p-4 rounded-xl">
+                      <p className="text-xs font-black uppercase text-[var(--fg-3)] tracking-widest mb-2">重点看什么</p>
+                      <ul className="text-sm space-y-2 text-[var(--fg-2)]">
+                        <li>• {s2.focus}</li>
+                      </ul>
                     </div>
-                    <div className="ln">
-                      <span className="k">重点看什么</span>
-                      <span className="v">{s.focus}</span>
-                    </div>
-                    <div className="ln">
-                      <span className="k">下一步</span>
-                      <span className="v">
+                    <div className="ln" style={{ display: 'flex', gap: 10 }}>
+                      <span className="font-bold shrink-0">下一步</span>
+                      <span className="text-[var(--fg-2)]">
                         {next ? (
                           <>
                             读完进入 {pad2(next.order)} · {nextProf?.shortName ?? next.paperId}
-                            <span className="dim"> —— {next.focus}</span>
+                            <span className="text-[var(--fg-3)]"> —— {next.focus}</span>
                           </>
                         ) : (
                           <>这条路径已经走完；可以回到研究地图看它与其他方法的联系。</>
@@ -322,58 +224,79 @@ export function DecisionView({
                       </span>
                     </div>
 
-                    {/* 默认只显示 4 行正文；点击后才展开完整内容（原文依据、方法定位、操作入口） */}
                     {open && (
-                      <div className="railmore expand-in">
-                        <div className="ln">
-                          <span className="k">方法定位</span>
-                          <span className="v">{stageWordOf(s.paperId)}</span>
+                      <div className="expand-in" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ display: 'flex', gap: 10 }}>
+                          <span className="font-bold shrink-0">方法定位</span>
+                          <span className="text-[var(--fg-2)]">{stageWordOf(s2.paperId)}</span>
                         </div>
-                        {s.gap && (
-                          <div className="ln">
-                            <span className="k">信息缺口</span>
-                            <span className="v" style={{ color: 'var(--warn)' }}>
-                              {s.gap}
-                            </span>
+                        {s2.gap && (
+                          <div style={{ display: 'flex', gap: 10 }}>
+                            <span className="font-bold shrink-0">信息缺口</span>
+                            <span style={{ color: 'var(--warn)' }}>{s2.gap}</span>
                           </div>
                         )}
-                        <div className="ln">
-                          <span className="k">原文依据</span>
-                          <span className="v">
+                        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                          <span className="font-bold shrink-0">原文依据</span>
+                          <span>
                             {ev ? (
-                              <button className="btn ghost sm" onClick={() => onOpenEvidence(ev, `${prof?.shortName ?? ''} 的核心思路原文`, p)}>
+                              <button
+                                className="text-[10px] font-bold text-[var(--accent)] flex items-center gap-1 hover:underline"
+                                onClick={() => onOpenEvidence(ev, `${prof?.shortName ?? ''} 的核心思路原文`, p)}
+                              >
                                 打开原文（p.{ev.page ?? '?'}）
+                                <DraftIcon name="chevron-right" />
                               </button>
                             ) : (
-                              <span className="dim">这一步没有绑定可核验引文（字段按「待人工核对」呈现）</span>
+                              <span className="text-[var(--fg-3)]">
+                                这一步没有绑定可核验引文（字段按「待人工核对」呈现）
+                              </span>
                             )}
                           </span>
                         </div>
-                        <div className="row" style={{ gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
-                          <button className="btn sm" onClick={() => onOpenPaper(s.paperId)}>
+                        <div className="flex items-center gap-3 flex-wrap mt-1">
+                          <button className="btn sm" onClick={() => onOpenPaper(s2.paperId)}>
                             打开这篇论文
                           </button>
                           <button className="btn ghost sm" onClick={() => onGo('map')}>
                             在研究地图里看它
                           </button>
-                          <span className="spacer" />
                         </div>
                       </div>
                     )}
 
-                    <button className="toggle" onClick={() => setOpenStep(open ? '' : s.paperId)} aria-expanded={open}>
-                      {open ? '收起这一篇的完整内容' : '展开完整内容（方法定位 · 原文依据 · 操作）'}
+                    <button
+                      className="text-sm font-bold text-[var(--accent)] flex items-center gap-1 hover:underline"
+                      onClick={() => setOpenStep(open ? '' : s2.paperId)}
+                      aria-expanded={open}
+                    >
+                      {open ? '收起完整内容' : '查看详细分析（方法定位 · 原文依据 · 操作）'}
+                      <DraftIcon name="chevron-right" />
                     </button>
                   </div>
                 </div>
-              );
-            })}
-            <div className="railend end">
-              <span className="dot" />
-              <span className="lab">终点：完成这条路线</span>
+              </div>
+            );
+          })}
+
+          {/* 草稿末尾那张「后续推荐 + 锁」的卡片：换成真实事实——本次没纳入路线的论文数 */}
+          {methods.length > plan.steps.length && (
+            <div className="step-node flex gap-8">
+              <div className="step-number shrink-0 opacity-50">···</div>
+              <div className="content-card flex-1 border-dashed" style={{ opacity: 0.7 }}>
+                <div className="flex items-center justify-between">
+                  <p className="text-lg font-bold">
+                    另有 {methods.length - plan.steps.length} 篇已分析的论文未纳入本次路线
+                  </p>
+                  <DraftIcon name="lock" className="text-[var(--fg-3)]" />
+                </div>
+                <p className="text-sm text-[var(--fg-3)] mt-2">
+                  路线只包含模型按你填写的条件挑出的论文；想全部看到，去论文集合或研究地图。
+                </p>
+              </div>
             </div>
-          </div>
-        </>
+          )}
+        </div>
       )}
 
       {plan && plan.steps.length === 0 && (
@@ -589,11 +512,140 @@ export function DecisionView({
         <div className="lite">
           <p style={{ margin: 0, color: 'var(--fg-2)', fontSize: 'var(--fs-body)' }}>
             {modelReady
-              ? '还没有生成路线：点右上角「生成个性化路线」，系统会按你填写的条件给出候选方法、阅读顺序与每步理由。'
-              : '还没有路线可看：当前未配置模型，点右上角「查看示例路线」会载入预置示例（界面会标明它没有按你的条件生成）。'}
+              ? '还没有生成路线：点右侧「生成个性化路线」，系统会按你填写的条件给出候选方法、阅读顺序与每步理由。'
+              : '还没有路线可看：当前未配置模型，点右侧「查看示例路线」会载入预置示例（界面会标明它没有按你的条件生成）。'}
           </p>
         </div>
       )}
+          </div>
+
+          {/* 右栏：个性化配置 + AI 建议（草稿 4 栏，sticky） */}
+          <aside className="col-span-12 lg:col-span-4">
+            <div className="sticky top-8 space-y-8">
+              <div className="content-card bg-white" style={{ border: '2px solid var(--accent)', boxShadow: '0 4px 24px rgba(22,38,61,.10)', padding: 32 }}>
+                <h3 className="text-xl font-serif font-bold mb-6 flex items-center gap-2">
+                  <DraftIcon name="settings-2" className="text-[var(--accent)]" />
+                  个性化路线配置
+                </h3>
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-xs font-black uppercase text-[var(--fg-3)] tracking-widest mb-3">
+                      我的基础水平
+                    </label>
+                    <textarea
+                      className="w-full bg-[var(--bg)] border border-[var(--line)] p-3 rounded-xl text-sm focus:outline-none focus:border-[var(--accent)]"
+                      rows={2}
+                      value={profile.background}
+                      onChange={set('background')}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black uppercase text-[var(--fg-3)] tracking-widest mb-3">
+                      研究目标 / 兴趣
+                    </label>
+                    <textarea
+                      className="w-full bg-[var(--bg)] border border-[var(--line)] p-3 rounded-xl text-sm focus:outline-none focus:border-[var(--accent)]"
+                      rows={2}
+                      value={profile.interest}
+                      onChange={set('interest')}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black uppercase text-[var(--fg-3)] tracking-widest mb-3">
+                      可用时间
+                    </label>
+                    <input
+                      className="w-full bg-[var(--bg)] border border-[var(--line)] p-3 rounded-xl text-sm focus:outline-none focus:border-[var(--accent)]"
+                      value={profile.time ?? ''}
+                      onChange={set('time')}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black uppercase text-[var(--fg-3)] tracking-widest mb-3">
+                      计算资源
+                    </label>
+                    <input
+                      className="w-full bg-[var(--bg)] border border-[var(--line)] p-3 rounded-xl text-sm focus:outline-none focus:border-[var(--accent)]"
+                      value={profile.compute ?? ''}
+                      onChange={set('compute')}
+                    />
+                  </div>
+                  <button
+                    className="w-full btn-primary mt-2"
+                    style={{ justifyContent: 'center' }}
+                    disabled={busy || methods.length === 0}
+                    onClick={() => {
+                      setLastProfile(profile);
+                      onGenerate(profile);
+                    }}
+                  >
+                    {busy ? '生成中…' : modelReady ? '重新生成路线' : '查看示例路线'}
+                  </button>
+                  {busy && onCancel && (
+                    <button className="w-full btn-outline" style={{ justifyContent: 'center' }} disabled={!modelReady} onClick={onCancel}>
+                      停止等待
+                    </button>
+                  )}
+                  {plan?.cached && (
+                    <button className="w-full btn-outline" style={{ justifyContent: 'center' }} disabled={busy || methods.length === 0} onClick={onUseSample}>
+                      重新载入示例路线
+                    </button>
+                  )}
+                  {lastProfile && plan && !plan.cached && (
+                    <p className="text-[11px] text-[var(--fg-3)] leading-relaxed">
+                      本次结果对应的条件是「{lastProfile.compute || '未填写'} / {lastProfile.time || '未填写'}」。
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-2xl p-6 border border-[var(--line)]" style={{ background: 'var(--bg-4)' }}>
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-[var(--accent)] shadow-sm">
+                    <DraftIcon name="lightbulb" className="text-xl" />
+                  </div>
+                  <p className="text-sm font-bold">AI 建议</p>
+                </div>
+                <p className="text-xs text-[var(--fg-2)] leading-relaxed">
+                  {plan?.conditionSensitivity
+                    ? plan.conditionSensitivity
+                    : plan
+                      ? '本次路线基于语料里已完成抽取的论文与你填写的条件；条件里没提到的因素不会替你做假设。'
+                      : '填写条件后点「生成路线」：系统会给出候选方法、阅读顺序与每一步的理由与依据。'}
+                </p>
+                {plan?.conditionSensitivity && (
+                  <p className="text-[10px] text-[var(--fg-3)] mt-3">以上为模型自述的条件敏感性，未经验证。</p>
+                )}
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        {/* 页脚：草稿是「导出 PDF / 分享路线 / 返回论文库」；
+            我们没有 PDF 导出与分享功能，换成真实入口（导出 Markdown / 返回论文集合 / 研究地图） */}
+        <footer className="mt-20 pt-12 border-t border-[var(--line)] flex flex-col md:flex-row justify-between items-center gap-8 mb-4">
+          <div className="flex items-center gap-3 text-sm flex-wrap">
+            <button
+              className="btn-outline flex items-center gap-2"
+              disabled={!plan}
+              onClick={() => plan && downloadText('researchpilot-方法决策.md', decisionToMarkdown(plan, papers), 'text/markdown')}
+            >
+              <DraftIcon name="file-down" />
+              导出路线（Markdown）
+            </button>
+            <button className="btn-outline flex items-center gap-2" onClick={() => onGo('library')}>
+              <DraftIcon name="arrow-left" />
+              返回论文集合
+            </button>
+            <button className="btn-outline flex items-center gap-2" onClick={() => onGo('map')}>
+              在研究地图里看它们
+            </button>
+          </div>
+          <p className="text-[10px] text-[var(--fg-3)] uppercase tracking-widest">
+            © 2026 ResearchPilot · 路线只依据语料与你的条件，不做排名
+          </p>
+        </footer>
+      </div>
     </div>
   );
 }

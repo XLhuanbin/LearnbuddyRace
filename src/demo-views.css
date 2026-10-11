@@ -1078,3 +1078,8 @@ button.fc-name:hover { color: var(--accent); text-decoration: underline; text-un
    外壳不能再限宽或留左右内边距，否则表头与页脚会被缩进容器里 */
 .main.cmpmain { padding-left: 0; padding-right: 0; padding-bottom: 0; }
 .main.cmpmain .main-inner { max-width: none; }
+
+/* 阅读路线（草稿 c122c572）：草稿的 <main> / <footer> 自己 max-w-1440 mx-auto px-10，
+   外壳不能再限宽或留左右内边距，否则双栏与页脚会被缩进容器里 */
+.main.decmain { padding-left: 0; padding-right: 0; padding-bottom: 0; }
+.main.decmain .main-inner { max-width: none; }

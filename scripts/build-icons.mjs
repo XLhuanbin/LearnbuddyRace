@@ -53,6 +53,12 @@ const NAMES = [
   // 跨论文对比表（草稿 bab0a034）
   'edit-3',
   'library',
+  // 阅读路线（草稿 c122c572）
+  'calendar',
+  'settings-2',
+  'lock',
+  'file-down',
+  'home',
 ];
 
 const url = `https://api.iconify.design/lucide.json?icons=${NAMES.join(',')}`;
