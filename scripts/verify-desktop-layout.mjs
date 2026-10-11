@@ -13,9 +13,24 @@
 
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
+import { createServer as createNetServer } from 'node:net';
 import { readFile, stat } from 'node:fs/promises';
 import { existsSync, writeFileSync, mkdirSync } from 'node:fs';
 import { extname, join, normalize, resolve } from 'node:path';
+
+/**
+ * 取一个空闲端口给 CDP 用。
+ * ⚠️ 原来写死 9444：脚本异常退出时 Chrome 会留在后台继续占着这个端口，
+ *    下一次运行就会连到上一次那个「旧页面」上，表现为**什么都不打印、直接退出**（本机实测踩过）。
+ */
+const freePort = () =>
+  new Promise((res) => {
+    const s = createNetServer();
+    s.listen(0, '127.0.0.1', () => {
+      const p = s.address().port;
+      s.close(() => res(p));
+    });
+  });
 
 const CHROME_CANDIDATES = [
   process.env.CHROME_PATH,
@@ -99,7 +114,7 @@ const VIEWPORTS = [
   ['1280x800', 1280, 800],
   ['1440x900', 1440, 900],
 ];
-const PAGES = ['论文集合', '方法提取', '研究地图', '实验可比性', '阅读路线'];
+const PAGES = ['论文集合', '方法提取', '研究地图', '实验可比性', '阅读路线', '待调查问题'];
 
 async function main() {
   if (!CHROME) {
@@ -117,7 +132,7 @@ async function main() {
   const profile = join(ROOT, '.build', 'desktop-' + Date.now());
   mkdirSync(profile, { recursive: true });
   mkdirSync(SHOTS, { recursive: true });
-  const port = 9444;
+  const port = await freePort();
   const child = spawn(
     CHROME,
     [
@@ -133,6 +148,14 @@ async function main() {
     ],
     { stdio: 'ignore' },
   );
+  // 兜底：无论脚本怎么退出（含中途 exit(1)），都别把无头 Chrome 留在后台
+  process.on('exit', () => {
+    try {
+      child.kill();
+    } catch {
+      /* ignore */
+    }
+  });
 
   let list = null;
   for (let i = 0; i < 80; i++) {

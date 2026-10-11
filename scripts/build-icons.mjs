@@ -63,6 +63,9 @@ const NAMES = [
   'quote',
   'target',
   'external-link',
+  // 待调查问题（草稿 2b574366）：草稿的 star / check-circle 换成了真实操作，
+  // 只新增「加载更多问题」用的 refresh-cw（book-open / download / search / sparkles / arrow-up-right 上面已有）
+  'refresh-cw',
 ];
 
 const url = `https://api.iconify.design/lucide.json?icons=${NAMES.join(',')}`;

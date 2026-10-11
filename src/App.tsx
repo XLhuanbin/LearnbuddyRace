@@ -1370,7 +1370,7 @@ export default function App() {
       <div className={`app-body${tab === 'map' ? ' mapbody' : ''}`}>
         {/* 默认不显示侧栏：页面切换走顶部「目录」浮层 */}
 
-        <main className={`main${tab === 'landing' ? ' plain' : ''}${tab === 'map' ? ' mapmain' : ''}${tab === 'upload' ? ' uploadmain' : ''}${tab === 'result' ? ' resultmain' : ''}${tab === 'map' ? ' netmapmain' : ''}${tab === 'library' ? ' libmain' : ''}${tab === 'compare' ? ' cmpmain' : ''}${tab === 'decision' ? ' decmain' : ''}`}>
+        <main className={`main${tab === 'landing' ? ' plain' : ''}${tab === 'map' ? ' mapmain' : ''}${tab === 'upload' ? ' uploadmain' : ''}${tab === 'result' ? ' resultmain' : ''}${tab === 'map' ? ' netmapmain' : ''}${tab === 'library' ? ' libmain' : ''}${tab === 'compare' ? ' cmpmain' : ''}${tab === 'decision' ? ' decmain' : ''}${tab === 'divergence' ? ' dvmain' : ''}`}>
           <div className="main-inner">
           {pendingDependents.length > 0 && (
             <Banner kind="warn">
@@ -1715,6 +1715,12 @@ export default function App() {
                 if (divergence) return;
                 log('尚未分析分歧，请先点「分析分歧与待调查问题」，或加载预置样例语料。');
               }}
+              /* 卡片右上的两个图标按钮（草稿是「收藏 / 标记已解决」，我们没有那种状态，换成真实操作） */
+              onOpenPaper={(paperId) => {
+                setResultPaperId(paperId);
+                setTab('result');
+              }}
+              onOpenEvidence={(ev, label, paper) => void openEvidence(ev, label, paper)}
             />
           )}
 

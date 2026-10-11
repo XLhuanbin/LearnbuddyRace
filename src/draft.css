@@ -22,24 +22,24 @@
    否则这里的 `.uppage button { color: inherit }` 会因为特异性比单类工具类高，把 `text-[var(--fg-3)]` 这类工具类压掉
    （实测过：页脚链接会从灰色变成 --fg）。放在 utilities 之前，工具类就能正常覆盖它。
    --------------------------------------------------------------------------- */
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage) :where(*, ::before, ::after) {
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage) :where(*, ::before, ::after) {
   box-sizing: border-box;
   border-width: 0;
   border-style: solid;
   border-color: var(--line);
 }
 
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage) :where(h1, h2, h3, h4, p, figure, blockquote) {
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage) :where(h1, h2, h3, h4, p, figure, blockquote) {
   margin: 0;
   font-size: inherit;
   font-weight: inherit;
 }
 
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage) :where(ul, ol) { margin: 0; padding: 0; list-style: none; }
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage) :where(ul, ol) { margin: 0; padding: 0; list-style: none; }
 
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage) :where(a) { color: inherit; text-decoration: inherit; }
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage) :where(a) { color: inherit; text-decoration: inherit; }
 
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage) :where(button, input, textarea, select) {
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage) :where(button, input, textarea, select) {
   font: inherit;
   color: inherit;
   margin: 0;
@@ -48,11 +48,11 @@
   background-image: none;
   border: 0;
 }
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage) :where(button) { cursor: pointer; text-transform: none; -webkit-appearance: button; }
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage) :where(button:disabled) { cursor: not-allowed; }
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage) :where(button) { cursor: pointer; text-transform: none; -webkit-appearance: button; }
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage) :where(button:disabled) { cursor: not-allowed; }
 
 /* 内联图标：iconify-icon 是 inline 元素，这里保持与文字基线对齐 */
-:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage) :where(svg) { display: inline-block; vertical-align: -0.125em; }
+:is(.uppage, .rspage, .mapnet, .libpage, .cmppage, .decpage, .dvpage) :where(svg) { display: inline-block; vertical-align: -0.125em; }
 
 /* 工具类与组件层放在补齐的 preflight **之后**，保证 Tailwind 的单类工具类能正常覆盖上面的元素选择器 */
 @tailwind components;
@@ -802,3 +802,70 @@
   min-height: 360px;
   overflow-y: auto;
 }
+
+/* ===========================================================================
+   待调查问题（草稿 2b574366 v1）
+   逐行照搬草稿的 style 块，作用域收在本页容器 `.dvpage` 下。
+
+   ⚠️ 逐处注明的偏离（「外观照草稿、内容只改不符的」原则下唯一动了外观的地方）：
+   - 草稿给「优先级」定了三个**装饰性**色（--high #10B981 / --mid #F59E0B / --low #8B5CF6）。
+     本项目调色板的规定是「绿/橙/红只用于真实状态，不做装饰」，且紫色在本站唯一含义是「人工修正」。
+     故这一格换成我们真实的维度「可比性」，颜色映射到既有语义令牌：
+     可以直接比较 → --ok；只能有限比较 → --warn；当前不能直接比较 → --bad；信息不足 → 中性 --fg-3。
+     阈值与判据来自 `comparability.ts`，与「跨论文比较」页同源（见 .dv-cmp-* ）。
+   - 草稿的 .content-card 内边距 24px（本项目全局是 48px，各页自己收窄，这里照草稿收窄）。
+   --------------------------------------------------------------------------- */
+.dvpage :where(.content-card) {
+  border-radius: var(--radius);
+  padding: 24px;
+}
+.dvpage :where(.content-card:hover) {
+  transform: translateY(-4px);
+  border-color: var(--line-2);
+  box-shadow: 0 8px 30px rgba(22, 38, 61, .08);
+}
+.dvpage :where(.search-bar) {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.2s;
+}
+.dvpage :where(.search-bar:focus-within) { border-color: var(--accent); }
+.dvpage :where(.cat-tag) {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 8px;
+  background: var(--bg-3);
+  color: var(--fg-2);
+  border-radius: 4px;
+}
+.dvpage :where(.sidebar-link) {
+  transition: all 0.2s;
+  border-left: 3px solid transparent;
+}
+.dvpage :where(.sidebar-link.active) {
+  background: var(--bg-3);
+  color: var(--accent);
+  border-left-color: var(--accent);
+  font-weight: 700;
+}
+
+/* 「可比性」徽章：文案与配色一一对应，颜色只表真实状态 */
+.dvpage :where(.cmp-badge) {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.dvpage :where(.cmp-comparable) { background: var(--ok-soft); color: var(--ok); }
+.dvpage :where(.cmp-limited) { background: var(--warn-soft); color: var(--warn); }
+.dvpage :where(.cmp-not_comparable) { background: var(--bad-soft); color: var(--bad); }
+.dvpage :where(.cmp-unknown) { background: var(--bg-3); color: var(--fg-3); }
+
+/* 左侧筛选栏里的圆点（草稿用 --high/--mid/--low，这里同样换成可比性四档） */
+.dvpage :where(.cmp-dot) { width: 8px; height: 8px; border-radius: 999px; flex-shrink: 0; }
+.dvpage :where(.cmp-dot.cmp-comparable) { background: var(--ok); }
+.dvpage :where(.cmp-dot.cmp-limited) { background: var(--warn); }
+.dvpage :where(.cmp-dot.cmp-not_comparable) { background: var(--bad); }
+.dvpage :where(.cmp-dot.cmp-unknown) { background: var(--fg-3); }
