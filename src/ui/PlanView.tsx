@@ -736,8 +736,10 @@ export function DecisionView({
         </div>
 
         {/* 页脚：草稿是「导出 PDF / 分享路线 / 返回论文库」；
-            我们没有 PDF 导出与分享功能，换成真实入口（导出 Markdown / 返回论文集合 / 研究地图） */}
-        <footer className="mt-20 pt-12 border-t border-[var(--line)] flex flex-col md:flex-row justify-between items-center gap-8 mb-4">
+            我们没有 PDF 导出与分享功能，换成真实入口（导出 Markdown / 返回论文集合 / 研究地图）。
+            底部留白交给 .main 的 padding-bottom（72px）—— 页脚自己的 mb-4 会与之叠加成 88px，
+            比其它页多一截，所以这里不再加 margin。 */}
+        <footer className="mt-20 pt-12 border-t border-[var(--line)] flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="flex items-center gap-3 text-sm flex-wrap">
             <button
               className="btn-outline flex items-center gap-2"
