@@ -611,17 +611,14 @@ export function DecisionView({
       )}
           </div>
 
-          {/* 右栏：个性化配置 + AI 建议（草稿 4 栏，sticky） */}
+          {/* 右栏：个性化配置 + AI 建议（草稿 4 栏） */}
           <aside className="col-span-12 lg:col-span-4">
-            {/* 右侧常驻栏：**让这张卡把右侧这块区域整个填满**（高度＝可视区高度），
-                这样它天然不可能被截断，也不需要任何内部滚动条；
-                同时 sticky 保证页面上下滚动时它不移动（实测滚动 900/2400px 后顶部恒为 32px）。
-                卡内用 flex 纵向排布：标题与条件在上，按钮与 AI 建议用 mt-auto 贴到底部。
-                height 用 calc(100vh - 80px) = 上下各留 32/48px 呼吸位；minHeight 兜住极窄窗口。 */}
-            <div
-              className="sticky top-8 flex"
-              style={{ height: 'calc(100vh - 80px)', minHeight: 420, overflowY: 'auto' }}
-            >
+            {/* 右侧常驻栏：**进页面那一刻就钉在它原来的位置上（154px），之后滚动完全不动**。
+                几何全部写在 draft.css 的 `.decpage .dec-pin` 里（top = 顶栏 72 + 主区上内边距 26 +
+                页面留白 56；height = 顶栏以下的剩余可视高度）。这样既不会上移、也不会被吸顶栏盖住、
+                底部也不会被截断。
+                卡内用 flex 纵向排布：标题与条件在上，按钮与 AI 建议用 mt-auto 贴到底部。 */}
+            <div className="dec-pin">
               <div
                 className="content-card bg-white flex flex-col w-full"
                 style={{ border: '2px solid var(--accent)', boxShadow: '0 4px 24px rgba(22,38,61,.10)', padding: 22 }}

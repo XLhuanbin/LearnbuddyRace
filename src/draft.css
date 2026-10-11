@@ -780,3 +780,25 @@
   background: var(--accent);
   transition: width 0.6s ease-out;
 }
+
+/* -- 右栏「个性化路线配置」：进页面那一刻就钉住，之后滚动完全不动 ----------------
+   top 取的是**这张卡刚进入页面时的原始位置**（2026-10-11 实测 = 154px）：
+     吸顶栏 72px + 主区上内边距 26px + 页面上留白 56px（草稿的 pt-14）= 154px
+   所以它不会像原来那样「先随页面上移 122px，再卡在 32px」。
+   原来那个 32px 还有第二个毛病：吸顶栏 z-index:20 会盖住卡片顶部约 40px 的标题。
+
+   height 用顶栏以下的剩余可视高度（底部留 32px 呼吸位），保证：
+   - 卡片完整可见，底部按钮不会被截断；
+   - 内容再多也不会把卡片撑高（撑高就又会被截断），极端情况由本卡内部滚动兜住。
+   ----------------------------------------------------------------------------- */
+.decpage {
+  --dec-pin-top: calc(var(--topbar-h) + 82px);
+}
+.decpage :where(.dec-pin) {
+  position: sticky;
+  top: var(--dec-pin-top);
+  display: flex;
+  height: calc(100vh - var(--dec-pin-top) - 32px);
+  min-height: 360px;
+  overflow-y: auto;
+}
