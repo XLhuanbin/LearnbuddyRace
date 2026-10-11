@@ -468,7 +468,7 @@ export function UploadFlowView({
       <footer className="border-t border-[var(--line)] bg-white py-12">
         <div className="max-w-[var(--content-max)] mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-4">
-            <span className="font-serif font-bold">ResearchPilot</span>
+            <span className="rp-wordmark font-bold">ResearchPilot</span>
             <span className="text-xs text-[var(--fg-3)] uppercase tracking-widest border-l border-[var(--line)] pl-4">Privacy &amp; Trust First</span>
           </div>
           {/* 草稿的「使用指南 / 法律条款」在本项目里并不存在 → 换成真实入口（结构与样式照草稿） */}

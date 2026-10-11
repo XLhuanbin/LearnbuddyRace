@@ -266,17 +266,22 @@
   color: #fff;
   display: grid;
   place-items: center;
-  font-family: var(--font-serif);
+  /* 方块里的 R 也是纯拉丁，跟品牌名同一套西文衬线（草稿：font-serif font-black） */
+  font-family: var(--font-brand);
   font-size: 16px;
   font-weight: 900;
   line-height: 1;
 }
 
-/* 品牌名用中文衬线风格；字符宽度与系统衬线不同，因此字体就绪前不显示（只淡入，不改尺寸） */
+/*
+  品牌名：草稿 0964dc25 顶部栏原样 = `text-xl font-semibold tracking-tight` + Tailwind 默认 font-serif。
+  实测这套栈落到 **Georgia**（西文衬线），和 Noto Serif SC 的西文字形不是一回事 —— 别改回 --font-serif。
+  字符宽度与系统衬线不同，因此字体就绪前不显示（只淡入，不改尺寸）。
+*/
 .mapbrand .brand-serif {
-  font-family: var(--font-serif);
-  font-weight: 700;
-  font-size: 24px;
+  font-family: var(--font-brand);
+  font-weight: 600;
+  font-size: 20px;
   letter-spacing: -.025em;
   white-space: nowrap;
 }

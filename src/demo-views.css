@@ -945,7 +945,8 @@
 }
 @media (min-width: 768px) { .up-foot-in { flex-direction: row; } }
 .up-foot-brand { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-.up-foot-brand .b { font-family: var(--font-serif); font-weight: 700; }
+/* 品牌名是纯拉丁，走西文衬线（--font-brand），和中文标题的 --font-serif 分开 */
+.up-foot-brand .b { font-family: var(--font-brand); font-weight: 700; letter-spacing: -.025em; }
 .up-foot-tag {
   font-size: 12px;
   color: var(--fg-3);

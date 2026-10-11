@@ -276,7 +276,8 @@ export function FutureView({ onBack, onGo }: Props) {
                       disabled={voted}
                       onClick={() => vote(w.id)}
                     >
-                      <DraftIcon name={voted ? 'check-circle' : 'arrow-up-circle'} />
+                      {/* 草稿点完把图标换成 lucide:check */}
+                      <DraftIcon name={voted ? 'check' : 'arrow-up-circle'} />
                       {voted ? '已投票' : '我也想要'}
                     </button>
                   </div>
@@ -306,8 +307,8 @@ export function FutureView({ onBack, onGo }: Props) {
         <div className="max-w-[1200px] mx-auto px-10 flex flex-col md:flex-row justify-between gap-12">
           <div className="max-w-xs space-y-4">
             <div className="flex items-center gap-3">
-              <span className="w-6 h-6 bg-[#1F4772] text-white flex items-center justify-center font-serif font-black text-xs rounded-sm">R</span>
-              <span className="font-serif text-[#16263D] font-bold tracking-tight">ResearchPilot</span>
+              <span className="rp-wordmark w-6 h-6 bg-[#1F4772] text-white flex items-center justify-center font-black text-xs rounded-sm">R</span>
+              <span className="rp-wordmark text-[#16263D] font-bold tracking-tight">ResearchPilot</span>
             </div>
             <p className="text-xs text-[var(--fg-3)] leading-relaxed">
               由 AI 驱动的研究方法梳理智能体，按真实缺口持续打磨。

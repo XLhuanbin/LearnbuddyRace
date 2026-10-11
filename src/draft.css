@@ -910,7 +910,12 @@
   background: var(--accent);
   border-radius: 50%;
   position: absolute;
-  left: -5.5px;
+  /*
+    草稿写的是 left: -5.5px，但圆点的定位父级是**每一条版本记录的 .relative**，
+    而时间线容器有 pl-8（2rem）—— 照抄会让圆点落在竖线右边 26px 处、正好压住版本名。
+    这里补上 2rem，把圆点挪回竖线上（-5.5px 是圆点半径 5px 的居中补偿）。
+  */
+  left: calc(-2rem - 5.5px);
   top: 8px;
   z-index: 10;
   /* 草稿是 4px 白圈（垫在白底上）；本页时间线落在 --bg 上，跟着换成页面底色 */
@@ -937,6 +942,26 @@
 .verpage :where(.tech-tag:hover) {
   border-color: var(--accent);
   transform: scale(1.05);
+}
+
+/*
+  草稿的 <footer> 是 <main> 之外的**整屏宽白底**（内容再按 1200px 居中）。
+  本项目的页面被 App 外框包着（内容区约 920px），直接照抄会变成一条窄白块，
+  所以这里用负外边距把页脚拉回视口宽度 —— 与 .futpage > footer 同一套处理。
+*/
+.verpage > footer {
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+}
+
+/* 同上：100vw 含滚动条宽度，补一条横向裁剪，避免多出约 8px 横向滚动条（只在本页生效） */
+body:has(.verpage) {
+  overflow-x: clip;
+}
+
+/* 技术墙里的品牌标志是彩色实心图形（Simple Icons），不要被「图标统一一个颜色」的规则带到 currentColor */
+.verpage :where(.tech-tag svg) {
+  flex: 0 0 auto;
 }
 
 @keyframes verScroll {
@@ -1041,11 +1066,31 @@ body:has(.futpage) {
   color: white;
   border-color: var(--accent);
 }
-/* 已标记：草稿是整只按钮换成 .btn-primary 并禁用；这里同样换成主按钮形态 */
+/*
+  投票后的变化（草稿 4bdccae1 末尾的脚本原样）：
+    btn.classList.replace('btn-vote', 'btn-primary') + innerHTML 换成 check + disabled
+  也就是整只按钮从「描边小按钮」变成「实心主按钮」—— padding 由 8px 16px 撑到 12px 32px、
+  加投影，配合 .btn-vote 自带的 transition: all .2s 就是那一记「长出来」的动画。
+  再补一记 0.28s 的轻弹，让点击有回弹感（草稿只有过渡，这一下是加的）。
+*/
 .futpage :where(.btn-vote.on) {
   background: var(--accent);
   color: white;
   border-color: var(--accent);
+  padding: 12px 32px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(31, 71, 114, 0.15);
+  animation: votePop 0.28s ease-out;
+}
+.futpage :where(.btn-vote.on:disabled) {
+  opacity: 1;
+  cursor: default;
+}
+
+@keyframes votePop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.06); }
+  100% { transform: scale(1); }
 }
 
 .futpage :where(.progress-bar) {

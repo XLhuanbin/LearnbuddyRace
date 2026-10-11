@@ -57,8 +57,13 @@
   /* 中文衬线（标题）：优先自托管的 Noto Serif SC 子集（见 src/fonts.css），再回退到本机可能已有的思源宋体 / 宋体族 */
   --font-serif: 'RP Serif SC', 'Noto Serif SC', 'Source Han Serif SC', 'Source Han Serif CN',
     'Songti SC', 'STSong', 'SimSun', serif;
-  /* 拉丁品牌字：自托管子集里的西文，再回退到系统西文衬线 */
-  --font-brand: 'RP Serif SC', Georgia, 'Times New Roman', 'Songti SC', serif;
+  /*
+    拉丁品牌字（左上角 / 页脚的 "ResearchPilot" 字样）：**照草稿原样**。
+    草稿里这几个字用的是 Tailwind 默认的 `font-serif`（= ui-serif, Georgia, Cambria, "Times New Roman",
+    Times, serif），走的是**西文衬线**（本机实测落到 Georgia），不是中文衬线 —— Noto Serif SC 的西文字形
+    更宽更重，看着和草稿不一样。品牌名是纯拉丁，所以用西文衬线栈，中文标题仍然走 --font-serif。
+  */
+  --font-brand: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
   --mono: 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
 
   /* ---------- 字号层级（全站统一）---------- */
@@ -115,6 +120,15 @@ p, li, .pgsub, .sub, .lead { text-wrap: pretty; }
 button { font-family: inherit; font-size: inherit; cursor: pointer; }
 input, textarea, select { font-family: inherit; font-size: inherit; }
 a { color: var(--accent); }
+
+/*
+  品牌名 "ResearchPilot"（纯拉丁）：全站统一用草稿那套西文衬线（= --font-brand，实测落到 Georgia）。
+  中文标题仍走 --font-serif，两者不要混。
+*/
+.rp-wordmark {
+  font-family: var(--font-brand);
+  letter-spacing: -.025em;
+}
 
 /* ---------- 顶栏（品牌 + 次级入口） ---------- */
 .topbar {

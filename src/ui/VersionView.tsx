@@ -114,27 +114,24 @@ const HISTORY: { tag: string; date: string; title: string; items: string[] }[] =
 
 /**
  * 技术墙：只列 `package.json` / `docs/STATUS.md` 里真实存在的东西。
- * 图标用 lucide 里表达同一件事的图形（草稿的 logos:* 需要运行时 CDN，自包含静态站不能用）。
+ * 图标 = 各自的**真实品牌标志**（与草稿同一套 Simple Icons / `logos:*`，已在构建期内联，不依赖 CDN）；
+ * 没有官方标志的三项（pdf.js / IndexedDB / LearnBuddy）沿用 lucide 表意图形 —— 草稿自己也是这么混的。
  */
 const TECH: { icon: string; name: string }[] = [
-  { icon: 'layers', name: 'React 18' },
-  { icon: 'file-code', name: 'TypeScript' },
-  { icon: 'zap', name: 'Vite' },
-  { icon: 'wind', name: 'Tailwind CSS' },
+  { icon: 'react', name: 'React 18' },
+  { icon: 'typescript-icon', name: 'TypeScript' },
+  { icon: 'vite-icon', name: 'Vite' },
+  { icon: 'tailwindcss-icon', name: 'Tailwind CSS' },
   { icon: 'file-text', name: 'pdf.js' },
   { icon: 'database', name: 'IndexedDB' },
-  { icon: 'cloud', name: 'DeepSeek API' },
-  { icon: 'terminal', name: 'Node.js' },
-  { icon: 'eye', name: 'Chrome CDP' },
+  { icon: 'deepseek-icon', name: 'DeepSeek API' },
+  { icon: 'nodejs-icon', name: 'Node.js' },
+  { icon: 'chrome', name: 'Chrome CDP' },
   { icon: 'brain-circuit', name: 'LearnBuddy' },
 ];
 
-/** 致谢：四个真实来源，不写虚构的用户数、高校或背书 */
+/** 致谢：只列真实来源，不写虚构的用户数、高校或背书（按用户要求去掉了「论文作者」这一条） */
 const THANKS: { title: string; desc: string }[] = [
-  {
-    title: '五篇论文的作者',
-    desc: 'ResNet、ViT、DeiT、Swin Transformer、ConvNeXt 的作者们 —— 页面上每一个字段、每一条引文都来自这五篇公开论文，结论都可以回到原文核对。',
-  },
   {
     title: '开源社区',
     desc: 'pdf.js（Mozilla）、React、TypeScript、Vite、Tailwind CSS 与 lucide 图标 —— 本项目没有自研渲染层，直接站在这些项目之上。',
@@ -295,7 +292,7 @@ export function VersionView({ onBack, onGo }: Props) {
         </div>
         <div className="bg-white rounded-2xl border border-[var(--line)] p-8 max-w-4xl">
           <p className="text-[var(--fg-2)] leading-relaxed mb-6">
-            这一页只列真实来源：下面是本作品真正依赖的论文、开源项目与平台。
+            这一页只列真实来源：下面是本作品真正依赖的开源项目、平台与赛事。
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
             {THANKS.map((t) => (
@@ -308,12 +305,13 @@ export function VersionView({ onBack, onGo }: Props) {
         </div>
       </section>
 
+      {/* 草稿的 <footer> 是 <main> 的兄弟节点（通栏白底），内容再按 1200px 居中（见 draft.css 的 .verpage > footer） */}
       <footer className="border-t border-[var(--line)] bg-white py-16">
-        <div className="flex flex-col md:flex-row justify-between gap-12">
+        <div className="max-w-[1200px] mx-auto px-10 flex flex-col md:flex-row justify-between gap-12">
           <div className="max-w-xs space-y-4">
             <div className="flex items-center gap-3">
-              <span className="w-6 h-6 bg-[#1F4772] text-white flex items-center justify-center font-serif font-black text-xs rounded-sm">R</span>
-              <span className="font-serif text-[#16263D] font-bold tracking-tight">ResearchPilot</span>
+              <span className="rp-wordmark w-6 h-6 bg-[#1F4772] text-white flex items-center justify-center font-black text-xs rounded-sm">R</span>
+              <span className="rp-wordmark text-[#16263D] font-bold tracking-tight">ResearchPilot</span>
             </div>
             <p className="text-xs text-[var(--fg-3)] leading-relaxed">
               由 AI 辅助开发的研究方法梳理工具，帮研究者把一组论文整理成可以核对的方法视角。
@@ -342,7 +340,7 @@ export function VersionView({ onBack, onGo }: Props) {
             </div>
           </div>
         </div>
-        <div className="mt-16 pt-8 border-t border-[var(--bg-4)] flex justify-between items-center text-[10px] text-[var(--fg-3)] uppercase font-bold tracking-widest">
+        <div className="max-w-[1200px] mx-auto px-10 mt-16 pt-8 border-t border-[var(--bg-4)] flex justify-between items-center text-[10px] text-[var(--fg-3)] uppercase font-bold tracking-widest">
           <span>© 2026 ResearchPilot · 深圳大学「啥名字好」队</span>
           <span>{build?.buildId ? `Build ${build.buildId}` : 'Build —（本地运行，无构建指纹）'}</span>
         </div>

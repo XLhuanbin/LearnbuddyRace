@@ -1,9 +1,14 @@
 /**
- * 生成 lucide 图标的内联组件（数据取自 Iconify API 的 lucide 原始集）
+ * 生成图标的内联组件（数据取自 Iconify API）
  * ---------------------------------------------------------------------------
  * 为什么不用 iconify-icon 运行时组件：草稿是靠 CDN 提供的；本作品是自包含静态站，
- * 不能在运行时依赖外部 CDN（国内访问也不稳）。这里一次性把**同一个 lucide 图标集的原始 path**
+ * 不能在运行时依赖外部 CDN（国内访问也不稳）。这里一次性把**图标集的原始 path**
  * 拉下来内联，渲染出的图形与草稿完全一致，但没有运行时依赖。
+ *
+ * 两个来源：
+ *  - `lucide`  —— 界面上的线形图标（与草稿 `<iconify-icon icon="lucide:xxx">` 同一套）
+ *  - `logos`   —— Simple Icons 的**真实品牌标志**（草稿的技术墙用的就是 `logos:react` 之类，
+ *                 之前只能拿 lucide 的通用图形顶替；现在直接上真图标）
  *
  * 用法：node scripts/build-icons.mjs
  * 产物：src/draft-icons.tsx（勿手改）
@@ -84,45 +89,81 @@ const NAMES = [
   'arrow-up',
   'check-circle',
   'timer',
+  // 投票后的对勾（草稿点完把图标换成 lucide:check）
+  'check',
 ];
 
-const url = `https://api.iconify.design/lucide.json?icons=${NAMES.join(',')}`;
-const res = await fetch(url, { headers: { accept: 'application/json' } });
-if (!res.ok) {
-  console.error(`★ 拉取失败：${res.status} ${res.statusText}`);
-  process.exit(1);
+/**
+ * 技术墙的真实品牌标志（Simple Icons / Iconify 的 `logos` 集）。
+ * 没有品牌标志的三项（pdf.js / IndexedDB / LearnBuddy）继续用 lucide 表意图形 ——
+ * 草稿自己也是这么混用的（它的 LearnBuddy 就是 lucide:brain-circuit）。
+ */
+const LOGOS = ['react', 'typescript-icon', 'vite-icon', 'tailwindcss-icon', 'nodejs-icon', 'chrome', 'deepseek-icon'];
+
+async function fetchSet(prefix, names) {
+  const url = `https://api.iconify.design/${prefix}.json?icons=${names.join(',')}`;
+  const res = await fetch(url, { headers: { accept: 'application/json' } });
+  if (!res.ok) {
+    console.error(`★ 拉取 ${prefix} 失败：${res.status} ${res.statusText}`);
+    process.exit(1);
+  }
+  return res.json();
 }
-const data = await res.json();
-const W = data.width ?? 24;
-const H = data.height ?? 24;
+
+const lucide = await fetchSet('lucide', NAMES);
+const logos = await fetchSet('logos', LOGOS);
+const W = lucide.width ?? 24;
+const H = lucide.height ?? 24;
 
 const entries = [];
+const boxes = [];
 const missing = [];
-for (const n of NAMES) {
-  let body = data.icons?.[n]?.body;
-  if (!body) {
-    const parent = data.aliases?.[n]?.parent;
-    if (parent && data.icons?.[parent]) body = data.icons[parent].body;
+const take = (data, names, prefix) => {
+  const dw = data.width ?? 24;
+  const dh = data.height ?? 24;
+  for (const n of names) {
+    let ic = data.icons?.[n];
+    if (!ic) {
+      const parent = data.aliases?.[n]?.parent;
+      if (parent && data.icons?.[parent]) ic = data.icons[parent];
+    }
+    if (!ic?.body) {
+      missing.push(`${prefix}:${n}`);
+      continue;
+    }
+    entries.push([n, ic.body]);
+    // 品牌标志是 256×256 画布，且每个图标高度可能不同（react 228 / vite 157）；按图标各自带 viewBox
+    const w = ic.width ?? dw;
+    const h = ic.height ?? dh;
+    if (w !== 24 || h !== 24) boxes.push([n, `0 0 ${w} ${h}`]);
   }
-  if (!body) missing.push(n);
-  else entries.push([n, body]);
-}
+};
+take(lucide, NAMES, 'lucide');
+take(logos, LOGOS, 'logos');
 if (missing.length) {
-  console.error(`★ 以下图标在 lucide 里找不到：${missing.join(', ')}`);
+  console.error(`★ 以下图标找不到：${missing.join(', ')}`);
   process.exit(1);
 }
 
 const out = `/**
- * lucide 图标（内联）—— **由 scripts/build-icons.mjs 生成，请勿手改**
- * 数据来源：Iconify API 的 lucide 图标集（与草稿 \`<iconify-icon icon="lucide:xxx">\` 同一套图形）
+ * 草稿图标（内联）—— **由 scripts/build-icons.mjs 生成，请勿手改**
+ * 数据来源：Iconify API
+ *   - lucide 线形图标（与草稿 \`<iconify-icon icon="lucide:xxx">\` 同一套图形）
+ *   - logos（Simple Icons）真实品牌标志（与草稿 \`<iconify-icon icon="logos:xxx">\` 同一套图形）
  * 用法：<DraftIcon name="upload-cloud" className="text-4xl text-[var(--accent)]" />
- * 说明：尺寸取 \`1em\`、颜色取 \`currentColor\`，因此和 iconify-icon 一样完全跟随父级 font-size / color，
+ * 说明：尺寸取 \`1em\`、颜色取 \`currentColor\`（svg 上带 fill="currentColor"，lucide 自己的
+ *       fill="none"/stroke 优先），因此和 iconify-icon 一样完全跟随父级 font-size / color，
  *       可以直接配合 Tailwind 的 text-* 使用。
  */
 import React from 'react';
 
 const DATA: Record<string, string> = {
 ${entries.map(([n, b]) => `  ${JSON.stringify(n)}: ${JSON.stringify(b)},`).join('\n')}
+};
+
+/** 画布不是 24×24 的图标（品牌标志多为 256×N）；不在这个表里的按 24×24 处理 */
+const BOX: Record<string, string> = {
+${boxes.map(([n, v]) => `  ${JSON.stringify(n)}: ${JSON.stringify(v)},`).join('\n')}
 };
 
 export function DraftIcon({
@@ -140,9 +181,10 @@ export function DraftIcon({
   if (!body) return null;
   return (
     <svg
-      viewBox="0 0 ${W} ${H}"
+      viewBox={BOX[name] ?? "0 0 ${W} ${H}"}
       width="1em"
       height="1em"
+      fill="currentColor"
       className={className}
       style={{ display: 'inline-block', verticalAlign: '-0.125em', ...style }}
       aria-hidden={ariaHidden}
@@ -155,4 +197,6 @@ export const DRAFT_ICON_NAMES = Object.keys(DATA);
 `;
 
 writeFileSync('src/draft-icons.tsx', out, 'utf8');
-console.log(`写出 src/draft-icons.tsx：${entries.length} 个图标（${NAMES.length} 个请求，含 ${NAMES.length - entries.length} 个别名解析）`);
+console.log(
+  `写出 src/draft-icons.tsx：${entries.length} 个图标（lucide ${NAMES.length} + logos ${LOGOS.length}）`,
+);
