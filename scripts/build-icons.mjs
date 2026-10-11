@@ -59,6 +59,10 @@ const NAMES = [
   'lock',
   'file-down',
   'home',
+  // 阅读路线 v7：证据链区块
+  'quote',
+  'target',
+  'external-link',
 ];
 
 const url = `https://api.iconify.design/lucide.json?icons=${NAMES.join(',')}`;

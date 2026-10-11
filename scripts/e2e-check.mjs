@@ -608,6 +608,13 @@ fetch([...document.scripts].find((s) => /app.*\\.js/.test(s.src)).src).then((r) 
   console.log('=== E13 目标匹配与执行可行性（本轮） ===');
   await goMore(cdp, '阅读路线');
   await sleep(1500);
+  // 2026-10-11 起「执行可行性」收在证据链卡片的折叠区里，断言前先展开（折叠态内容不进 innerText）
+  await cdp.evaluate(`(() => {
+  const ds=[...document.querySelectorAll('#evidence-chain-section details')].filter((d)=>/在你的条件下能做哪一步/.test(d.textContent));
+  ds.forEach((d)=>{ d.open = true; });
+  return ds.length;
+})()`);
+  await sleep(600);
   const decText2 = await cdp.evaluate(`(document.querySelector('.main-inner') || document.body).innerText`);
   check('执行可行性按阶段判断（阅读/推理/微调/预训练）', /阅读|推理|微调|预训练/.test(decText2));
   check('说明论文证据判断 ≠ 实际运行', /不代表已经|≠|不等同于/.test(decText2) || /实际运行/.test(decText2));

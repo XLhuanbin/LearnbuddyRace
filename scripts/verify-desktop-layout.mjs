@@ -227,7 +227,13 @@ async function main() {
   // 不参与「全站标题字号一致」的比较，故用 :not(.up-title) 把它排除在外。
   // 2026-10-10：方法提取页已按草稿 a6947252 的标记重写，标题 h1 用草稿的 text-4xl / md:text-5xl（草稿就是大标题），
   // 不再带 .up-title。这里按草稿的类名排除它，避免把草稿刻意放大的标题算进「全站标题字号一致性」。
-  const title = document.querySelector('.main-inner h1:not(.up-title):not([class*="text-4xl"]):not([class*="text-5xl"]), .main-inner h2');
+  // 2026-10-11：只有页面**根本没有 h1** 时才退回 h2（老页面用 h2.pgtitle 当页标题）。
+  // 按草稿复刻的页面 h1 是 text-4xl（草稿尺寸）已被上面两条排除 —— 这时不能再退回去抓分区标题
+  // （阅读路线的「每篇论文的证据链」是草稿规定的 text-3xl 分区头），那等于拿分区标题冒充页标题比字号。
+  // 取不到就把 titleFs 记为 0，按方法提取页的既有先例跳过这次比较。
+  const title = document.querySelector('.main-inner h1')
+    ? document.querySelector('.main-inner h1:not(.up-title):not([class*="text-4xl"]):not([class*="text-5xl"])')
+    : document.querySelector('.main-inner h2');
   const wide = [...document.querySelectorAll('.main-inner *')].filter((el) => {
     const b = el.getBoundingClientRect();
     return b.width > 0 && b.right > de.clientWidth + 1;

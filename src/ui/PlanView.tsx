@@ -307,205 +307,282 @@ export function DecisionView({
         </div>
       )}
 
-      {/* 候选方法：放在路径之后 */}
+      {/* 每篇论文的证据链（草稿 c122c572 v7 新增的 evidence-chain-section） */}
       {plan && (
-        <>
-          <SectionHead
-            title={`为什么是这些方法（候选 ${plan.candidates?.length ?? 0}）`}
-            sub="每条理由都标明依据：你的条件 / 论文信息 / 信息缺口；没有可核验证据的理由会直接写出来"
-          />
+        <section className="mt-20 border-t border-[var(--line)] pt-12" id="evidence-chain-section">
+          <div className="mb-10">
+            <p className="text-[var(--fg-3)] tracking-[0.3em] uppercase text-[10px] font-black mb-2">
+              Evidence &amp; Methodology
+            </p>
+            <h2 className="text-3xl font-serif font-bold text-[var(--fg)]">每篇论文的证据链</h2>
+            <p className="text-[var(--fg-2)] text-sm mt-1">
+              了解推荐路径背后的深度分析依据与原文证据；每一条依据都标明来源，没有可核验证据的会直接写出来。
+            </p>
+          </div>
+
           {(!plan.candidates || plan.candidates.length === 0) && (
             <Banner kind="warn">本次没有给出候选方法。可能是材料不足，请补充论文或检查条件描述。</Banner>
           )}
-          {(plan.candidates ?? []).map((c) => {
-            const p = paperById.get(c.paperId);
-            const m = methodById.get(c.methodId);
-            const prof = m ? buildMethodProfile(m, p, papers) : undefined;
-            const allOpen = showAllReasons === c.methodId;
-            const reasons = allOpen ? c.reasons : c.reasons.slice(0, 2);
-            return (
-              <div className="quiet-group" key={c.methodId}>
-                <div className="hd" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <strong style={{ fontSize: 'var(--fs-paper)' }}>{prof?.shortName ?? p?.title ?? c.paperId}</strong>
-                  <Tag kind={FIT_KIND[c.fit]}>{FIT_TEXT[c.fit]}</Tag>
-                  {c.computeReported && c.computeStage && <Tag>论文算力阶段：{TRAINING_STAGE_LABELS[c.computeStage]}</Tag>}
-                  {c.targetStage && <Tag>目标阶段：{TRAINING_STAGE_LABELS[c.targetStage]}</Tag>}
-                  {c.resourceFeasibility && c.resourceFeasibility !== 'stage_evidence_available' && <Tag kind="warn">可行性未验证</Tag>}
-                  {!c.computeReported && <Tag kind="warn">算力信息未报告</Tag>}
-                </div>
 
-                <p className="small" style={{ margin: '8px 0 0', color: 'var(--fg-2)' }}>
-                  {prof ? shortContribution(prof.approach) || '未提取到核心思路（仍需确认）' : '缺少方法分析结果'}
-                </p>
+          <div className="space-y-8">
+            {(plan.candidates ?? []).map((c, ci) => {
+              const p = paperById.get(c.paperId);
+              const m = methodById.get(c.methodId);
+              const prof = m ? buildMethodProfile(m, p, papers) : undefined;
+              const allOpen = showAllReasons === c.methodId;
+              const reasons = allOpen ? c.reasons : c.reasons.slice(0, 2);
+              const stepIdx = plan.steps.findIndex((x) => x.paperId === c.paperId);
+              const next = stepIdx >= 0 ? plan.steps[stepIdx + 1] : undefined;
+              const quoted = c.reasons.find((r) => r.evidence)?.evidence;
+              const goalLevel = c.goalMatch?.level;
+              /** 目标匹配度只用「分档」表达，**不编造百分比**：档位决定进度条长度 */
+              const goalWidth: Record<string, number> = {
+                recommended: 100,
+                worth_investigating: 66,
+                background: 33,
+                not_relevant: 10,
+              };
+              return (
+                <div className="content-card bg-white border border-[var(--line)] p-8" key={c.methodId}>
+                  {/* 头部：编号徽标 + 衬线标题 + 右侧标签 */}
+                  <div className="flex flex-wrap items-center justify-between gap-4 mb-8 border-b border-[var(--line)] pb-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-xs font-bold bg-[var(--accent)] text-white px-2 py-0.5 rounded shrink-0">
+                        {pad2(ci + 1)}
+                      </span>
+                      <h4 className="text-lg font-serif font-bold">{p?.title ?? c.paperId}</h4>
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      <span className="evidence-pill">{prof?.family.name ?? '方法未提取'}</span>
+                      <span className="evidence-pill">{p?.year ?? '年份未识别'}</span>
+                      <span className="evidence-pill is-key">{FIT_TEXT[c.fit]}</span>
+                    </div>
+                  </div>
 
-                <div style={{ marginTop: 8 }}>
-                  {reasons.map((r, i) => (
-                    <div className="small" key={i} style={{ lineHeight: 1.75, marginTop: i ? 6 : 0 }}>
-                      <Tag kind={r.basis === 'profile' ? 'info' : r.basis === 'gap' ? 'warn' : 'ok'}>
-                        {r.basis === 'profile' ? '依据你的条件' : r.basis === 'gap' ? '信息缺口' : '依据论文'}
-                      </Tag>{' '}
-                      {r.text}
-                      {r.evidence && (
-                        <div style={{ marginTop: 4 }}>
-                          {r.evidenceSupportsReason === false && (
-                            <div className="small" style={{ color: 'var(--warn)', marginBottom: 4 }}>
-                              引用的证据与这条理由不匹配（阶段或主题不一致），不作为该理由的支持：
-                              {r.bindingIssue ? ` ${r.bindingIssue}` : ''}
-                            </div>
-                          )}
-                          <div
-                            className="ev-quote"
-                            style={{
-                              fontSize: 12,
-                              padding: '6px 10px',
-                              ...(r.evidenceSupportsReason === false ? { borderLeftColor: 'var(--warn)' } : {}),
-                            }}
-                          >
-                            {r.evidence.quote}
-                          </div>
-                          <div className="row" style={{ marginTop: 4 }}>
-                            <Tag kind={r.evidenceSupportsReason === false ? 'warn' : 'ok'}>
-                              原文 p.{r.evidence.page ?? '?'}
-                              {r.evidence.section ? ` · ${r.evidence.section}` : ''}
-                              {r.evidenceSupportsReason === false ? '（与理由不匹配）' : ''}
+                  <div className="space-y-6">
+                    {/* 推荐依据（草稿这里是「依据论文 Foundation Papers」的引文列表 —— 我们没有参考文献数据，
+                        换成真实的推荐依据：每条理由 + 它的依据来源与绑定情况） */}
+                    <div>
+                      <label className="evidence-label">
+                        <DraftIcon name="book-open" />
+                        推荐依据
+                      </label>
+                      <ul className="evidence-list">
+                        {reasons.map((r, i) => (
+                          <li key={i}>
+                            <Tag kind={r.basis === 'profile' ? 'info' : r.basis === 'gap' ? 'warn' : 'ok'}>
+                              {r.basis === 'profile' ? '依据你的条件' : r.basis === 'gap' ? '信息缺口' : '依据论文'}
+                            </Tag>{' '}
+                            {r.text}
+                            {r.basis === 'paper' && r.bindingIssue && (
+                              <span className="text-[11px] text-[var(--fg-3)]"> · 绑定说明：{r.bindingIssue}</span>
+                            )}
+                            {r.evidenceSupportsReason === false && (
+                              <div className="text-[11px] mt-1" style={{ color: 'var(--warn)' }}>
+                                引用的证据与这条理由不匹配（阶段或主题不一致），不作为该理由的支持。
+                              </div>
+                            )}
+                            {r.basis === 'paper' && r.evidenceMissing && (
+                              <div className="text-[11px] mt-1" style={{ color: 'var(--warn)' }}>
+                                该理由没有可核验的证据支持
+                                {r.evidenceRef
+                                  ? `（模型声明依据${r.evidenceRef.kind === 'field' ? '字段' : '条件'}：${r.evidenceRef.key}，但该项没有通过校验的引文）`
+                                  : '（模型未声明依据来源）'}
+                                。请勿据此做资源或可行性判断。
+                              </div>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                      {c.reasons.length > 2 && (
+                        <button
+                          className="btn ghost sm"
+                          style={{ marginTop: 8 }}
+                          onClick={() => setShowAllReasons(allOpen ? null : c.methodId)}
+                        >
+                          {allOpen ? '收起其余理由' : `展开其余 ${c.reasons.length - 2} 条理由`}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* 原文证据 */}
+                    <div>
+                      <label className="evidence-label">
+                        <DraftIcon name="quote" />
+                        原文证据
+                      </label>
+                      {quoted ? (
+                        <div className="evidence-quote">
+                          <p className="text-[13px] italic text-[var(--fg-2)] leading-relaxed">“{quoted.quote}”</p>
+                          <div className="mt-3">
+                            <Tag kind={quoted.verified ? 'ok' : 'warn'}>
+                              原文 p.{quoted.page ?? '?'}
+                              {quoted.section ? ` · ${quoted.section}` : ''}
+                              {quoted.verified ? '' : '（未通过定位校验）'}
                             </Tag>
                             <button
-                              className="btn ghost sm"
-                              onClick={() => onOpenEvidence(r.evidence!, `${prof?.shortName ?? ''} · 推荐理由证据`, p)}
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--accent)] hover:underline ml-3"
+                              onClick={() => onOpenEvidence(quoted, `${prof?.shortName ?? ''} · 推荐理由证据`, p)}
                             >
-                              查看完整上下文
+                              [查看完整上下文]
+                              <DraftIcon name="external-link" />
                             </button>
                           </div>
                         </div>
-                      )}
-                      {r.basis === 'paper' && r.bindingIssue && (
-                        <span className="small dim"> · 绑定说明：{r.bindingIssue}</span>
-                      )}
-                      {r.basis === 'paper' && r.evidenceMissing && (
-                        <span style={{ color: 'var(--warn)' }}>
-                          {' '}
-                          · 该理由没有可核验的证据支持
-                          {r.evidenceRef
-                            ? `（模型声明依据 ${r.evidenceRef.kind === 'field' ? '字段' : '条件'}：${r.evidenceRef.key}，但该项没有通过校验的引文）`
-                            : '（模型未声明依据来源）'}
-                          。请勿据此做资源或可行性判断。
-                        </span>
+                      ) : (
+                        <p className="text-[13px] text-[var(--fg-3)]">
+                          本次没有为该篇绑定可核验的原文引文（不拿未核验的文字冒充原文）。
+                        </p>
                       )}
                     </div>
-                  ))}
-                  {c.reasons.length > 2 && (
-                    <button className="btn ghost sm" style={{ marginTop: 6 }} onClick={() => setShowAllReasons(allOpen ? null : c.methodId)}>
-                      {allOpen ? '收起其余理由' : `展开其余 ${c.reasons.length - 2} 条理由`}
-                    </button>
-                  )}
-                </div>
 
-                {c.goalMatch && (
-                  <p className="small dim" style={{ margin: '8px 0 0' }}>
-                    目标匹配：{GOAL_FIT_LABELS[c.goalMatch.level]}（与硬件条件无关）——{c.goalMatch.reasons.join('；')}
-                  </p>
-                )}
-
-                {c.execution && c.execution.length > 0 && (
-                  <details className="fold" open style={{ marginTop: 12 }}>
-                    <summary>在你的条件下能做哪一步（按操作分开判断）</summary>
-                    <div className="fold-body">
-                      <div className="table-wrap">
-                        <table className="cmp" style={{ minWidth: 460 }}>
-                          <thead>
-                            <tr>
-                              <th style={{ width: 150 }}>操作</th>
-                              <th style={{ width: 170 }}>判断</th>
-                              <th>依据与限制</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {c.execution.map((ex) => (
-                              <tr key={ex.stage}>
-                                <td className="small">{EXECUTION_STAGE_LABELS[ex.stage]}</td>
-                                <td className="small">
-                                  <Tag
-                                    kind={
-                                      ex.status === 'evidence_supported'
-                                        ? 'ok'
-                                        : ex.status === 'known_gap'
-                                          ? 'bad'
-                                          : ex.status === 'insufficient_evidence'
-                                            ? 'warn'
-                                            : ''
-                                    }
-                                  >
-                                    {EXECUTION_STATUS_LABELS[ex.status]}
-                                  </Tag>
-                                </td>
-                                <td className="small">
-                                  {ex.note}
-                                  {ex.evidence && (
-                                    <>
-                                      <div className="ev-quote" style={{ fontSize: 12, padding: '6px 10px', marginTop: 4 }}>
-                                        {ex.evidence.quote}
-                                      </div>
-                                      <div className="row" style={{ marginTop: 4 }}>
-                                        <Tag kind="ok">原文 p.{ex.evidence.page ?? '?'}</Tag>
-                                        <button
-                                          className="btn ghost sm"
-                                          onClick={() =>
-                                            onOpenEvidence(ex.evidence!, `执行可行性（${EXECUTION_STAGE_LABELS[ex.stage]}）证据`, p)
-                                          }
-                                        >
-                                          查看完整上下文
-                                        </button>
-                                      </div>
-                                    </>
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      <p className="small dim" style={{ margin: '8px 0 0', lineHeight: 1.7 }}>
-                        以上是<strong>基于论文证据的判断</strong>：系统不会实际运行训练或推理，也没有读取你的机器信息。
-                        因此「论文证据支持该阶段」表示论文给出了与该操作阶段相符、规模可比的算力条目，
-                        <strong>不等于「已经验证能在你的设备上跑通」</strong>；实际执行验证需要你在本机另行确认（显存、并行配置、依赖环境）。
+                    {/* 与下一步的关系（草稿的「绑定说明 Relation to Next」） */}
+                    <div>
+                      <label className="evidence-label">
+                        <DraftIcon name="link-2" />
+                        与下一步的关系
+                      </label>
+                      <p className="text-[13px] text-[var(--fg-2)] leading-relaxed">
+                        {next
+                          ? `读完进入 ${pad2(next.order)} · ${shortOf(next.paperId)} —— ${next.focus}`
+                          : '这是这条路径的最后一篇；读完后可以回到研究地图看它与其他方法的联系。'}
                       </p>
                     </div>
-                  </details>
-                )}
 
-                {(c.applicability || c.feasibilityNote || c.fitAdjusted || c.missing.length > 0) && (
-                  <p className="small" style={{ margin: '8px 0 0', lineHeight: 1.75 }}>
-                    {c.applicability && (
-                      <>
-                        <span className="dim">适用条件：</span>
-                        {c.applicability}
-                        <br />
-                      </>
-                    )}
-                    {c.feasibilityNote && (
-                      <>
-                        <span className="dim">资源可行性（程序判定）：</span>
-                        {c.feasibilityNote}
-                        <br />
-                      </>
-                    )}
-                    {c.fitAdjusted && <span style={{ color: 'var(--warn)' }}>程序修正：{c.fitAdjusted}　</span>}
-                    {c.missing.length > 0 && <span style={{ color: 'var(--warn)' }}>缺失信息：{c.missing.join('；')}</span>}
-                  </p>
-                )}
+                    {/* 目标匹配度：只用分档，不用百分比 */}
+                    <div>
+                      <label className="evidence-label">
+                        <DraftIcon name="target" />
+                        目标匹配度
+                      </label>
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <span className="text-sm font-black text-[var(--accent)] shrink-0">
+                          {goalLevel ? GOAL_FIT_LABELS[goalLevel] : '未评估'}
+                        </span>
+                        <div className="evidence-bar">
+                          <div className="evidence-bar-fill" style={{ width: `${goalLevel ? goalWidth[goalLevel] : 0}%` }} />
+                        </div>
+                        <span className="text-[12px] text-[var(--fg-3)] flex-1 min-w-[180px]">
+                          {c.goalMatch?.reasons?.join('；') || '模型未给出匹配理由'}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-[var(--fg-3)] mt-2">
+                        这是程序按你的目标给出的分档（不是匹配概率，系统不使用置信度百分比）；与你的硬件条件无关。
+                      </p>
+                    </div>
 
-                <div className="row" style={{ gap: 8, marginTop: 10 }}>
-                  <button className="btn sm" onClick={() => onOpenPaper(c.paperId)}>
-                    打开这篇论文
-                  </button>
-                  <button className="btn ghost sm" onClick={() => onGo('map')}>
-                    在研究地图里看它
-                  </button>
+                    {/* 折叠保留：这两块草稿 v7 没有，但它们是真实且必要的判定，收进折叠不占版面 */}
+                    {((c.execution && c.execution.length > 0) ||
+                      c.applicability ||
+                      c.feasibilityNote ||
+                      c.fitAdjusted ||
+                      c.missing.length > 0) && (
+                      <details className="fold">
+                        <summary>在你的条件下能做哪一步 · 还缺什么信息</summary>
+                        <div className="fold-body">
+                          {c.execution && c.execution.length > 0 && (
+                            <>
+                              <div className="table-wrap">
+                                <table className="cmp" style={{ minWidth: 460 }}>
+                                  <thead>
+                                    <tr>
+                                      <th style={{ width: 150 }}>操作</th>
+                                      <th style={{ width: 170 }}>判断</th>
+                                      <th>依据与限制</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {c.execution.map((ex) => (
+                                      <tr key={ex.stage}>
+                                        <td className="small">{EXECUTION_STAGE_LABELS[ex.stage]}</td>
+                                        <td className="small">
+                                          <Tag
+                                            kind={
+                                              ex.status === 'evidence_supported'
+                                                ? 'ok'
+                                                : ex.status === 'known_gap'
+                                                  ? 'bad'
+                                                  : ex.status === 'insufficient_evidence'
+                                                    ? 'warn'
+                                                    : ''
+                                            }
+                                          >
+                                            {EXECUTION_STATUS_LABELS[ex.status]}
+                                          </Tag>
+                                        </td>
+                                        <td className="small">
+                                          {ex.note}
+                                          {ex.evidence && (
+                                            <>
+                                              <div className="ev-quote" style={{ fontSize: 12, padding: '6px 10px', marginTop: 4 }}>
+                                                {ex.evidence.quote}
+                                              </div>
+                                              <div className="row" style={{ marginTop: 4 }}>
+                                                <Tag kind="ok">原文 p.{ex.evidence.page ?? '?'}</Tag>
+                                                <button
+                                                  className="btn ghost sm"
+                                                  onClick={() =>
+                                                    onOpenEvidence(ex.evidence!, `执行可行性（${EXECUTION_STAGE_LABELS[ex.stage]}）证据`, p)
+                                                  }
+                                                >
+                                                  查看完整上下文
+                                                </button>
+                                              </div>
+                                            </>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                              <p className="small dim" style={{ margin: '8px 0 0', lineHeight: 1.7 }}>
+                                以上是<strong>基于论文证据的判断</strong>：系统不会实际运行训练或推理，也没有读取你的机器信息。
+                                因此「论文证据支持该阶段」表示论文给出了与该操作阶段相符、规模可比的算力条目，
+                                <strong>不等于「已经验证能在你的设备上跑通」</strong>；实际执行验证需要你在本机另行确认（显存、并行配置、依赖环境）。
+                              </p>
+                            </>
+                          )}
+                          {(c.applicability || c.feasibilityNote || c.fitAdjusted || c.missing.length > 0) && (
+                            <p className="small" style={{ margin: '10px 0 0', lineHeight: 1.75 }}>
+                              {c.applicability && (
+                                <>
+                                  <span className="dim">适用条件：</span>
+                                  {c.applicability}
+                                  <br />
+                                </>
+                              )}
+                              {c.feasibilityNote && (
+                                <>
+                                  <span className="dim">资源可行性（程序判定）：</span>
+                                  {c.feasibilityNote}
+                                  <br />
+                                </>
+                              )}
+                              {c.fitAdjusted && <span style={{ color: 'var(--warn)' }}>程序修正：{c.fitAdjusted}　</span>}
+                              {c.missing.length > 0 && (
+                                <span style={{ color: 'var(--warn)' }}>缺失信息：{c.missing.join('；')}</span>
+                              )}
+                            </p>
+                          )}
+                        </div>
+                      </details>
+                    )}
+
+                    <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                      <button className="btn sm" onClick={() => onOpenPaper(c.paperId)}>
+                        打开这篇论文
+                      </button>
+                      <button className="btn ghost sm" onClick={() => onGo('map')}>
+                        在研究地图里看它
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </>
+              );
+            })}
+          </div>
+        </section>
       )}
 
       {!plan && methods.length > 0 && (
@@ -521,7 +598,9 @@ export function DecisionView({
 
           {/* 右栏：个性化配置 + AI 建议（草稿 4 栏，sticky） */}
           <aside className="col-span-12 lg:col-span-4">
-            <div className="sticky top-8 space-y-8">
+            {/* 草稿 v7 的侧边栏用 max-h + overflow-y-auto 解决「太长被截断」；
+                位置仍用我们自己的右侧常驻列（草稿里它会掉到下方，不抄） */}
+            <div className="sticky top-8 space-y-8" style={{ maxHeight: 'calc(100vh - 96px)', overflowY: 'auto' }}>
               <div className="content-card bg-white" style={{ border: '2px solid var(--accent)', boxShadow: '0 4px 24px rgba(22,38,61,.10)', padding: 32 }}>
                 <h3 className="text-xl font-serif font-bold mb-6 flex items-center gap-2">
                   <DraftIcon name="settings-2" className="text-[var(--accent)]" />
