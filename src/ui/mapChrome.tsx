@@ -50,15 +50,13 @@ function NavIcon({ name }: { name: string }) {
   );
 }
 
-/** 宣传首页（v8）顶栏右侧的页内锚点：滚动到首页对应 section，不切页 */
-const LANDING_NAV: [string, string][] = [
-  ['library', '方法梳理'],
-  ['map', '研究地图'],
-  ['features', '功能特性'],
-  ['route', '关于'],
-];
-
-/** 顶部品牌栏（所有非宣传页共用）：左侧品牌 + 目录，右侧案例名与返回入口；侧栏入口全部收进目录浮层 */
+/**
+ * 顶部品牌栏（所有页共用）：左侧品牌 + 目录，右侧案例名与返回入口；入口全部收进目录浮层。
+ *
+ * 动线口径（2026-10-11 按用户要求改）：**照两份首页草稿（002308b4 / 0964dc25）**，
+ * 顶栏只有「品牌 + 目录」—— 草稿里没有右上角那条锚点导航（方法梳理/研究地图/功能特性/关于
+ * 是我们自己加的）。整站的动线统一走「目录一个入口」，首页不再另设第二条。
+ */
 export function AppBrandBar({
   corpusLabel,
   fontsReady,
@@ -97,17 +95,40 @@ export function AppBrandBar({
     };
   }, [dirOpen]);
 
-  const WORK: [string, string, string][] = [
-    ['library', '论文集合', 'folder'],
-    ['upload', '方法提取', 'upload'],
-    ['map', '研究地图', 'map'],
-    ['experiments', '实验可比性', 'compare'],
-    ['decision', '阅读路线', 'route'],
-  ];
-  const PRO: [string, string, string][] = [
-    ['graph', '方法关系图', 'graph'],
-    ['divergence', '待调查问题', 'question'],
-    ['compare', '跨论文比较', 'cross'],
+  /**
+   * 目录 = 整站的动线，按**真实工作顺序**分组（2026-10-11 重排）：
+   * 开始（把论文弄进来）→ 梳理（看方法全貌与关系）→ 比较（判断能不能比）→ 决策（读哪篇、还缺什么）
+   * → 关于本作品。原来按「研究工作区 / 专业视图」分，看不出先做哪一步。
+   */
+  const GROUPS: { label: string; items: [string, string, string][] }[] = [
+    {
+      label: '开始',
+      items: [
+        ['library', '论文集合', 'folder'],
+        ['upload', '方法提取', 'upload'],
+      ],
+    },
+    {
+      label: '梳理',
+      items: [
+        ['map', '研究地图', 'map'],
+        ['graph', '方法关系图', 'graph'],
+      ],
+    },
+    {
+      label: '比较',
+      items: [
+        ['experiments', '实验可比性', 'compare'],
+        ['compare', '跨论文比较', 'cross'],
+      ],
+    },
+    {
+      label: '决策',
+      items: [
+        ['decision', '阅读路线', 'route'],
+        ['divergence', '待调查问题', 'question'],
+      ],
+    },
   ];
   const DEV: [string, string, string][] = [
     ['status', '开发状态', 'status'],
@@ -140,45 +161,25 @@ export function AppBrandBar({
         <span className={`brand-serif font-gate${fontsReady ? ' ready' : ''}`}>ResearchPilot</span>
       </button>
 
-      {!minimal && (
-        <div className="dirwrap" ref={wrapRef}>
-          <button className="btn ghost sm dirbtn" aria-expanded={dirOpen} aria-haspopup="menu" onClick={() => setDirOpen((v) => !v)}>
-            目录
-          </button>
-          {dirOpen && (
-            <div className="dirpop" role="menu" aria-label="页面目录">
-              <div className="dirlab">研究工作区</div>
-              {WORK.map(item)}
-              <div className="dirsep" />
-              <div className="dirlab">专业视图</div>
-              {PRO.map(item)}
-              <div className="dirsep" />
-              {DEV.map(item)}
-            </div>
-          )}
-        </div>
-      )}
+      {/* 首页也照草稿保留「目录」——整站只有这一个导航入口 */}
+      <div className="dirwrap" ref={wrapRef}>
+        <button className="btn ghost sm dirbtn" aria-expanded={dirOpen} aria-haspopup="menu" onClick={() => setDirOpen((v) => !v)}>
+          目录
+        </button>
+        {dirOpen && (
+          <div className="dirpop" role="menu" aria-label="页面目录">
+            {[...GROUPS, { label: '关于本作品', items: DEV }].map((g) => (
+              <React.Fragment key={g.label}>
+                <div className="dirlab">{g.label}</div>
+                {g.items.map(item)}
+                <div className="dirsep" />
+              </React.Fragment>
+            ))}
+          </div>
+        )}
+      </div>
 
       <span className="spacer" />
-
-      {/* 宣传首页（v8）：顶栏改成固定 + mix-blend-difference 形态，右侧是页内锚点导航 */}
-      {minimal && (
-        <nav className="landing-nav" aria-label="首页导航">
-          {LANDING_NAV.map(([id, label]) => (
-            <a
-              key={id}
-              href={`#${id}`}
-              id={`nav-${id}-link`}
-              onClick={(e) => {
-                e.preventDefault();
-                document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
-            >
-              {label}
-            </a>
-          ))}
-        </nav>
-      )}
 
       {!minimal && (
         <>
@@ -211,20 +212,27 @@ export function AppSideNav({
   onGo: (tab: string) => void;
   onPickCollection: (c: 'case' | 'own') => void;
 }) {
-  const work: { key: string; name: string; icon: string; target: string; badge?: string; done?: boolean }[] = [
+  /* 与顶栏「目录」同一套动线分组（开始 → 梳理 → 比较 → 决策 → 关于本作品），两处说法一致 */
+  const start: { key: string; name: string; icon: string; target: string; badge?: string; done?: boolean }[] = [
     { key: 'library', name: '论文集合', icon: 'library', target: 'library', badge: String(presetCount), done: presetCount > 0 },
     { key: 'extract', name: '方法提取', icon: 'extract', target: 'upload', done: presetCount > 0 },
-    { key: 'map', name: '研究地图', icon: 'map', target: 'map', done: presetCount > 0 },
-    { key: 'experiments', name: '实验可比性', icon: 'compare', target: 'experiments' },
-    { key: 'decision', name: '阅读路线', icon: 'route', target: 'decision' },
   ];
-  const pro: { key: string; name: string; icon: string; target: string }[] = [
+  const sort: { key: string; name: string; icon: string; target: string }[] = [
+    { key: 'map', name: '研究地图', icon: 'map', target: 'map' },
     { key: 'graph', name: '方法关系图', icon: 'graph', target: 'graph' },
-    { key: 'divergence', name: '待调查问题', icon: 'question', target: 'divergence' },
+  ];
+  const cmp: { key: string; name: string; icon: string; target: string }[] = [
+    { key: 'experiments', name: '实验可比性', icon: 'compare', target: 'experiments' },
     { key: 'compare', name: '跨论文比较', icon: 'cross', target: 'compare' },
+  ];
+  const decide: { key: string; name: string; icon: string; target: string }[] = [
+    { key: 'decision', name: '阅读路线', icon: 'route', target: 'decision' },
+    { key: 'divergence', name: '待调查问题', icon: 'question', target: 'divergence' },
   ];
   const dev: { key: string; name: string; icon: string; target: string }[] = [
     { key: 'status', name: '开发状态', icon: 'status', target: 'status' },
+    { key: 'version', name: '版本信息', icon: 'version', target: 'version' },
+    { key: 'future', name: '未来展望', icon: 'future', target: 'future' },
     { key: 'settings', name: '设置', icon: 'settings', target: 'settings' },
   ];
 
@@ -244,8 +252,11 @@ export function AppSideNav({
 
   return (
     <aside className="side research" aria-label="研究工作区">
-      <div className="group-label">研究工作区</div>
-      {work.map(item)}
+      <div className="group-label">开始</div>
+      {start.map(item)}
+
+      <div className="group-label">梳理</div>
+      {sort.map(item)}
 
       <div className="group-label">当前集合</div>
       <button
@@ -268,12 +279,17 @@ export function AppSideNav({
       </button>
 
       <details className="sidegroup">
-        <summary>专业视图</summary>
-        {pro.map(item)}
+        <summary>比较</summary>
+        {cmp.map(item)}
       </details>
 
       <details className="sidegroup">
-        <summary>开发</summary>
+        <summary>决策</summary>
+        {decide.map(item)}
+      </details>
+
+      <details className="sidegroup">
+        <summary>关于本作品</summary>
         {dev.map(item)}
       </details>
 

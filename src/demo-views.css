@@ -429,7 +429,7 @@
 }
 .reveal.active { opacity: 1; transform: translateY(0); }
 
-/* ---------- 顶栏（v8 的 fixed + mix-blend-difference 形态，仅宣传首页） ---------- */
+/* ---------- 顶栏（首页：固定 + 透明，浮在首屏之上） ---------- */
 .mapbrand.landingbar {
   position: fixed;
   top: 0;
@@ -441,30 +441,15 @@
   height: var(--topbar-h-landing);
   background: transparent;
   border-bottom: none;
-  mix-blend-mode: difference;
   gap: 16px;
 }
-/* 2026-10-09：左上角标志与工作页（.mapbrand）**完全一致** —— 尺寸 / 圆角 / 字重 / 字体栈 / 字号 / 间距
-   全部由 map.css 的 .mapbrand 规则统一提供，这里只覆盖**配色**（首页是反相顶栏）。
-   ⚠️ 不要再在这里写 width/height/border-radius/font-* —— 那会让两处标志逐渐漂移。 */
-.mapbrand.landingbar .logo { color: #fff; }
-.mapbrand.landingbar .logo .mark {
-  background: #fff;
-  color: #16263D;
-}
-.mapbrand.landingbar .brand-serif {
-  color: #fff;
-}
-.landing-nav { display: none; align-items: center; gap: 40px; margin-left: auto; }
-@media (min-width: 768px) { .landing-nav { display: flex; } }
-.landing-nav a {
-  color: #fff;
-  font-weight: 500;
-  text-decoration: none;
-  opacity: .7;
-  transition: opacity .2s ease;
-}
-.landing-nav a:hover { opacity: 1; }
+/*
+  2026-10-09：左上角标志与工作页（.mapbrand）**完全一致** —— 尺寸 / 圆角 / 字重 / 字体栈 / 字号 / 间距
+  全部由 map.css 的 .mapbrand 规则统一提供，这里**不再覆盖任何配色**。
+  2026-10-11：原先整条 header 用 `mix-blend-mode: difference` 做反相。现在首页顶栏也放了「目录」按钮，
+  整条反相会把目录浮层一起反相（白底变深、条目看不清），而 fixed 定位本身已建立层叠上下文、
+  没法只让子元素单独反相 ⇒ 去掉反相，首页顶栏与其它页同一套配色（首屏底色是浅色，深色文字一样清楚）。
+*/
 
 /* ---------- 减少动效 ---------- */
 @media (prefers-reduced-motion: reduce) {
