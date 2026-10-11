@@ -613,56 +613,59 @@ export function DecisionView({
 
           {/* 右栏：个性化配置 + AI 建议（草稿 4 栏，sticky） */}
           <aside className="col-span-12 lg:col-span-4">
-            {/* 草稿 v7 的侧边栏用 max-h + overflow-y-auto 解决「太长被截断」；
-                位置仍用我们自己的右侧常驻列（草稿里它会掉到下方，不抄） */}
-            <div className="sticky top-8 space-y-8" style={{ maxHeight: 'calc(100vh - 96px)', overflowY: 'auto' }}>
-              <div className="content-card bg-white" style={{ border: '2px solid var(--accent)', boxShadow: '0 4px 24px rgba(22,38,61,.10)', padding: 32 }}>
-                <h3 className="text-xl font-serif font-bold mb-6 flex items-center gap-2">
+            {/* 右侧常驻栏：sticky 让它在页面滚动时不移动（实测滚动 900/2400px 后顶部始终钉在 32px）。
+                把面板压到能整块放下之后，max-height/overflow 只作为极窄窗口的兜底 —— 正常情况下
+                没有内部滚动条，整块面板完整可见（原来内容 800px > 可用 706px，底部 94px 被藏起来）。 */}
+            <div className="sticky top-8" style={{ maxHeight: 'calc(100vh - 80px)', overflowY: 'auto' }}>
+              <div className="content-card bg-white" style={{ border: '2px solid var(--accent)', boxShadow: '0 4px 24px rgba(22,38,61,.10)', padding: 22 }}>
+                <h3 className="text-xl font-serif font-bold mb-4 flex items-center gap-2">
                   <DraftIcon name="settings-2" className="text-[var(--accent)]" />
                   个性化路线配置
                 </h3>
-                <div className="space-y-6">
+                <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-black uppercase text-[var(--fg-3)] tracking-widest mb-3">
+                    <label className="block text-xs font-black uppercase text-[var(--fg-3)] tracking-widest mb-2">
                       我的基础水平
                     </label>
                     <textarea
-                      className="w-full bg-[var(--bg)] border border-[var(--line)] p-3 rounded-xl text-sm focus:outline-none focus:border-[var(--accent)]"
+                      className="w-full bg-[var(--bg)] border border-[var(--line)] p-2.5 rounded-xl text-sm focus:outline-none focus:border-[var(--accent)]"
                       rows={2}
                       value={profile.background}
                       onChange={set('background')}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-black uppercase text-[var(--fg-3)] tracking-widest mb-3">
+                    <label className="block text-xs font-black uppercase text-[var(--fg-3)] tracking-widest mb-2">
                       研究目标 / 兴趣
                     </label>
                     <textarea
-                      className="w-full bg-[var(--bg)] border border-[var(--line)] p-3 rounded-xl text-sm focus:outline-none focus:border-[var(--accent)]"
+                      className="w-full bg-[var(--bg)] border border-[var(--line)] p-2.5 rounded-xl text-sm focus:outline-none focus:border-[var(--accent)]"
                       rows={2}
                       value={profile.interest}
                       onChange={set('interest')}
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-black uppercase text-[var(--fg-3)] tracking-widest mb-3">
-                      可用时间
-                    </label>
-                    <input
-                      className="w-full bg-[var(--bg)] border border-[var(--line)] p-3 rounded-xl text-sm focus:outline-none focus:border-[var(--accent)]"
-                      value={profile.time ?? ''}
-                      onChange={set('time')}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-black uppercase text-[var(--fg-3)] tracking-widest mb-3">
-                      计算资源
-                    </label>
-                    <input
-                      className="w-full bg-[var(--bg)] border border-[var(--line)] p-3 rounded-xl text-sm focus:outline-none focus:border-[var(--accent)]"
-                      value={profile.compute ?? ''}
-                      onChange={set('compute')}
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-black uppercase text-[var(--fg-3)] tracking-widest mb-2">
+                        可用时间
+                      </label>
+                      <input
+                        className="w-full bg-[var(--bg)] border border-[var(--line)] p-2.5 rounded-xl text-sm focus:outline-none focus:border-[var(--accent)]"
+                        value={profile.time ?? ''}
+                        onChange={set('time')}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-black uppercase text-[var(--fg-3)] tracking-widest mb-2">
+                        计算资源
+                      </label>
+                      <input
+                        className="w-full bg-[var(--bg)] border border-[var(--line)] p-2.5 rounded-xl text-sm focus:outline-none focus:border-[var(--accent)]"
+                        value={profile.compute ?? ''}
+                        onChange={set('compute')}
+                      />
+                    </div>
                   </div>
                   <button
                     className="w-full btn-primary mt-2"
@@ -695,7 +698,7 @@ export function DecisionView({
                 {/* AI 建议：草稿 v7 就是配置卡底部的一行（分隔线 + 灯泡 + 11px 短句），不是独立大卡 ——
                     原来独立成卡时那一整段条件敏感性把侧栏撑得比视口还高，滚动时上下被截断。
                     这里按草稿收成一行：默认只显示首句，完整内容按需展开（不丢真实信息）。 */}
-                <div className="mt-8 pt-6 border-t border-[var(--line)] flex items-start gap-3">
+                <div className="mt-4 pt-4 border-t border-[var(--line)] flex items-start gap-3">
                   <DraftIcon name="lightbulb" className="text-[var(--accent)] text-lg shrink-0" />
                   <div className="min-w-0">
                     {/* 草稿这里是 text-[11px]，但项目有 12px 字号下限（11px 不在元数据白名单里）——
