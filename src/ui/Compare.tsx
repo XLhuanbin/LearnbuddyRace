@@ -316,7 +316,8 @@ export function CompareView({
                             <span className="text-[10px] font-bold text-[var(--fg-3)]">
                               {String(i + 1).padStart(2, '0')}
                             </span>
-                            <h3 className="text-lg font-bold leading-tight">{p?.title ?? m.paperId}</h3>
+                            {/* 草稿的 h1/h2/h3 都是衬线（它的 style 块写了 Noto Serif SC），这里补上 */}
+                            <h3 className="text-lg font-serif font-bold leading-tight">{p?.title ?? m.paperId}</h3>
                             <div className="flex items-center gap-2 mt-1">
                               <span
                                 className="text-xs font-bold"

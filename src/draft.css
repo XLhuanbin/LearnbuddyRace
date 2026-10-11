@@ -624,6 +624,9 @@
   background: var(--bg-4);
   border-left: 4px solid var(--accent);
   letter-spacing: 0.5px;
+  /* 维度列整体居中（用户要求）：左对齐时长短标签参差，居中后成一条中轴，更整齐 */
+  text-align: center;
+  vertical-align: middle;
 }
 .cmppage :where(.paper-cell) { padding: 24px; min-width: 320px; }
 .cmppage :where(.tag-fair) {
