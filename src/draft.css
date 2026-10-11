@@ -22,24 +22,24 @@
    否则这里的 `.uppage button { color: inherit }` 会因为特异性比单类工具类高，把 `text-[var(--fg-3)]` 这类工具类压掉
    （实测过：页脚链接会从灰色变成 --fg）。放在 utilities 之前，工具类就能正常覆盖它。
    --------------------------------------------------------------------------- */
-:is(.uppage, .rspage, .mapnet) :where(*, ::before, ::after) {
+:is(.uppage, .rspage, .mapnet, .libpage) :where(*, ::before, ::after) {
   box-sizing: border-box;
   border-width: 0;
   border-style: solid;
   border-color: var(--line);
 }
 
-:is(.uppage, .rspage, .mapnet) :where(h1, h2, h3, h4, p, figure, blockquote) {
+:is(.uppage, .rspage, .mapnet, .libpage) :where(h1, h2, h3, h4, p, figure, blockquote) {
   margin: 0;
   font-size: inherit;
   font-weight: inherit;
 }
 
-:is(.uppage, .rspage, .mapnet) :where(ul, ol) { margin: 0; padding: 0; list-style: none; }
+:is(.uppage, .rspage, .mapnet, .libpage) :where(ul, ol) { margin: 0; padding: 0; list-style: none; }
 
-:is(.uppage, .rspage, .mapnet) :where(a) { color: inherit; text-decoration: inherit; }
+:is(.uppage, .rspage, .mapnet, .libpage) :where(a) { color: inherit; text-decoration: inherit; }
 
-:is(.uppage, .rspage, .mapnet) :where(button, input, textarea, select) {
+:is(.uppage, .rspage, .mapnet, .libpage) :where(button, input, textarea, select) {
   font: inherit;
   color: inherit;
   margin: 0;
@@ -48,11 +48,11 @@
   background-image: none;
   border: 0;
 }
-:is(.uppage, .rspage, .mapnet) :where(button) { cursor: pointer; text-transform: none; -webkit-appearance: button; }
-:is(.uppage, .rspage, .mapnet) :where(button:disabled) { cursor: not-allowed; }
+:is(.uppage, .rspage, .mapnet, .libpage) :where(button) { cursor: pointer; text-transform: none; -webkit-appearance: button; }
+:is(.uppage, .rspage, .mapnet, .libpage) :where(button:disabled) { cursor: not-allowed; }
 
 /* 内联图标：iconify-icon 是 inline 元素，这里保持与文字基线对齐 */
-:is(.uppage, .rspage, .mapnet) :where(svg) { display: inline-block; vertical-align: -0.125em; }
+:is(.uppage, .rspage, .mapnet, .libpage) :where(svg) { display: inline-block; vertical-align: -0.125em; }
 
 /* 工具类与组件层放在补齐的 preflight **之后**，保证 Tailwind 的单类工具类能正常覆盖上面的元素选择器 */
 @tailwind components;
@@ -508,3 +508,68 @@
   font-size: 12px;
   font-weight: bold;
 }
+
+/* ===========================================================================
+   论文库主页（草稿 6db41280 v1）
+   逐行照搬草稿的 style 块，作用域收在本页容器 `.libpage` 下（不覆写全局）。
+   与 .rspage / .mapnet 一样，本页自己需要的按钮/卡片/行样式在这里给出；
+   --score-* / .score-badge / .stat-bar / .custom-checkbox 走 .sdpage 的共享定义。
+   --------------------------------------------------------------------------- */
+.libpage {
+  /* 草稿的 <main> / <footer> 都用 max-w-[var(--content-max)]，本页的 --content-max 是 1280px */
+  --content-max: 1280px;
+}
+
+.libpage :where(.btn-primary) {
+  background-color: var(--accent);
+  color: white;
+  padding: 10px 24px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  transition: all 0.3s;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.libpage :where(.btn-primary):hover { background-color: var(--accent-2); transform: translateY(-1px); }
+
+.libpage :where(.btn-outline) {
+  background: white;
+  border: 1px solid var(--line-2);
+  color: var(--fg-2);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  transition: all 0.2s;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.libpage :where(.btn-outline):hover { background: var(--bg-3); border-color: var(--fg-3); }
+
+/* 草稿没有禁用态（它的按钮永远可用），但我们的按钮在「还没有论文」时确实要禁用 ——
+   这是兼容必需的一处补充，不是外观改动 */
+:is(.libpage) :where(.btn-primary:disabled, .btn-outline:disabled) {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* 不设 background：草稿里每张 content-card 都自带 bg-white / bg-[var(--accent)] 工具类，
+   本文件的规则又在 utilities 之后，同特异性会把工具类压掉（实测 accent 卡被压成白色） */
+.libpage :where(.content-card) {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow-2);
+}
+
+.libpage :where(.paper-row) { border-bottom: 1px solid var(--line); transition: all 0.2s; }
+.libpage :where(.paper-row):hover { background-color: rgba(31, 71, 114, 0.02); }
+/* 刚导入的那篇高亮一下（草稿没有，但导入后找不到自己刚传的论文是个真实问题） */
+.libpage :where(.paper-row.just-imported) { background-color: var(--accent-soft); }

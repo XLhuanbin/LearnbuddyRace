@@ -634,3 +634,6 @@
   letter-spacing: .02em;
   margin-bottom: 8px;
 }
+
+/* 新画布（草稿 17763ea3 v3）的节点键盘可达样式：Tab 聚焦时给出可见焦点环 */
+.mapnet g.cursor-pointer:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 50%; }

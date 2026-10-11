@@ -106,29 +106,28 @@ await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, devi
 await sleep(3400);
 // 真实用户路径：主按钮「体验视觉论文案例」直接进研究地图，不需要再手动找入口
 await click('体验视觉论文案例');
-await waitFor(`document.querySelectorAll('.mapstage .mnode').length >= 5`, 60000);
+await waitFor(`document.querySelectorAll('#map-canvas svg g.cursor-pointer').length >= 5`, 60000);
 await sleep(1200);
 
 const noOverflow = !(await ev(`document.documentElement.scrollWidth > window.innerWidth + 1`));
 check('窄屏研究地图无整页横向溢出', noOverflow);
-const size = await ev(`(() => { const m=document.querySelector('.mapwork').getBoundingClientRect(); return { h: Math.round(m.height), w: Math.round(m.width) }; })()`);
+const size = await ev(`(() => { const m=document.querySelector('#map-canvas svg'); if(!m) return { h: 0, w: 0 }; const r=m.getBoundingClientRect(); return { h: Math.round(r.height), w: Math.round(r.width) }; })()`);
 check('窄屏画布仍是自适应高度（不是桌面的 440–560 固定高）', size.h >= 400, `高度 ${size.h}px / 宽 ${size.w}px`);
 
 // 选中一个节点 → 详情在视口内可见
 await ev(`(() => {
-  const g = document.querySelector('.mapstage .mnode');
+  const g = document.querySelector('#map-canvas svg g.cursor-pointer');
   if (!g) return false;
   g.dispatchEvent(new MouseEvent('click', { bubbles: true }));
   return true;
 })()`);
 await sleep(800);
 const drawer = await ev(`(() => {
-  const d = document.querySelector('.mapdetail');
-  if (!d) return null;
-  const r = d.getBoundingClientRect();
-  return { open: d.classList.contains('open'), top: Math.round(r.top), bottom: Math.round(r.bottom), vh: window.innerHeight, visible: r.top < window.innerHeight && r.bottom > 0 };
+  // 2026-10-11 新画布：选中后详情在「方法论核心」等面板里；窄屏上它随文档流排在画布下方
+  const t = (document.querySelector('.mapnet') || document.body).innerText;
+  return { hasCore: /方法论核心/.test(t), hasLinks: /相关连接/.test(t) };
 })()`);
-check('窄屏选中节点后详情出现在视口内（底部抽屉没被冲到屏幕外）', !!drawer && drawer.open && drawer.visible, JSON.stringify(drawer));
+check('窄屏选中节点后能看到方法详情（方法论核心 / 相关连接）', !!drawer && drawer.hasCore && drawer.hasLinks, JSON.stringify(drawer));
 const shot = await send('Page.captureScreenshot', { format: 'png' });
 writeFileSync(join(ROOT, 'docs', 'desktop-ui', '窄屏回归-研究地图-390x844.png'), Buffer.from(shot.data, 'base64'));
 

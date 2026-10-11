@@ -352,11 +352,23 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
     })()`);
   const detail = await findLibRow();
   check('可以打开刚导入的论文（论文集合里显示该篇）', PDF_MATCH.test(detail.head), detail.head.slice(0, 40));
-  check(
-    '该论文的抽取入口可用',
-    detail.btns.some((b) => /分析|提取/.test(b)),
-    detail.btns.filter((b) => /分析|提取|配置/.test(b)).join(' / '),
-  );
+  // 2026-10-11 表格化：行内只有「查看报告」，抽取入口在分析结果页
+  check('行内入口是「查看报告」（按篇操作已迁分析结果页）', detail.btns.includes('查看报告'), detail.btns.join(' / '));
+  await ev(`(() => {
+    const rows=[...document.querySelectorAll('.lrows .lrow')];
+    const r=rows.find((x)=>new RegExp(${JSON.stringify(PDF_MATCH.source)},'i').test((x.querySelector('.paper-title')||{}).textContent||''));
+    const b=r&&[...r.querySelectorAll('button')].find((x)=>x.textContent.trim()==='查看报告');
+    if(b){b.click();return true} return false;
+  })()`);
+  await sleep(1500);
+  const extractBtn = await ev(`(() => { const b=[...document.querySelectorAll('button')].find((x)=>/分析方法字段|配置模型后分析/.test(x.textContent)); return b ? b.textContent.trim() : ''; })()`);
+  if (!extractBtn) {
+    const dbg = await ev(`(() => { const t=(document.querySelector('.main-inner')||document.body).innerText; return { head: t.slice(0,120).replace(/\\n/g,' | '), hasOps: /本篇操作/.test(t) }; })()`);
+    console.log(`   [调试] 点「查看报告」后页面：${JSON.stringify(dbg)}`);
+  }
+  check('该论文的抽取入口可用（在分析结果页）', /分析方法字段|配置模型后分析/.test(extractBtn), extractBtn || '(无)');
+  await goMore(ev, '论文集合');
+  await sleep(900);
 
   // ---- S1b：标题不能把摘要句当已确认标题 ----
   const fresh = (dbAfter.papers || []).find((p) => p.corpusId === 'user-import');
@@ -398,8 +410,15 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
     await ev(`(() => { const it=[...document.querySelectorAll('.main-inner .file-card')][${failedIdx}]; const nb=it&&it.querySelector('[data-file-name]'); if(nb) nb.click(); else if(it) it.click(); return true; })()`);
     await sleep(800);
   }
-  // 重解析按钮在论文集合失败行的 .lrow 里（.lrow-r1 常驻显示）
-  const failBtn = () => ev(`(() => { const b=[...document.querySelectorAll('.lrows .lrow button')].find((x)=>/重新解析|重新选择/.test(x.textContent)); return b ? b.textContent.trim() : ''; })()`);
+  // 2026-10-11 表格化：失败行只标「解析失败」，重解析按钮在分析结果页的「本篇操作」里
+  await ev(`(() => {
+    const rows=[...document.querySelectorAll('.lrows .lrow')];
+    const r=rows.find((x)=>/解析失败/.test(x.innerText));
+    const b=r&&[...r.querySelectorAll('button')].find((x)=>x.textContent.trim()==='查看报告');
+    if(b){b.click();return true} return false;
+  })()`);
+  await sleep(1500);
+  const failBtn = () => ev(`(() => { const b=[...document.querySelectorAll('button')].find((x)=>/重新解析|重新选择/.test(x.textContent)); return b ? b.textContent.trim() : ''; })()`);
   const retryLabel = await failBtn();
   check('失败详情给出的按钮是「重新解析 / 重新选择 PDF」，不是模型抽取', /重新解析|重新选择|重新导入/.test(retryLabel), retryLabel || '(无相关按钮)');
 
@@ -440,10 +459,17 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
   // 之前导入的论文与「重新解析」入口都在「论文集合」—— 改到那里核对。
   await goMore(ev, '论文集合');
   await sleep(1000);
-  const ownRows = await ev(`(() => { const rs=[...document.querySelectorAll('.lrows .lrow')]; return { count: rs.length, titles: rs.map((r)=>((r.querySelector('.paper-title')||{}).textContent||'').trim().slice(0,30)), hasFailed: rs.some((r)=>/重新解析|重新选择/.test(r.innerText)) }; })()`);
+  const ownRows = await ev(`(() => { const rs=[...document.querySelectorAll('.lrows .lrow')]; return { count: rs.length, titles: rs.map((r)=>((r.querySelector('.paper-title')||{}).textContent||'').trim().slice(0,30)), hasFailed: rs.some((r)=>/解析失败/.test(r.innerText)) }; })()`);
   console.log(`   论文集合（自传范围）里 ${ownRows.count} 篇：${ownRows.titles.join(' | ')}`);
   check('刷新后自传论文仍在论文集合里（含解析失败的那篇）', ownRows.count >= 2 && ownRows.hasFailed, `${ownRows.count} 篇`);
-  const label2 = await ev(`(() => { const b=[...document.querySelectorAll('.lrows .lrow button')].find((x)=>/重新解析|重新选择/.test(x.textContent)); return b ? b.textContent.trim() : ''; })()`);
+  await ev(`(() => {
+    const rows=[...document.querySelectorAll('.lrows .lrow')];
+    const r=rows.find((x)=>/解析失败/.test(x.innerText));
+    const b=r&&[...r.querySelectorAll('button')].find((x)=>x.textContent.trim()==='查看报告');
+    if(b){b.click();return true} return false;
+  })()`);
+  await sleep(1500);
+  const label2 = await ev(`(() => { const b=[...document.querySelectorAll('button')].find((x)=>/重新解析|重新选择/.test(x.textContent)); return b ? b.textContent.trim() : ''; })()`);
   check('刷新后按钮变成「重新选择 PDF 并重新解析」（诚实告知要重新选文件）', /重新选择/.test(label2), label2 || '(无)');
   await ev(`(() => { window.__picker = 0; document.addEventListener('click', (e)=>{ const t=e.target; if(t && t.tagName==='INPUT' && t.type==='file') window.__picker++; }, true); return true; })()`);
   await click(ev, label2 || '重新选择');

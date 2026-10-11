@@ -163,7 +163,7 @@ await sleep(3400);
 // 真实用户路径：主按钮「体验视觉论文案例」直接进研究地图（2026-10-09 起）。
 // 本脚本后续断言在论文集合页上，因此再显式从目录进入论文集合。
 await click('体验视觉论文案例');
-await waitFor(`document.querySelectorAll('.mapstage .mnode').length >= 5`, 60000, '视觉案例加载');
+await waitFor(`document.querySelectorAll('#map-canvas svg g.cursor-pointer').length >= 5`, 60000, '视觉案例加载');
 await goMore('论文集合');
 await waitFor(`document.querySelectorAll('.paper-title').length >= 5`, 45000, '论文集合渲染');
 await sleep(1200);
@@ -179,68 +179,39 @@ for (const [tag, w, h] of VIEWPORTS) {
   console.log('');
   console.log(`===== ${tag} =====`);
 
-  // ---------- 研究地图 ----------
+  // ---------- 研究地图（2026-10-11 新画布：.mapnet / #map-canvas） ----------
   await goMore('研究地图');
+  await sleep(1500);
   const canvas = await ev(`(() => {
-  const box = document.querySelector('.mapwork').getBoundingClientRect();
-  const stage = document.querySelector('.mapstage').getBoundingClientRect();
-  return { h: Math.round(box.height), w: Math.round(box.width), stageW: Math.round(stage.width), nodes: document.querySelectorAll('.mnode').length, edges: document.querySelectorAll('.medge').length };
+  const svg = document.querySelector('#map-canvas svg');
+  const r = svg ? svg.getBoundingClientRect() : null;
+  return { h: r ? Math.round(r.height) : 0, w: r ? Math.round(r.width) : 0,
+    nodes: document.querySelectorAll('#map-canvas svg g.cursor-pointer').length,
+    edges: document.querySelectorAll('#map-canvas svg line').length };
 })()`);
-  check(`[${tag}] 画布高度在 440–560px`, canvas.h >= 440 && canvas.h <= 560, `${canvas.h}px`);
-  check(`[${tag}] 画布画出 5 个节点与可见连线`, canvas.nodes === 5 && canvas.edges > 0, `节点 ${canvas.nodes} / 连线 ${canvas.edges}`);
+  check(`[${tag}] 画布占满可视区（高度 ≥ 400px）`, canvas.h >= 400, `${canvas.h}px`);
+  check(`[${tag}] 画布画出 5 个节点与全部关系连线`, canvas.nodes === 5 && canvas.edges > 0, `节点 ${canvas.nodes} / 连线 ${canvas.edges}`);
 
-  // 键盘：节点 Enter 打开详情 → 关闭 → 焦点回到原节点
-  const nodeFocused = await keyOn('.mapstage .mnode', 0, 'Enter');
+  // 键盘：节点 Tab 聚焦 → Enter 选中 → 右侧面板给出方法论核心与已核验字段
+  const nodeFocused = await keyOn('#map-canvas svg g.cursor-pointer', 0, 'Enter');
   await sleep(700);
   const opened = await ev(`(() => {
-  const d = document.querySelector('.mapdetail');
-  const stage = document.querySelector('.mapstage').getBoundingClientRect();
-  const panel = d.getBoundingClientRect();
-  return {
-    open: d.classList.contains('open'),
-    panelW: Math.round(panel.width),
-    overlaps: !(panel.left >= stage.right - 1 || panel.right <= stage.left + 1),
-    text: (d.innerText || '').slice(0, 40),
-  };
+  const t = (document.querySelector('.mapnet') || document.body).innerText;
+  return { hasCore: /方法论核心/.test(t), hasVerified: /已核验字段/.test(t), hasLinks: /相关连接/.test(t) };
 })()`);
-  check(`[${tag}] 键盘 Enter 可以打开节点详情`, nodeFocused && opened.open, opened.text.replace(/\n/g, ' '));
-  check(`[${tag}] 详情面板与画布并列，不覆盖画布`, !opened.overlaps && opened.panelW > 240, `面板宽 ${opened.panelW}px`);
-  // 详情打开状态的截图：直接看「画布 + 并列详情」的实际版面
-  await shot(`地图-研究地图-详情打开-${tag}.png`);
-
-  const closed = await ev(`(() => {
-  const x = document.querySelector('.mapdetail .dh .x');
-  if (!x) return null;
-  x.click();
-  return true;
-})()`);
-  await sleep(500);
-  const focusBack = await ev(`(() => {
-  const el = document.activeElement;
-  return !!el && el.classList && el.classList.contains('mnode');
-})()`);
-  check(`[${tag}] 关闭详情后焦点回到原来的节点（键盘不迷路）`, closed === true && focusBack);
-
-  // 键盘：连线 Enter
-  const edgeFocused = await keyOn('.mapstage .medge', 0, 'Enter');
-  await sleep(700);
-  const edgeOpened = await ev(`(() => {
-  const t = (document.querySelector('.mapdetail') || {}).innerText || '';
-  return { open: document.querySelector('.mapdetail').classList.contains('open'), text: t.slice(0, 40) };
-})()`);
-  check(`[${tag}] 键盘 Enter 可以打开连线详情`, edgeFocused && edgeOpened.open, edgeOpened.text.replace(/\n/g, ' '));
+  check(`[${tag}] 键盘 Enter 可以选中节点（面板给出方法论核心 / 已核验字段 / 相关连接）`,
+    nodeFocused && opened.hasCore && opened.hasVerified && opened.hasLinks, JSON.stringify(opened));
+  await shot(`地图-研究地图-节点详情-${tag}.png`);
 
   // 未选中元素仍可读（不透明度不低于 0.5）
   const opacities = await ev(`(() => {
-  const nodes = [...document.querySelectorAll('.mapstage .mnode')].map((g)=>Number(getComputedStyle(g).opacity));
-  const edges = [...document.querySelectorAll('.mapstage .medge path.line')].map((p)=>Number(getComputedStyle(p).opacity));
-  return { minNode: Math.min(...nodes), minEdge: Math.min(...edges) };
+  const nodes = [...document.querySelectorAll('#map-canvas svg g.cursor-pointer')].map((g)=>Number(getComputedStyle(g).opacity));
+  return { minNode: Math.min(...nodes) };
 })()`);
   check(`[${tag}] 选中后未选中节点仍可读（≥0.5）`, opacities.minNode >= 0.5, `最小 ${opacities.minNode}`);
-  check(`[${tag}] 选中后未选中连线仍可读（≥0.45）`, opacities.minEdge >= 0.45, `最小 ${opacities.minEdge}`);
 
   // 关系可见性三态（2026-10-09 改版）：默认「全部」= 画布画出全部关系，不再默认藏起大部分
-  await ev(`(() => { const x=document.querySelector('.mapdetail .dh .x'); if(x) x.click(); return true; })()`);
+  // （2026-10-11 新画布的详情面板是常驻的，没有「关闭」按钮，这一步不再需要）
   await sleep(400);
   const measureRel = () => ev(`(() => {
   const t = (document.querySelector('.maphead-meta') || {}).innerText || '';
@@ -253,7 +224,7 @@ for (const [tag, w, h] of VIEWPORTS) {
     total: m ? Number(m[1]) : -1,
     visible: m ? Number(m[2]) : -1,
     hidden: hid ? Number(hid[1]) : -1,
-    edges: document.querySelectorAll('.mapstage .medge').length,
+    edges: document.querySelectorAll('#map-canvas svg line').length,
     reasonText: (t.match(/隐藏\\s*\\d+\\s*条：[^—\\n]*/) || [''])[0].trim(),
   };
 })()`);

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { Evidence, FieldKey, Method, MethodAssessmentItem, MethodFieldResult, Paper } from '../core/types';
-import { METHOD_FIELD_LABELS, FIELD_STATUS_TEXT } from '../core/types';
+import { CONDITION_DIMENSIONS, CONDITION_LABELS, ISSUE_CODE_TEXT, METHOD_FIELD_LABELS, FIELD_STATUS_TEXT, TRAINING_STAGE_LABELS } from '../core/types';
 import { FIELD_KEYS_ORDER } from '../core/cache';
 import { buildMethodProfile } from '../core/grouping';
 import { DraftIcon } from '../draft-icons';
@@ -93,6 +93,10 @@ export function ResultPageView({
   const [openKeys, setOpenKeys] = useState<Set<string>>(new Set(['coreIdea']));
   const [activeNav, setActiveNav] = useState('overview');
   const [copied, setCopied] = useState(false);
+  /** 重新分析的两步确认：避免误触消耗模型额度（原先在论文集合行的「更多操作」里，随表格化迁到本页） */
+  const [confirmReanalyze, setConfirmReanalyze] = useState(false);
+  /** 移除本篇的两步确认：防误删（只删本机数据，可撤销） */
+  const [confirmRemove, setConfirmRemove] = useState(false);
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const totalFields = FIELD_KEYS_ORDER.length;
@@ -257,15 +261,58 @@ export function ResultPageView({
           <div className="content-card bg-white">
             <h1 className="text-xl font-serif font-bold tracking-tight">这篇论文还没有分析结果</h1>
             <p className="text-sm text-[var(--fg-2)] leading-relaxed mt-3">
-              「{paper.title}」已经解析完成，但还没有抽取方法字段。先到方法提取页跑一次分析，就能看到这里的完整结果。
+              「{paper.title}」已经解析完成，但还没有抽取方法字段。就地在下面分析（也可以去方法提取页排队）。
             </p>
-            <div className="flex items-center gap-3 mt-6">
-              <button className="btn-primary" onClick={onGoUpload}>
-                去分析这篇论文
-              </button>
+            <div className="flex items-center gap-3 mt-6 flex-wrap">
+              {/* 失败原因必须就地可见（含鉴权失败的可读提示），不允许静默失败 */}
+              {job?.status === 'failed' && (
+                <p className="text-sm leading-relaxed w-full" style={{ color: 'var(--score-mid)' }}>
+                  分析失败（本次调用未完成）：{job.error || job.message || '原因未知'}
+                </p>
+              )}
+              {job?.status === 'running' && (
+                <p className="text-sm leading-relaxed w-full text-[var(--fg-2)]">
+                  正在等待模型响应（{job.message}）…
+                </p>
+              )}
+              {/* 按篇操作已随论文集合表格化迁到本页：没有结果时，抽取 / 重解析 / 移除必须就地可用 */}
+              {paper.parseStatus === 'ok' && (
+                <button className="btn-primary" disabled={job?.status === 'running'} onClick={() => onExtract(paper.id, false)}>
+                  {modelReady ? '分析方法字段' : '配置模型后分析'}
+                </button>
+              )}
+              {paper.parseStatus === 'failed' && (
+                <button className="btn-primary" disabled={job?.status === 'running'} onClick={() => onReparse(paper.id)}>
+                  {canReparseInPlace(paper.id) ? '重新解析这份 PDF' : '重新选择 PDF 并重新解析'}
+                </button>
+              )}
+              {onRemove && (
+                <button className="btn-outline" onClick={() => setConfirmRemove(true)}>
+                  移除本篇
+                </button>
+              )}
               <button className="btn-outline" onClick={onBack}>
                 返回论文集合
               </button>
+              {confirmRemove && (
+                <div className="confirmbar" style={{ marginTop: 12 }}>
+                  <div className="t">
+                    <strong>确认移除？</strong>只删本机数据（含这篇的方法与关联关系），可一键撤销（不会重新调用模型）。
+                  </div>
+                  <button
+                    className="btn primary sm"
+                    onClick={() => {
+                      setConfirmRemove(false);
+                      onRemove?.(paper.id);
+                    }}
+                  >
+                    确认移除
+                  </button>
+                  <button className="btn ghost sm" onClick={() => setConfirmRemove(false)}>
+                    取消
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -584,6 +631,127 @@ export function ResultPageView({
             </div>
           </section>
 
+          {/* ===== 实验条件 + 程序校验问题 =====
+               ⚠️ 这两块原先在论文集合展开行里，表格化时必须跟着迁到本页（2026-10-11 补迁）。
+               条件状态文案与旧版完全一致：不把「未提取到」与「论文明确没有」混为一谈。 */}
+          {method && (
+            <section
+              id="conditions"
+              ref={(el) => {
+                sectionRefs.current.conditions = el;
+              }}
+              className="content-card bg-white"
+            >
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-1 bg-[var(--fig-mid)] h-6" />
+                <h2 className="text-2xl font-serif font-bold">实验条件（论文报告的原始条件）</h2>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-sm">
+                  <thead className="bg-[var(--bg)] text-[10px] font-black text-[var(--fg-3)] uppercase tracking-widest">
+                    <tr>
+                      <th className="px-4 py-3">条件维度</th>
+                      <th className="px-4 py-3">论文报告的取值</th>
+                      <th className="px-4 py-3">状态</th>
+                      <th className="px-4 py-3">适用范围 / 阶段</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {CONDITION_DIMENSIONS.map((dim) => {
+                      const c = method.conditions ? method.conditions[dim] : undefined;
+                      if (!c) {
+                        return (
+                          <tr key={dim} className="border-t border-[var(--line)]">
+                            <td className="px-4 py-3 font-bold">{CONDITION_LABELS[dim]}</td>
+                            <td className="px-4 py-3 text-[var(--fg-3)]">本次片段中未提取到</td>
+                            <td className="px-4 py-3 text-[var(--fg-3)]">—</td>
+                            <td className="px-4 py-3 text-[var(--fg-3)]">—</td>
+                          </tr>
+                        );
+                      }
+                      const kind =
+                        c.status === 'verified' ? 'ok' : c.status === 'not_reported' ? 'cached' : c.status === 'not_extracted' ? 'pending' : 'warn';
+                      const STATUS_TEXT: Record<string, string> = {
+                        verified: '可核验',
+                        unverified: '引文不支撑主张',
+                        not_reported: '论文明确没有',
+                        not_extracted: '本次片段中未提取到',
+                        unclear: '无法确认',
+                      };
+                      return (
+                        <tr key={dim} className="border-t border-[var(--line)]">
+                          <td className="px-4 py-3 font-bold">{CONDITION_LABELS[dim]}</td>
+                          <td className="px-4 py-3">
+                            {c.values.length ? c.values.join('、') : <span className="text-[var(--fg-3)]">无取值</span>}
+                            {c.note && <div className="text-xs text-[var(--fg-3)] mt-1">{c.note}</div>}
+                            {c.evidence && onOpenEvidence && (
+                              <button
+                                className="text-[var(--accent)] hover:underline text-xs font-bold mt-1"
+                                onClick={() => onOpenEvidence(c.evidence as Evidence)}
+                              >
+                                {c.evidence.verified ? '查看原文依据' : '查看实际匹配位置'}
+                                {c.evidence.page ? `（p.${c.evidence.page}）` : ''}
+                              </button>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className="text-xs font-bold"
+                              style={{ color: kind === 'ok' ? 'var(--score-high)' : kind === 'cached' ? 'var(--fg-2)' : 'var(--score-mid)' }}
+                            >
+                              {STATUS_TEXT[c.status] || c.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-[var(--fg-2)]">
+                            {c.scope === 'paper' ? '整篇论文' : c.scope === 'experiment' ? c.scopeDetail || '单个实验' : '范围未知'}
+                            {c.stage ? ` · ${TRAINING_STAGE_LABELS[c.stage]}` : ''}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+          {method && method.validation && method.validation.length > 0 && (
+            <section
+              id="validation"
+              ref={(el) => {
+                sectionRefs.current.validation = el;
+              }}
+              className="content-card bg-white"
+            >
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-1 bg-[var(--fig-mid)] h-6" />
+                <h2 className="text-2xl font-serif font-bold">程序校验问题（{method.validation.length} 条）</h2>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-sm">
+                  <thead className="bg-[var(--bg)] text-[10px] font-black text-[var(--fg-3)] uppercase tracking-widest">
+                    <tr>
+                      <th className="px-4 py-3">问题</th>
+                      <th className="px-4 py-3">说明</th>
+                      <th className="px-4 py-3">涉及字段</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {method.validation.map((v, i) => (
+                      <tr key={i} className="border-t border-[var(--line)]">
+                        <td className="px-4 py-3 font-bold">{ISSUE_CODE_TEXT[v.code] || v.code}</td>
+                        <td className="px-4 py-3">{v.message || '—'}</td>
+                        <td className="px-4 py-3 text-xs text-[var(--fg-3)]">
+                          {v.field ? METHOD_FIELD_LABELS[v.field as FieldKey] || v.field : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
           {/* ===== 本篇操作 =====
                ⚠️ 这一块**草稿里没有**，是为「论文集合改成表格」做的必要兼容：
                表格行只留「查看报告」，原先挂在论文集合展开行里的抽取 / 重新解析 / 停止等待 /
@@ -602,6 +770,12 @@ export function ResultPageView({
             {job?.status === 'canceled' && (
               <p className="text-sm leading-relaxed" style={{ marginBottom: 16, color: 'var(--fg-2)' }}>
                 已停止等待：本次调用未完成，原结果保持不变。停止等待不代表服务端已停止计算或不再计费。
+              </p>
+            )}
+            {job?.status === 'failed' && (
+              /* 失败原因必须可见（含鉴权失败的可读提示），不允许静默失败 */
+              <p className="text-sm leading-relaxed" style={{ marginBottom: 16, color: 'var(--score-mid)' }}>
+                分析失败（本次调用未完成，原结果保持不变）：{job.error || job.message || '原因未知'}
               </p>
             )}
 
@@ -623,11 +797,59 @@ export function ResultPageView({
                 </button>
               )}
               {onRemove && (
-                <button className="btn-outline" onClick={() => onRemove(paper.id)}>
+                <button className="btn-outline" onClick={() => setConfirmRemove(true)}>
                   移除本篇
                 </button>
               )}
+              {method && (
+                <button className="btn-outline" disabled={job?.status === 'running'} onClick={() => setConfirmReanalyze(true)}>
+                  重新分析
+                </button>
+              )}
             </div>
+
+            {/* 移除本篇的两步确认（防误删：只删本机数据，可撤销） */}
+            {confirmRemove && (
+              <div className="confirmbar" style={{ marginBottom: 16 }}>
+                <div className="t">
+                  <strong>确认移除？</strong>只删本机数据（含这篇的方法与关联关系），可一键撤销（不会重新调用模型）。
+                </div>
+                <button
+                  className="btn primary sm"
+                  onClick={() => {
+                    setConfirmRemove(false);
+                    onRemove?.(paper.id);
+                  }}
+                >
+                  确认移除
+                </button>
+                <button className="btn ghost sm" onClick={() => setConfirmRemove(false)}>
+                  取消
+                </button>
+              </div>
+            )}
+
+            {/* 重新分析的两步确认（昂贵操作：会真实调用模型） */}
+            {confirmReanalyze && method && (
+              <div className="confirmbar" style={{ marginBottom: 16 }}>
+                <div className="t">
+                  <strong>确认重新分析？</strong>会重新调用模型（<strong>消耗一次模型额度</strong>）。分析期间<strong>保留原结果</strong>，<strong>人工修正不会被覆盖</strong>。
+                </div>
+                <button
+                  className="btn primary sm"
+                  disabled={job?.status === 'running'}
+                  onClick={() => {
+                    setConfirmReanalyze(false);
+                    onExtract(paper.id, true);
+                  }}
+                >
+                  确认重新分析
+                </button>
+                <button className="btn ghost sm" onClick={() => setConfirmReanalyze(false)}>
+                  取消
+                </button>
+              </div>
+            )}
 
             {method && (
               <details>
@@ -665,6 +887,8 @@ export function ResultPageView({
                 {navItem('outline', '方法论大纲')}
                 {navItem('suggestions', '要点与局限')}
                 {navItem('references', '重点摘录')}
+                {method && navItem('conditions', '实验条件')}
+                {method?.validation?.length ? navItem('validation', '程序校验问题') : null}
               </nav>
             </div>
 

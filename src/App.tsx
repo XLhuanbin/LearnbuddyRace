@@ -217,7 +217,14 @@ export default function App() {
   const [usage, setUsage] = useState<UsageRecord[]>([]);
   const [logLines, setLogLines] = useState<string[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
+  /** 最近一次移除的数据（撤销移除用）：移除入口已迁到分析结果页，撤销条必须挂在全局 */
+  const [lastRemoved, setLastRemoved] = useState<{ paper: Paper; methods: Method[]; relations: Relation[] } | null>(null);
   const [evidence, setEvidence] = useState<{ e: Evidence; label: string; paper?: Paper } | null>(null);
+  React.useEffect(() => {
+    if (!lastRemoved) return;
+    const t = window.setTimeout(() => setLastRemoved(null), 12000);
+    return () => window.clearTimeout(t);
+  }, [lastRemoved]);
   const [corpusMeta, setCorpusMeta] = useState<{ generatedAt: string; model?: string; promptVersion?: string; domain?: string; samplesAreDevOnly?: boolean; purpose?: string } | undefined>();
   const [testResult, setTestResult] = useState<{ ok: boolean; text: string } | undefined>();
   const [testing, setTesting] = useState(false);
@@ -574,6 +581,9 @@ export default function App() {
    */
   const removePaper = async (id: string) => {
     const next = collectPaperRemoval(papers, methods, relations, id);
+    // 记录被移除的数据供「撤销移除」用：移除入口已迁到分析结果页（2026-10-11 表格化），
+    // 撤销条不能再挂在论文集合的局部状态里，否则从结果页移除后无处可撤销
+    const removedPaper = papers.find((p) => p.id === id);
     try {
       await repo.deleteRelations(next.removedRelations.map((r) => r.id));
       await repo.deleteMethods(next.removedMethods.map((m) => m.id));
@@ -593,6 +603,7 @@ export default function App() {
     setSelected((s) => s.filter((x) => x !== id));
     // 论文集合变了：在途分析结果不再对应当前数据
     invalidateTasks();
+    if (removedPaper) setLastRemoved({ paper: removedPaper, methods: next.removedMethods, relations: next.removedRelations });
     log(
       `移除论文 ${id}：同时删除该论文的 ${next.removedMethods.length} 条方法分析、` +
         `${next.removedRelations.length} 条关联关系（不留悬挂关系）`,
@@ -1359,7 +1370,7 @@ export default function App() {
       <div className={`app-body${tab === 'map' ? ' mapbody' : ''}`}>
         {/* 默认不显示侧栏：页面切换走顶部「目录」浮层 */}
 
-        <main className={`main${tab === 'landing' ? ' plain' : ''}${tab === 'map' ? ' mapmain' : ''}${tab === 'upload' ? ' uploadmain' : ''}${tab === 'result' ? ' resultmain' : ''}${tab === 'map' ? ' netmapmain' : ''}`}>
+        <main className={`main${tab === 'landing' ? ' plain' : ''}${tab === 'map' ? ' mapmain' : ''}${tab === 'upload' ? ' uploadmain' : ''}${tab === 'result' ? ' resultmain' : ''}${tab === 'map' ? ' netmapmain' : ''}${tab === 'library' ? ' libmain' : ''}`}>
           <div className="main-inner">
           {pendingDependents.length > 0 && (
             <Banner kind="warn">
@@ -1596,6 +1607,8 @@ export default function App() {
                 setTab('result');
               }}
               onGoGraph={() => setTab('graph')}
+              onGoCompare={() => setTab('compare')}
+              onGoDecision={() => setTab('decision')}
               papers={papers}
               methods={methods}
               relations={scopedRelations}
@@ -1742,6 +1755,27 @@ export default function App() {
 
       {evidence && (
         <EvidencePopover evidence={evidence.e} paper={evidence.paper} fieldLabel={evidence.label} onClose={() => setEvidence(null)} />
+      )}
+
+      {/* 撤销移除条（全局）：移除入口已迁到分析结果页，从那里移除后也要能一键恢复 */}
+      {lastRemoved && (
+        <div className="undobar" role="status" style={{ position: 'fixed', left: 16, right: 16, bottom: 16, zIndex: 60, maxWidth: 900, marginLeft: 'auto', marginRight: 'auto' }}>
+          <span style={{ flex: '1 1 240px' }}>
+            已移除《{lastRemoved.paper.title.slice(0, 40)}》。本机数据与关联关系已删除，可一键恢复（不会重新调用模型）。
+          </span>
+          <button
+            className="btn sm"
+            onClick={() => {
+              restorePaper(lastRemoved.paper, undefined, lastRemoved.methods, lastRemoved.relations);
+              setLastRemoved(null);
+            }}
+          >
+            撤销移除
+          </button>
+          <button className="btn ghost sm" onClick={() => setLastRemoved(null)}>
+            知道了
+          </button>
+        </div>
       )}
     </div>
   );

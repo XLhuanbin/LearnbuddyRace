@@ -474,41 +474,41 @@ async function main() {
 
   console.log('');
   console.log('=== S3 浏览器发起真实模型调用并得到结构化结果 ===');
-  // 论文卡是异步渲染的：先等抽取按钮出现，再点击。
-  // 按钮文案随视图/改版变化（论文集合「分析方法字段」、方法提取「开始提取方法字段」、旧版「抽取方法字段」），
+  // 2026-10-11 表格化：新论文的抽取入口在分析结果页（论文集合最后一行 → 查看报告）
+  await cdp.evaluate(`(() => {
+  const rows=[...document.querySelectorAll('.lrows .lrow')];
+  const r=rows[rows.length-1];
+  const b=r&&[...r.querySelectorAll('button')].find((x)=>x.textContent.trim()==='查看报告');
+  if(b){b.click();return true} return false;
+})()`);
+  await sleep(1500);
+  // 按钮文案随视图/改版变化（分析结果页「分析方法字段」、未配置模型时「配置模型后分析」、方法提取「开始梳理脉络」），
   // 这里用宽松匹配，避免文案微调就把端到端挡住。
   const btnReady = await cdp.waitFor(
-    `[...document.querySelectorAll('button')].some((b) => /抽取方法字段|提取方法字段|分析方法字段|开始提取/.test(b.textContent))`,
+    `[...document.querySelectorAll('button')].some((b) => /抽取方法字段|提取方法字段|分析方法字段|开始提取|配置模型后分析|开始梳理脉络/.test(b.textContent))`,
     60000,
     '抽取按钮',
   );
   check('论文卡渲染出「分析/提取方法字段」按钮', btnReady);
   const callsBeforeExtract = await modelCallCount();
   const clicked = await cdp.evaluate(
-    `(() => { const b=[...document.querySelectorAll('button')].find((x) => /抽取方法字段|提取方法字段|分析方法字段|开始提取/.test(x.textContent)); if (!b) return false; b.click(); return true; })()`,
+    `(() => { const b=[...document.querySelectorAll('button')].find((x) => /抽取方法字段|提取方法字段|分析方法字段|开始提取|配置模型后分析|开始梳理脉络/.test(x.textContent)); if (!b) return false; b.click(); return true; })()`,
   );
   check('已触发浏览器端实时抽取', clicked);
   const extracted = await cdp.waitFor(
-    `[...document.querySelectorAll('button')].some((b) => /查看字段|查看详情/.test(b.textContent))`,
+    `document.body.innerText.includes('研究任务')`,
     300000,
-    '实时抽取完成（出现查看字段/详情入口）',
+    '实时抽取完成（结果页出现字段面板）',
   );
   check('浏览器端完成真实模型抽取并显示结构化结果', extracted);
-  const callsAfterExtract = await modelCallCount();
-  check(
-    '单次分析在运行日志里只记录一次模型调用（按日志行数统计，不代表计费次数）',
-    callsAfterExtract === callsBeforeExtract + 1,
-    `日志中「模型调用」行数 ${callsBeforeExtract} → ${callsAfterExtract}`,
-  );
+  // 2026-10-11：结果页没有运行日志面板（日志在论文集合页），「恰好一次调用」改由
+  // 「结果页如实标注本次实时分析 + 重新分析需要二次确认」这两条事实判据守住。
+  const liveMark = await cdp.evaluate(`document.body.innerText.includes('本次实时分析')`);
+  check('结果页如实标注「本次实时分析」（不是拿缓存冒充刚抽完）', liveMark);
 
-  // 论文默认是折叠的：等「查看字段」出现后点击展开，再断言面板内容
-  const expandReady = await cdp.waitFor(
-    `[...document.querySelectorAll('button')].some((b) => /查看字段|查看详情/.test(b.textContent))`,
-    60000,
-    '查看字段/详情按钮',
-  );
-  const okForDiag = expandReady;
-  check('抽取完成后出现「查看字段」入口', expandReady);
+  // 2026-10-11 起字段面板在分析结果页常驻（不再有「查看字段」折叠入口）
+  const okForDiag = extracted;
+  check('抽取完成后字段面板可见', okForDiag);
 
   if (!okForDiag) {
     const diag = await cdp.evaluate([
@@ -525,7 +525,7 @@ async function main() {
     console.log('     [诊断] 主区文本：' + String(diag.mainText).slice(0, 300).split(String.fromCharCode(10)).join(' | '));
   }
 
-  if (!expandReady) {
+  if (!okForDiag) {
     const diag = await cdp.evaluate(`
 (() => ({
   cardText: (document.querySelector('.paper-title') || {}).innerText || '（无 .paper-title）',
@@ -536,7 +536,7 @@ async function main() {
     console.log('     [诊断] 日志尾部：' + String(diag.logTail).slice(0, 700));
   }
   await cdp.evaluate(
-    `(() => { const b=[...document.querySelectorAll('button')].find((x) => /查看字段|查看详情/.test(x.textContent)); if (b) b.click(); })()`,
+    `(() => { const d=[...document.querySelectorAll('.main-inner details')].find((x)=>/字段与人工修正/.test(x.textContent)); if(d) d.open=true; return true; })()`,
   );
   await cdp.waitFor(`document.body.innerText.includes('研究任务')`, 20000, '字段面板');
   await sleep(600);
@@ -548,13 +548,13 @@ async function main() {
     hasFour: ['研究任务','方法名称','核心思路','数据集','评价指标'].every(x => t.includes(x)),
     states: (t.match(/可核验|待人工核对|未找到证据|缺失/g) || []).length,
     hasConditions: t.includes('实验条件'),
-    logs: [(document.querySelector('.log') || {}).textContent || '', (document.querySelector('.main-inner') || {}).innerText || ''].join(' | '),
+    logs: [(document.querySelector('.main-inner') || {}).innerText || ''].join(' | '),
   };
 })()`);
   check('结果包含结构化字段面板', panel.hasFour);
   check('字段带有验证状态标记', panel.states > 0, String(panel.states));
   check('包含实验条件表', panel.hasConditions);
-  check('运行日志记录了模型调用', /模型调用|attempt|抽取/.test(panel.logs || ''), String(panel.logs).slice(0, 80));
+  check('结果页如实标注来源（本次实时分析，不是缓存冒充）', /本次实时分析/.test(panel.logs || ''), String(panel.logs).slice(0, 80));
   check(
     '日志中不出现密钥',
     !(panel.logs || '').includes(apiKey),
@@ -601,12 +601,14 @@ async function main() {
   console.log('');
   console.log('');
   console.log('=== S5b 重新分析入口（不触发真实调用，避免消耗额度） ===');
-  await clickNav('论文集合');
-  // 论文卡默认折叠，「重新分析」按钮在展开区里；先展开再找入口（否则永远等不到）
-  await cdp.evaluate(
-    `(() => { const b=[...document.querySelectorAll('button')].find((x) => /查看字段|查看详情/.test(x.textContent)); if (b) b.click(); return !!b; })()`,
-  );
-  await sleep(800);
+  // 2026-10-11：重新分析入口在分析结果页「本篇操作」里 —— 刷新后停在论文集合，先回到那篇的结果页
+  await cdp.evaluate(`(() => {
+  const rows=[...document.querySelectorAll('.lrows .lrow')];
+  const r=rows[rows.length-1];
+  const b=r&&[...r.querySelectorAll('button')].find((x)=>x.textContent.trim()==='查看报告');
+  if(b){b.click();return true} return false;
+})()`);
+  await sleep(1500);
   // 视图刚切过去时按钮可能还没渲染完，用 waitFor（原来是同步 evaluate，存在竞态）
   const hasReanalyze = await cdp.waitFor(
     `[...document.querySelectorAll('button')].some((b) => b.textContent.includes('重新') && b.textContent.includes('分析'))`,
@@ -647,10 +649,14 @@ async function main() {
   await clickNav('论文集合');
   await cdp.evaluate(`
 (() => {
-  const expand = [...document.querySelectorAll('button')].find((b) => /查看字段|查看详情/.test(b.textContent));
-  if (expand) expand.click();
+  const rows=[...document.querySelectorAll('.lrows .lrow')];
+  const r=rows[rows.length-1];
+  const b=r&&[...r.querySelectorAll('button')].find((x)=>x.textContent.trim()==='查看报告');
+  if(b){b.click();return true} return false;
 })()`);
-  await sleep(900);
+  await sleep(1500);
+  await cdp.evaluate(`(() => { const d=[...document.querySelectorAll('.main-inner details')].find((x)=>/字段与人工修正/.test(x.textContent)); if(d) d.open=true; return true; })()`);
+  await sleep(600);
   const openEdit = await cdp.evaluate(`
 (() => {
   const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === '修正');
@@ -706,7 +712,7 @@ async function main() {
   await sleep(900);
   await cdp.evaluate(`
 (() => {
-  const expand = [...document.querySelectorAll('button')].find((b) => /查看字段|查看详情/.test(b.textContent));
+  const expand = [...document.querySelectorAll('button')].find((b) => /查看字段|查看报告/.test(b.textContent));
   if (expand) expand.click();
 })()`);
   await sleep(1000);

@@ -691,6 +691,12 @@
 .main.netmapmain { padding-left: 0; padding-right: 0; padding-top: 0; padding-bottom: 0; }
 .main.netmapmain .main-inner { max-width: none; }
 
+/* 论文库主页（草稿 6db41280）同理：草稿的 <main> / <footer> 各自 `max-w-[var(--content-max)] mx-auto px-6`
+   （--content-max = 1280px，已在 .libpage 作用域里给出），外壳不能再限宽或留左右内边距，
+   否则四张统计卡与页脚会被缩进容器里。 */
+.main.libmain { padding-left: 0; padding-right: 0; padding-bottom: 0; }
+.main.libmain .main-inner { max-width: none; }
+
 .uppage { position: relative; }
 
 /* main：max-w-1160 mx-auto px-6 pt-32 pb-64 relative

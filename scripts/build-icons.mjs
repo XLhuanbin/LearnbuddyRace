@@ -47,6 +47,9 @@ const NAMES = [
   'maximize',
   'mouse-pointer-2',
   'star',
+  // 论文库主页（草稿 6db41280）
+  'map-pin',
+  'upload',
 ];
 
 const url = `https://api.iconify.design/lucide.json?icons=${NAMES.join(',')}`;

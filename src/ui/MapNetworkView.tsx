@@ -339,13 +339,22 @@ export function MapNetworkView({
                   />
                 );
               })}
-              {/* 节点 */}
+              {/* 节点（可键盘可达：Tab 聚焦 / Enter 选中 —— 旧地图有这个能力，新画布不能丢） */}
               {nodes.map((n) => (
                 <g
                   key={n.id}
                   className="cursor-pointer"
                   opacity={dimmed.has(n.id) ? 0.2 : 1}
                   onClick={() => setSelId(n.id)}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`${n.name}：查看方法详情`}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelId(n.id);
+                    }
+                  }}
                 >
                   <circle
                     cx={n.x}

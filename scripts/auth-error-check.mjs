@@ -308,8 +308,11 @@ async function main() {
   }
   await cdp.send('DOM.setFileInputFiles', { objectId: rUp.result.objectId, files: [pdf] });
   console.log('     [上传] 已通过「上传按钮最近容器内的那一个 file input」提交论文（只操作这一个控件）');
-  // 抽取按钮文案随视图/改版变化（论文集合「分析方法字段」、方法提取「开始提取方法字段」、旧「抽取方法字段」）
-  const btnReady = await cdp.waitFor(`[...document.querySelectorAll('button')].some((b)=>/抽取方法字段|提取方法字段|分析方法字段|开始提取/.test(b.textContent))`, 90000, '抽取按钮');
+  // 2026-10-11 表格化：上传后停在论文集合（行内只有「查看报告」），抽取入口在分析结果页
+  await cdp.waitFor(`document.querySelectorAll('.paper-title').length >= 1`, 90000, '论文集合出现新论文');
+  await cdp.evaluate(`(() => { const b=[...document.querySelectorAll('.lrows .lrow button')].find((x)=>x.textContent.trim()==='查看报告'); if(b) b.click(); return true; })()`);
+  // 抽取按钮文案随视图/改版变化（分析结果页「分析方法字段」、方法提取「开始梳理脉络」、旧「抽取方法字段」）
+  const btnReady = await cdp.waitFor(`[...document.querySelectorAll('button')].some((b)=>/抽取方法字段|提取方法字段|分析方法字段|开始提取|开始梳理脉络/.test(b.textContent))`, 90000, '抽取按钮');
   check('论文导入后出现抽取按钮', btnReady);
   if (!btnReady) {
     // 失败时把页面状态打出来：上传/解析/集合切换都可能出问题，别只报一个超时
@@ -327,7 +330,7 @@ async function main() {
 })()`);
     console.log('     [诊断] ' + JSON.stringify(dump, null, 1).split(String.fromCharCode(10)).join(String.fromCharCode(10) + '     '));
   }
-  await cdp.evaluate(`(() => { const b=[...document.querySelectorAll('button')].find((x)=>/抽取方法字段|提取方法字段|分析方法字段|开始提取/.test(x.textContent)); if(b) b.click(); })()`);
+  await cdp.evaluate(`(() => { const b=[...document.querySelectorAll('button')].find((x)=>/抽取方法字段|提取方法字段|分析方法字段|开始提取|开始梳理脉络/.test(x.textContent)); if(b) b.click(); })()`);
 
   const hintShown = await cdp.waitFor(
     `document.body.innerText.includes('鉴权失败') || document.body.innerText.includes('401') || document.body.innerText.includes('API Key 是否有效')`,
@@ -353,6 +356,9 @@ async function main() {
    * 现在只看**本次上传的那篇论文所在的论文行**（当事区域），并要求确实找到了该行，
    * 避免范围落空后断言空转通过。
    */
+  // 2026-10-11 表格化：失败后停在分析结果页；论文行断言要回论文集合看
+  await clickNav('论文集合');
+  await sleep(1200);
   const failScope = await cdp.evaluate(`(() => {
   const rows = [...document.querySelectorAll('.lrows .lrow')];
   if (!rows.length) return { rows: 0, ok: false, verified: false, done: false, text: '（没找到论文行，断言范围落空）' };

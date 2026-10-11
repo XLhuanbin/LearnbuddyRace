@@ -206,7 +206,7 @@ console.log('=== 阶段 A（独立数据目录 #1）：加载案例 → 修字�
     const rows = [...document.querySelectorAll('.lrow')];
     const row = rows.find((r) => /1512\\.03385|residual|ResNet/i.test((r.querySelector('.paper-title')||{}).textContent||''));
     if (!row) return 'NO_ROW';
-    const btn = [...row.querySelectorAll('button')].find((b) => /查看详情/.test(b.textContent));
+    const btn = [...row.querySelectorAll('button')].find((b) => /查看报告/.test(b.textContent));
     if (!btn) return 'NO_BTN';
     btn.click();
     return 'OK';

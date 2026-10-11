@@ -136,7 +136,7 @@ console.log('');
 console.log('=== S0b 视觉案例的原文依据能真的取到全文（samples-vision/text/） ===');
 await goMore('论文集合');
 await sleep(1300);
-await click('查看详情');
+await click('查看报告');
 await sleep(900);
 const evBefore = await ev(`(() => {
   const b = [...document.querySelectorAll('button')].find((x) => /原文依据|实际匹配位置/.test(x.textContent));
@@ -172,8 +172,10 @@ const mapCheck = await ev(`(() => {
   const t = (document.querySelector('.maphead-meta') || {}).innerText || '';
   const m = t.match(/关系\\s*(\\d+)\\s*条[^\\d]*(\\d+)\\s*条/);
   return {
-    nodeCount: document.querySelectorAll('.mapstage .mnode').length,
-    edgeCount: document.querySelectorAll('svg path[marker-end]').length,
+    nodeCount: document.querySelectorAll('#map-canvas svg g.cursor-pointer').length,
+    // 2026-10-11 新画布：只有「有方向」的关系（extends/improves/combines）画箭头，
+    // similar / unclear 的边没有 marker —— 所以这里数全部 line，而不是带 marker 的 path
+    edgeCount: document.querySelectorAll('#map-canvas svg line').length,
     statText: t.replace(/\\s+/g, ' ').slice(0, 90),
     total: m ? Number(m[1]) : -1,
     visible: m ? Number(m[2]) : -1,
@@ -197,11 +199,10 @@ await sleep(1300);
 const target = papers0[0];
 const targetMethods = methods0.filter((m) => m.paperId === target.id);
 const targetRels = rels0.filter((r) => targetMethods.some((m) => m.id === r.fromMethodId || m.id === r.toMethodId));
-await click('查看详情');
-await sleep(900);
-await ev(`(() => { const d=[...document.querySelectorAll('.main-inner details.moreprop')].find((x)=>/更多操作/.test(x.textContent)); if(d) d.open=true; return true; })()`);
-await sleep(400);
-const removeClicked = await click('移除论文');
+await click('查看报告');
+await sleep(1500);
+// 2026-10-11 表格化：移除入口在分析结果页「本篇操作」，两步确认（移除本篇 → 确认移除）
+const removeClicked = await click('移除本篇');
 await sleep(600);
 const confirmed = await click('确认移除');
 await sleep(1500);

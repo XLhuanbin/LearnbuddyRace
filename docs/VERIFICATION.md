@@ -3,7 +3,7 @@
 本文件记录**实际执行过**的验证：测试输入、检查项、实际结果、失败案例与修复状态。
 所有数字来自真实运行输出，不是估计值。第一阶段的记录保留在 §V1–§V8，第二阶段追加在 §V9 起。
 
-记录日期：2026-09-16（最后更新：2026-09-26，追加 §V40–§V41）
+记录日期：2026-09-16（最后更新：2026-10-11，追加 §V42–§V43）
 
 ---
 
@@ -1179,3 +1179,31 @@ IndexedDB 里已存在一条人工修正关系 〔{"id":"r_0_m_p_arxiv_1512.0338
 诚实边界（实测，写在此处以备回看）：Swin 论文全文里 `extend` / `build upon` / `based on` /
 `inspired` / `motivated` / `start from` 的出现次数均为 0，因此 `ViT → Swin` **不能**判为原文明示的继承；
 只能按 Related Work 的「Most related to our work is the Vision Transformer (ViT)」落到「相似」。
+
+---
+
+## V43 · 论文集合按草稿 6db41280 表格化（2026-10-11）
+
+完整记录见 `docs/LIBRARY-TABLE-ROUND.md`。要点：行内只留「查看报告」，
+按篇操作（重新分析 / 移除 / 字段修正 / 实验条件 / 程序校验 / 证据）全部迁到分析结果页；
+草稿编造内容全部换成真实数据；**验收脚本选择器同批迁移**，连带着清掉了
+「研究地图改版后脚本选择器失效」的遗留债（原 e2e 8 项失败 + verify:scope 2 项 + 两个脚本崩溃）。
+
+| 检查项 | 实际结果 |
+| --- | --- |
+| `npm run typecheck` | 通过 |
+| `npm test` | **478/478** |
+| `npm run build` | 通过，构建指纹 `4d7e1ddb76` |
+| `npm run e2e` | **76/76**（含此前 8 项地图遗留失败，已全部修复） |
+| `verify:ui` | **40/40**（此前崩溃） |
+| `verify:layout` | **79/79** |
+| `verify:scope` | **25/25**（此前 23/25） |
+| `verify:import` | **26/26** |
+| `verify:reload` | **20/20** |
+| `verify:relations` | **16/16** |
+| `verify:mobile` | **3/3**（此前崩溃） |
+| `auth-error-check` | **7/7** |
+| `browser-flow-check`（真实模型） | **51/51**（上传 → 结果页抽取 → 证据 → 人工修正 → 重新分析全链路） |
+
+仍然红：`demo-walkthrough` / `demo-walkthrough2` / `demo-walkthrough4`（历史走查脚本，
+断言的是两轮前的首页与地图，早于本轮就已过期；非验收入口）。要不要修，留待用户决定。

@@ -451,7 +451,9 @@ export function MapView({
             <MapNetworkView
               papers={view.papers}
               methods={view.methods}
-              relations={view.relations}
+              /* 画布「画什么」的唯一规则 = relVisible（三态 + 只看有证据），
+                 与页头「当前显示 N 条」是同一份筛选；不能让画布拿全量关系自己再画一遍 */
+              relations={view.relations.filter(relVisible)}
               scopeLabel={view.isCase ? corpusScope.meta.domain : '我自己上传的论文'}
               onOpenEvidence={onOpenEvidence}
               onOpenResult={onOpenResult ?? (() => undefined)}
