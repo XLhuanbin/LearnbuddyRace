@@ -28,6 +28,14 @@ interface Props {
   onGenerate: (profile: UserProfile) => void;
   /** 停止等待正在生成的阅读路线（只停止本地等待） */
   onCancelGenerate?: () => void;
+  /**
+   * 发起一次关系分析（真实模型调用）。地图空状态与「关系与比较」页的直接入口 ——
+   * 2026-10-12 用户实测：此前只有目录里的「方法关系图」页有按钮，
+   * 在地图上看到「没有关系」时找不到下一步。
+   */
+  onAnalyzeRelations?: () => void;
+  /** 关系分析是否正在进行（入口按钮据此显示「分析中…」） */
+  relationBusy?: boolean;
   onOpenEvidence: (ev: Evidence) => void;
   /** 打开某篇论文的分析结果页（网络视图详情面板底部的「查看完整分析报告」） */
   onOpenResult?: (paperId: string) => void;
@@ -67,6 +75,8 @@ export function MapView({
   onModeChange,
   onGenerate,
   onCancelGenerate,
+  onAnalyzeRelations,
+  relationBusy = false,
   onOpenEvidence,
   onOpenResult,
   onAddPapers,
@@ -465,6 +475,9 @@ export function MapView({
               onOpenRelations={() => setSub('relations')}
               onOpenStart={() => setSub('start')}
               onOpenTimeline={() => setSub('timeline')}
+              onAnalyzeRelations={onAnalyzeRelations}
+              relationBusy={relationBusy}
+              modelReady={modelReady}
             />
           )}
           {sub === 'timeline' && (
@@ -486,6 +499,9 @@ export function MapView({
               onBackToMap={() => setSub('map')}
               initialPair={pair ?? undefined}
               requireChoice={pair !== null && pair.length === 0}
+              onAnalyzeRelations={onAnalyzeRelations}
+              relationBusy={relationBusy}
+              modelReady={modelReady}
             />
           )}
           {sub === 'start' && (

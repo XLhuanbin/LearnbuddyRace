@@ -221,6 +221,13 @@ export default function App() {
   const [planBusy, setPlanBusy] = useState(false);
   const [divergenceBusy, setDivergenceBusy] = useState(false);
   const [hydratingScope, setHydratingScope] = useState(false);
+  /**
+   * 「梳理完成后自动跑一次关系分析」的触发器（2026-10-12 用户实测要求）。
+   * 用计数器 + effect 而不是在 analyzeFiles 里直接调 genRelations：抽取过程里
+   * setPapers/setMethods 是异步的，直接调会拿到导入前的空范围而静默中止；
+   * effect 在最新提交后运行，且 400ms 防抖把批量/重试的多次触发合并成一次。
+   */
+  const [relationsAutoTick, setRelationsAutoTick] = useState(0);
   const taskHandles = useRef<Record<TaskKind, AbortController | null>>({ relations: null, plan: null, divergence: null });
   /**
    * 请求版本号：旧请求返回时不能覆盖新案例 / 新论文 / 人工修正后的状态。
@@ -277,6 +284,9 @@ export default function App() {
   }, []);
   const logRef = useRef(log);
   logRef.current = log;
+  /** 关系分析运行态的最新引用：effect 的防抖回调里要读「此刻」是否在跑，不能读渲染时的旧值 */
+  const relationBusyRef = useRef(relationBusy);
+  relationBusyRef.current = relationBusy;
 
   const modelReady = !!(config.baseUrl && config.apiKey && config.model);
 
@@ -478,6 +488,11 @@ export default function App() {
    * 草稿是「先把文件攒在待处理队列 → 点『开始梳理脉络』→ 一次性分析」，
    * 所以底层把这个动作串起来：**导入并解析全部文件 → 已配置模型时逐篇抽取**。
    * 串行抽取是为了让「分析中」的进度可读，也避免并发打爆用户自配的接口。
+   *
+   * 2026-10-12（用户实测要求）：梳理的产出**包含方法关系** —— 字段抽完后自动接一次关系分析。
+   * 「点了开始梳理脉络，它就应该直接触发给我们结果，而不是再去找一个入口点第二次」。
+   * 触发走 state + effect（见 relationsAutoTick），不在这个闭包里直接调 genRelations：
+   * 这里的 scope/relations 还是导入前的快照，直接调会因集合为空而静默中止。
    */
   const analyzeFiles = async (files: File[]) => {
     const results = await importFiles(files);
@@ -485,11 +500,16 @@ export default function App() {
       log('未配置模型接口：已完成解析并把论文放进「论文集合」；「提取方法字段」需要先在设置里配置模型。');
       return results;
     }
+    let extracted = 0;
     for (const r of results) {
       if (!r.paper || r.paper.parseStatus !== 'ok') continue;
       // 必须把 paper 对象带上：此刻 setPapers 还没反映到闭包，extract 内部按 id 找不到刚导入的论文
-      await extract(r.paper.id, false, r.paper);
+      const m = await extract(r.paper.id, false, r.paper);
+      if (m) extracted += 1;
     }
+    // 只有真的抽出了新方法才自动跑关系：全是重复跳过时不再重复花一次模型额度
+    // （此时若关系仍为空，地图/关系页有手动入口）
+    if (extracted > 0) setRelationsAutoTick((t) => t + 1);
     return results;
   };
 
@@ -894,16 +914,19 @@ export default function App() {
    * paperObj（2026-10-11）：`analyzeFiles` 在 `setPapers` 之后**立刻**调用 extract，
    * 此时闭包里的 `papers` 还是旧的（不含刚导入的论文），`papers.find` 会找不到并静默 return ——
    * 实测症状就是全部文件停在「已解析，等待提取」、进度 40% 不动。所以允许调用方把论文对象直接传进来。
+   *
+   * 返回值（2026-10-12）：本次是否真的抽出了方法（跳过重复 / 未配模型 / 失败都返回 undefined）。
+   * 调用方据此决定「梳理完成后是否自动接一次关系分析」——没抽出新东西就不重复花模型额度。
    */
-  const extract = async (paperId: string, force = false, paperObj?: Paper) => {
+  const extract = async (paperId: string, force = false, paperObj?: Paper): Promise<Method | undefined> => {
     const paper = paperObj ?? papers.find((p) => p.id === paperId);
-    if (!paper) return;
+    if (!paper) return undefined;
 
     if (!modelReady) {
       const msg = '未配置模型接口：缺少 baseUrl / API Key / 模型名。抽取已取消，未产生任何替代结果。';
       log(`抽取中止：${msg}`);
       setJobs((j) => ({ ...j, [paperId]: { paperId, stage: 'extract', message: '未配置模型', status: 'failed', attempts: 0, error: msg } }));
-      return;
+      return undefined;
     }
 
     // 若只有元数据（缓存样例）而无全文，先取回全文
@@ -917,14 +940,14 @@ export default function App() {
         await repo.savePaper(full);
       } catch (e) {
         log(`无法取回该论文全文，抽取取消：${(e as Error).message}`);
-        return;
+        return undefined;
       }
     }
 
     const prev = methods.find((m) => m.paperId === paperId);
     if (prev && !prev.cached && !force) {
       log(`该论文已有实时分析结果，跳过（如需重跑请点击重新分析）`);
-      return;
+      return undefined;
     }
 
     const controller = new AbortController();
@@ -934,6 +957,7 @@ export default function App() {
 
     const t0 = Date.now();
     const extractTrace = traceRecorder();
+    let produced: Method | undefined;
     try {
       const method = await extractMethodWithProgress(full, { ...config, timeoutMs: 180000, maxAttempts: 3, signal: controller.signal }, (ev) => {
         setJobs((j) => ({ ...j, [paperId]: { paperId, stage: ev.stage, message: ev.message, status: 'running', attempts: ev.trace?.attempt ?? 0 } }));
@@ -962,6 +986,7 @@ export default function App() {
       const mergedMethod = mergeReanalysisResult(prev, method);
       await repo.saveMethod(mergedMethod);
       setMethods((ms) => [...ms.filter((m) => m.paperId !== paperId), mergedMethod]);
+      produced = mergedMethod;
       if (prev) {
         // 论文结果已更新：下游由模型生成的关系与推荐需要重新生成；比较页按当前数据实时重算
         invalidateTasks();
@@ -1019,6 +1044,7 @@ export default function App() {
       await refreshUsage();
     }
     setTick((t) => t + 1);
+    return produced;
   };
 
   const overrideField = async (paperId: string, field: FieldKey, value: string) => {
@@ -1098,7 +1124,7 @@ export default function App() {
       return;
     }
     if (relationBusy) {
-      log('关系分析已在进行中，已忽略本次点击。');
+      log('关系分析已在进行中，已忽略本次请求。');
       return;
     }
     setRelationBusy(true);
@@ -1182,6 +1208,34 @@ export default function App() {
       setRelationBusy(false);
     }
   };
+
+  /**
+   * 梳理（批量分析 / 失败重试）抽出新方法后，自动接一次关系分析。
+   *
+   * 为什么必须经 effect：analyzeFiles 与 retryExtract 的闭包捕获的是**抽取前**的
+   * papers/methods/relations，直接调 genRelations 会读到空范围而静默中止
+   * （日志只会说「只有 0 篇有全文的论文」）。effect 在最新提交之后运行，
+   * genRelations 拿到的是当前范围。400ms 防抖把一次批量里的多次触发合并成一次调用；
+   * 期间用户若切换语料/增删论文，任务版本保护会丢弃过期结果，不会写错数据。
+   *
+   * 撞上「已有一次关系分析在跑」时不静默跳过：把触发器重新排队，等这次结束后再跑 ——
+   * 否则连续两批上传时，第一批的结果被第二批的导入作废、第二批又被 busy 挡掉，
+   * 最终一条关系都不剩（正是用户实测报的症状）。
+   */
+  useEffect(() => {
+    if (relationsAutoTick === 0) return;
+    const timer = window.setTimeout(() => {
+      if (relationBusyRef.current) {
+        setRelationsAutoTick((t) => t + 1);
+        return;
+      }
+      log('字段抽取完成，自动接着推断方法关系…');
+      void genRelations();
+    }, 400);
+    return () => window.clearTimeout(timer);
+    // genRelations 每次渲染都是新闭包，这里刻意只依赖触发器：effect 运行时它一定是最新的
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [relationsAutoTick]);
 
   /* ---------- 方法决策 ---------- */
   const genDecision = async (profile: UserProfile) => {
@@ -1488,6 +1542,10 @@ export default function App() {
               mode={mapMode}
               onModeChange={setMapMode}
               onGenerate={genDecision}
+              /* 关系分析入口：地图空状态与「关系与比较」页直接可点（2026-10-12 用户实测：
+                 此前只有目录里的「方法关系图」页有按钮，地图上看到没有关系时没有任何下一步） */
+              onAnalyzeRelations={genRelations}
+              relationBusy={relationBusy}
               onOpenEvidence={(ev) => openEvidence(ev, '原文依据', papers.find((x) => x.id === ev.paperId))}
               onAddPapers={() => setTab('upload')}
               onGoLibrary={() => setTab('library')}
@@ -1529,8 +1587,15 @@ export default function App() {
               onAnalyze={analyzeFiles}
               onPaste={importPaste}
               onEnterMap={() => setTab('map')}
-              /* 本轮分析结束但没有生成方法框架时的重试出口（逐篇重跑提取，不重新解析） */
-              onExtract={extract}
+              /* 本轮分析结束但没有生成方法框架时的重试出口（逐篇重跑提取，不重新解析）。
+                 重试抽出新方法后同样自动接一次关系分析（与批量路径一致）。 */
+              onExtract={async (paperId: string, force = false) => {
+                const m = await extract(paperId, force);
+                if (m) setRelationsAutoTick((t) => t + 1);
+                return m;
+              }}
+              relationBusy={relationBusy}
+              relationCount={scopedRelations.length}
               onOpenPaper={(paperId) => {
                 setExpFocus(paperId);
                 setTab('library');

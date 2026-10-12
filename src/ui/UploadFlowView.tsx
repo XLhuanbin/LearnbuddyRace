@@ -24,7 +24,11 @@ interface Props {
   onAnalyze: (files: File[]) => Promise<ImportResult[]>;
   onEnterMap: () => void;
   /** 对单篇论文重跑「提取方法字段」——用于本轮分析结束但没有生成任何方法框架时的重试 */
-  onExtract: (paperId: string) => Promise<void>;
+  onExtract: (paperId: string) => Promise<unknown>;
+  /** 关系分析是否正在进行（梳理完成后的自动步骤，界面上如实显示） */
+  relationBusy?: boolean;
+  /** 当前集合里已有的方法关系条数（步骤 05 的真实状态，不靠猜） */
+  relationCount?: number;
   /** 待处理队列与阶段（提升到 App，切页再回来不丢） */
   queue: Queued[];
   setQueue: React.Dispatch<React.SetStateAction<Queued[]>>;
@@ -132,6 +136,8 @@ export function UploadFlowView({
   onAnalyze,
   onEnterMap,
   onExtract,
+  relationBusy = false,
+  relationCount = 0,
   queue,
   setQueue,
   phase,
@@ -254,7 +260,19 @@ export function UploadFlowView({
         result: anyMethod ? `${doneCount} 篇已生成` : extracting ? '等待模型响应' : modelReady ? '等待开始' : '未配置模型',
       },
       { no: '04', name: '校验原文证据', state: anyVerified ? 'done' : anyMethod ? 'running' : 'waiting', result: anyVerified ? '至少一篇已通过定位' : anyMethod ? '正在逐条定位' : '等待方法字段' },
-      { no: '05', name: '进入研究地图', state: anyMethod ? 'done' : 'waiting', result: anyMethod ? '可以进入' : '需先完成提取' },
+      {
+        no: '05',
+        name: '推断方法关系',
+        state: relationBusy ? 'running' : relationCount > 0 ? 'done' : 'waiting',
+        result: relationBusy
+          ? '正在调用模型逐对判断'
+          : relationCount > 0
+            ? `${relationCount} 条关系已生成`
+            : scope.methods.length >= 2
+              ? '字段抽完后自动进行'
+              : '需要至少 2 篇已抽取',
+      },
+      { no: '06', name: '进入研究地图', state: anyMethod ? 'done' : 'waiting', result: anyMethod ? '可以进入' : '需先完成提取' },
     ];
   })();
 
@@ -262,16 +280,19 @@ export function UploadFlowView({
   const stepDone = overview.filter((s) => s.state === 'done').length;
   const pct = Math.round((stepDone / stepTotal) * 100);
   const anyRunning = overview.some((s) => s.state === 'running');
-  // 本轮分析结束但没到 100% 时，不能显示「等待开始梳理」（用户会以为卡住了）——如实说明本轮已结束、还差什么
+  // 本轮分析结束但没到 100% 时，不能显示「等待开始梳理」（用户会以为卡住了）——如实说明本轮已结束、还差什么。
+  // relationBusy 单独一档：字段抽完后关系分析还在后台跑，这不是「还有步骤未完成」
   const progTitle = running
     ? '正在深度分析方法论...'
-    : phase === 'done'
-      ? pct === 100
-        ? '方法论梳理已完成'
-        : '本轮分析已结束，还有步骤未完成'
-      : anyRunning
-        ? '正在深度分析方法论...'
-        : '等待开始梳理';
+    : relationBusy
+      ? '正在推断方法关系...'
+      : phase === 'done'
+        ? pct === 100
+          ? '方法论梳理已完成'
+          : '本轮分析已结束，还有步骤未完成'
+        : anyRunning
+          ? '正在深度分析方法论...'
+          : '等待开始梳理';
   const curOv =
     overview.find((s) => s.state === 'running') ??
     overview.find((s) => s.state === 'failed') ??

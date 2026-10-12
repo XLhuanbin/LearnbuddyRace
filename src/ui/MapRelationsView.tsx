@@ -16,6 +16,15 @@ interface Props {
   requireChoice?: boolean;
   /** 明确返回「方法地图」的入口（三个视图共用页头的切换条，这里再给一个就近的） */
   onBackToMap?: () => void;
+  /**
+   * 发起一次关系分析（2026-10-12 用户实测要求）：这个页面说「做一次关系分析后再看这里」，
+   * 却不让用户在这里做 —— 按钮必须就地把话说圆。
+   */
+  onAnalyzeRelations?: () => void;
+  /** 关系分析是否正在进行 */
+  relationBusy?: boolean;
+  /** 是否已配置模型接口 */
+  modelReady?: boolean;
 }
 
 const STATE_LABEL: Record<string, string> = { explicit: '原文已说明', inferred: '系统推断', candidate: '待核查' };
@@ -33,7 +42,7 @@ const STATE_KIND: Record<string, string> = { explicit: 'ok', inferred: 'info', c
  * 证据状态一律标注，无引文的关系明确写「无引文」；「比较实验表现」是可展开的次级入口，不是评分。
  * 注意：本视图列出**全部**关系，不随画布上「全部 / 可用 / 待核查」的可见性筛选变动。
  */
-export function MapRelationsView({ papers, methods, relations, onOpenEvidence, initialPair, requireChoice, onBackToMap }: Props) {
+export function MapRelationsView({ papers, methods, relations, onOpenEvidence, initialPair, requireChoice, onBackToMap, onAnalyzeRelations, relationBusy = false, modelReady = true }: Props) {
   const [pair, setPair] = useState<string[]>(initialPair ?? []);
   // requireChoice：从「比较实验表现」进来但没有明确对端 → 保持"用户已动过手"，不自动替他挑一对
   const [pairTouched, setPairTouched] = useState(Boolean(initialPair?.length) || Boolean(requireChoice));
@@ -331,7 +340,23 @@ export function MapRelationsView({ papers, methods, relations, onOpenEvidence, i
             {!relations.length && (
               <tr>
                 <td colSpan={6} className="small dim" style={{ padding: 14 }}>
-                  当前论文集合还没有可核验的方法关系。系统不会凭年份或关键词连边；补充更多论文或做一次关系分析后再看这里。
+                  <p style={{ margin: '0 0 8px' }}>
+                    当前论文集合还没有可核验的方法关系。系统不会凭年份或关键词连边；补充更多论文或做一次关系分析后再看这里。
+                  </p>
+                  {onAnalyzeRelations && methods.length >= 2 && (
+                    <button
+                      className="btn primary sm"
+                      disabled={relationBusy || !modelReady}
+                      title={modelReady ? '调用模型，逐对判断当前集合里的方法关系' : '需要先在「设置」里配置模型接口'}
+                      onClick={onAnalyzeRelations}
+                    >
+                      {relationBusy ? '分析中…' : '分析方法关系'}
+                    </button>
+                  )}
+                  {methods.length >= 2 && !modelReady && (
+                    <p style={{ margin: '6px 0 0' }}>关系分析需要先在「设置」里配置模型接口。</p>
+                  )}
+                  {methods.length < 2 && <p style={{ margin: '6px 0 0' }}>关系分析需要至少 2 篇已完成抽取的论文（当前 {methods.length} 篇）。</p>}
                 </td>
               </tr>
             )}

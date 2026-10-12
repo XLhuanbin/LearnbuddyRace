@@ -21,6 +21,15 @@ interface Props {
   onOpenStart: () => void;
   /** 切到「时间线」 */
   onOpenTimeline: () => void;
+  /**
+   * 发起一次关系分析（2026-10-12 用户实测要求）：地图上看到「没有关系」时，
+   * 必须能就地点一下开始分析，而不是只给一句说明让用户自己去别的页面找入口。
+   */
+  onAnalyzeRelations?: () => void;
+  /** 关系分析是否正在进行 */
+  relationBusy?: boolean;
+  /** 是否已配置模型接口（没配时按钮禁用并说明原因，不静默失败） */
+  modelReady?: boolean;
 }
 
 /** 关系类型 → 草稿的四类演进路径（线型 + 颜色双重区分，不只靠颜色） */
@@ -62,6 +71,9 @@ export function MapNetworkView({
   onOpenRelations,
   onOpenStart,
   onOpenTimeline,
+  onAnalyzeRelations,
+  relationBusy = false,
+  modelReady = true,
 }: Props) {
   const [selId, setSelId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -515,7 +527,23 @@ export function MapNetworkView({
                         );
                       })
                     ) : (
-                      <p className="text-xs text-[var(--fg-3)]">这篇论文在当前集合里还没有与其它方法建立关系。</p>
+                      <div className="space-y-2">
+                        <p className="text-xs text-[var(--fg-3)]">这篇论文在当前集合里还没有与其它方法建立关系。</p>
+                        {onAnalyzeRelations && methods.length >= 2 && (
+                          <button
+                            className="btn-outline w-full text-xs flex items-center justify-center gap-1.5"
+                            disabled={relationBusy || !modelReady}
+                            title={modelReady ? '调用模型，逐对判断当前集合里的方法关系' : '需要先在「设置」里配置模型接口'}
+                            onClick={onAnalyzeRelations}
+                          >
+                            <DraftIcon name={relationBusy ? 'loader-2' : 'network'} className={relationBusy ? 'animate-spin text-sm' : 'text-sm'} />
+                            {relationBusy ? '分析中…' : relations.length ? '重新分析关系' : '分析方法关系'}
+                          </button>
+                        )}
+                        {methods.length >= 2 && !modelReady && (
+                          <p className="text-[10px] text-[var(--fg-3)]">关系分析需要先在「设置」里配置模型接口。</p>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
