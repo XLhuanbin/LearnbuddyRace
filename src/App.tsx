@@ -502,9 +502,17 @@ export default function App() {
     }
     let extracted = 0;
     for (const r of results) {
-      if (!r.paper || r.paper.parseStatus !== 'ok') continue;
+      /**
+       * 被去重跳过的文件也要参与提取（2026-10-12 用户实测）：
+       * 论文已在库里（上次导入过），若还没有方法框架就补上。
+       * 旧实现只处理 `r.paper`，跳过项全是 undefined → 用户重新上传「之前处理过的论文」时
+       * 全部命中重复跳过、什么都不发生，界面只剩一个「重新提取方法字段」，看着就是卡住。
+       * extract 内部有「已有实时分析结果就跳过」的保护，不会重复消耗额度。
+       */
+      const target = r.paper ?? (r.skippedPaperId ? papers.find((p) => p.id === r.skippedPaperId) : undefined);
+      if (!target || target.parseStatus !== 'ok') continue;
       // 必须把 paper 对象带上：此刻 setPapers 还没反映到闭包，extract 内部按 id 找不到刚导入的论文
-      const m = await extract(r.paper.id, false, r.paper);
+      const m = await extract(target.id, false, target);
       if (m) extracted += 1;
     }
     // 只有真的抽出了新方法才自动跑关系：全是重复跳过时不再重复花一次模型额度
@@ -1546,6 +1554,7 @@ export default function App() {
                  此前只有目录里的「方法关系图」页有按钮，地图上看到没有关系时没有任何下一步） */
               onAnalyzeRelations={genRelations}
               relationBusy={relationBusy}
+              onGoSettings={() => setTab('settings')}
               onOpenEvidence={(ev) => openEvidence(ev, '原文依据', papers.find((x) => x.id === ev.paperId))}
               onAddPapers={() => setTab('upload')}
               onGoLibrary={() => setTab('library')}

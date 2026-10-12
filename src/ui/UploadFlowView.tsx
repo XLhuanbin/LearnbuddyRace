@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { Method, Paper } from '../core/types';
 import type { JobState } from './Library';
 import { verifiedOf } from './Library';
@@ -183,8 +183,25 @@ export function UploadFlowView({
   };
 
   const start = async () => {
+    if (running) return;
     const todo = queue.filter((x) => !x.result);
-    if (!todo.length || running) return;
+    if (!todo.length) {
+      /**
+       * 队列为空、但库里有还没提取字段的论文（2026-10-12 用户实测死路）：
+       * 旧实现此时主按钮是禁用的 —— 用户即使配好了模型也无从下手，只能重新选一次文件，
+       * 而重新选同样的文件又会全部命中「重复跳过」，于是永远卡在 0 方法。
+       * 这里直接对库里的论文补提取，不必让用户重新选文件。
+       */
+      const pending = papers.filter((p) => p.parseStatus === 'ok' && !hasMethod(p));
+      if (!pending.length) return;
+      setPhase('running');
+      try {
+        for (const p of pending) await onExtract(p.id);
+      } finally {
+        setPhase('done');
+      }
+      return;
+    }
     setPhase('running');
     try {
       const results = await onAnalyze(todo.map((x) => x.file));
@@ -221,6 +238,19 @@ export function UploadFlowView({
     .filter((p): p is Paper => !!p && p.parseStatus === 'ok' && !hasMethod(p));
   /** done 态能否给「进入研究地图」：本轮涉及的论文里至少一篇已有方法框架 */
   const doneNav = queue.length > 0 && queue.every((x) => x.result) && extractedCount > 0;
+  /** 库里解析成功但还没有方法框架的论文（不管是不是本轮传的）—— 主按钮要对它们可用 */
+  const pendingPapers = papers.filter((p) => p.parseStatus === 'ok' && !hasMethod(p));
+  /**
+   * 主按钮的派生状态（2026-10-12 用户实测死路后重排）：
+   * - hasNewFiles：队列里还有没跑过的文件（导入+解析+提取）
+   * - canNav：本轮已有成果 → 主按钮就是「进入研究地图」（不看 phase：重复选择队列里已完成的
+   *   文件时 phase 会被重置为 idle，但事事已做完，不该显示禁着的「开始梳理脉络」）
+   * - nothingToDo / blockedNoModel：点了也做不了事的两种原因（没活干 / 没配模型）
+   */
+  const hasNewFiles = queue.some((x) => !x.result);
+  const canNav = doneNav && !hasNewFiles;
+  const nothingToDo = !canNav && !hasNewFiles && retryPapers.length === 0 && pendingPapers.length === 0;
+  const blockedNoModel = !canNav && !modelReady && !hasNewFiles;
 
   /** 本轮结束但没提取成（典型：点开始时还没配模型，之后才保存配置）→ 逐篇重跑提取，不再重新解析 */
   const retryExtract = async () => {
@@ -232,6 +262,22 @@ export function UploadFlowView({
       setPhase('done');
     }
   };
+
+  /**
+   * 「保存并继续」的接续（2026-10-12 用户实测死路）：
+   * 在内联表单里配好模型接口后，旧实现只保存配置，用户还要自己找到「重新提取方法字段」再点一次；
+   * 而直接在点击处理里调 start/retryExtract 会拿到**保存前**的闭包（modelReady 还是 false），
+   * 提取立刻以「未配置模型」失败。所以保存后只置一个标记，等 modelReady 变真（父组件重渲染）
+   * 再由 effect 用最新闭包接着跑。
+   */
+  const [resumeTick, setResumeTick] = useState(0);
+  useEffect(() => {
+    if (resumeTick === 0 || !modelReady || running) return;
+    setResumeTick(0);
+    if (phase === 'idle' && queue.some((x) => !x.result)) void start();
+    else if (retryPapers.length) void retryExtract();
+    else void start();
+  }, [resumeTick, modelReady, running]);
 
   const overview: { no: string; name: string; state: StepState; result: string }[] = (() => {
     const anyUploaded = stagePapers.length > 0;
@@ -454,7 +500,12 @@ export function UploadFlowView({
                   <input className="w-full border border-[var(--line-2)] rounded-[8px] px-3 py-2 text-sm bg-white" type="password" value={draft.apiKey} onChange={(e) => setDraft({ ...draft, apiKey: e.target.value })} placeholder="sk-…" />
                 </div>
                 <div className="flex items-center gap-3 flex-wrap">
-                  <button className="btn-primary" onClick={() => onSaveConfig(draft)}>
+                  <button className="btn-primary" onClick={async () => {
+                    /* 保存后接着跑（resumeTick → effect 等 modelReady 变真再用最新闭包接续），
+                       不要让用户保存完再自己去找提取按钮（2026-10-12 用户实测死路） */
+                    await onSaveConfig(draft);
+                    setResumeTick((t) => t + 1);
+                  }}>
                     保存并继续
                   </button>
                   <button className="btn-ghost" onClick={() => onTest(draft)} disabled={testing}>
@@ -510,18 +561,24 @@ export function UploadFlowView({
               <div className="pt-6 border-t border-[var(--line)] space-y-4">
                 {/* 分析结束后主按钮必须给出**真实的下一步**：
                     有成果 → 进入研究地图（onEnterMap 此前已传入但漏接，导致「分析完成」是禁用死端）；
-                    没成果 → 重跑提取（不重新解析、不重复消耗解析额度）。 */}
+                    没成果 → 提取/重跑提取（不重新解析、不重复消耗解析额度）。
+                    2026-10-12 用户实测：没配模型时文件解析完就卡住，只剩一个「重新提取方法字段」，
+                    点了还是失败；队列为空但库里有没提取的论文时按钮直接禁用。现在这两种都有真实出路。 */}
                 <button
                   className={`w-full disabled:opacity-50 disabled:cursor-not-allowed ${phase === 'done' ? 'btn-primary is-done' : 'btn-primary'}`}
-                  disabled={running || (phase === 'idle' && !queue.some((x) => !x.result)) || (phase === 'done' && !doneNav && retryPapers.length === 0)}
+                  disabled={running || nothingToDo || blockedNoModel}
                   onClick={() => {
                     if (running) return;
-                    if (phase === 'done') {
-                      if (doneNav) onEnterMap();
-                      else void retryExtract();
-                    } else {
-                      void start();
+                    if (canNav) {
+                      onEnterMap();
+                      return;
                     }
+                    if (phase === 'idle' && hasNewFiles) {
+                      void start();
+                      return;
+                    }
+                    if (retryPapers.length) void retryExtract();
+                    else void start();
                   }}
                 >
                   {running ? (
@@ -529,17 +586,28 @@ export function UploadFlowView({
                       <DraftIcon name="loader-2" className="animate-spin mr-2" />
                       分析中...
                     </>
-                  ) : phase === 'done' ? (
-                    doneNav ? (
-                      '进入研究地图 →'
-                    ) : (
+                  ) : canNav ? (
+                    '进入研究地图 →'
+                  ) : phase === 'idle' && hasNewFiles ? (
+                    '开始梳理脉络'
+                  ) : retryPapers.length > 0 || pendingPapers.length > 0 ? (
+                    extractedCount > 0 ? (
                       '重新提取方法字段'
+                    ) : (
+                      /* 一篇都没提取过时不能说「重新」——用户会以为已经提过了 */
+                      '提取方法字段'
                     )
                   ) : (
+                    /* 什么都没得干（空队列 + 库里没有待提取论文）：保持初始文案，按钮禁用 */
                     '开始梳理脉络'
                   )}
                 </button>
-                {phase === 'done' && doneNav && retryPapers.length > 0 && (
+                {blockedNoModel && (
+                  <p className="text-xs text-[var(--warn)] text-center">
+                    还没有配置模型接口，提取无法进行——在下方表单填好并保存，或到「设置」页配置。
+                  </p>
+                )}
+                {canNav && retryPapers.length > 0 && (
                   <button className="btn-ghost w-full" disabled={running} onClick={() => void retryExtract()}>
                     {`还有 ${retryPapers.length} 篇未完成提取，重试`}
                   </button>

@@ -44,6 +44,8 @@ interface Props {
   onReloadCase: () => void;
   /** 返回论文集合（简短面包屑用） */
   onGoLibrary?: () => void;
+  /** 去设置页配置模型接口（地图空状态引导用：没配模型时提取无法进行） */
+  onGoSettings?: () => void;
   /**
    * 从顶栏「目录」再次点进研究地图时递增。
    * 三个子视图是同一页面的内部状态：不重置的话会出现「点了研究地图却还停在某个子视图」，
@@ -83,6 +85,7 @@ export function MapView({
   onSwitchCase,
   onReloadCase,
   onGoLibrary,
+  onGoSettings,
   resetSignal = 0,
 }: Props) {
   const [sub, setSub] = useState<SubView>('map');
@@ -451,6 +454,44 @@ export function MapView({
               <button className="btn" onClick={onAddPapers}>
                 上传我的论文
               </button>
+            </div>
+          </div>
+        </div>
+      ) : view.methods.length === 0 ? (
+        /* 有论文但一篇都没提取字段：旧实现直接进地图画布，用户看到的是一片空白 +
+           「点击地图中的节点」，可图上一个节点都没有——等于把用户晾在死路上（2026-10-12 实测）。
+           这里把「为什么空、下一步点什么」如实说清楚。 */
+        <div className="mapwork" style={{ display: 'grid', placeItems: 'center' }}>
+          <div style={{ textAlign: 'center', padding: 24, maxWidth: 560 }}>
+            <p style={{ margin: '0 0 10px', color: 'var(--fg-2)', fontWeight: 600 }}>
+              这 {view.count} 篇论文还没有提取方法字段，地图暂时是空的。
+            </p>
+            <p style={{ margin: '0 0 16px', color: 'var(--fg-3)', fontSize: 14, lineHeight: 1.7 }}>
+              方法地图画的是「每篇论文提炼出的方法与它们之间的关系」——这两样都要先做一次分析才会出现。
+              节点和连线不会凭年份或关键词自动生成。
+            </p>
+            <div className="row" style={{ justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
+              {modelReady ? (
+                <button className="btn primary" onClick={onAddPapers}>
+                  去「方法提取」页提取方法字段
+                </button>
+              ) : (
+                <>
+                  <p style={{ flex: '1 1 100%', margin: 0, color: 'var(--warn)', fontSize: 13 }}>
+                    提取需要先配置模型接口（接口地址、密钥、模型名）。密钥只保存在本机浏览器，不会写入任何产物。
+                  </p>
+                  {onGoSettings && (
+                    <button className="btn primary" onClick={onGoSettings}>
+                      去配置模型接口
+                    </button>
+                  )}
+                </>
+              )}
+              {mode === 'case' && (
+                <button className="btn" onClick={onReloadCase} disabled={loading}>
+                  {loading ? '正在加载…' : '重新加载案例'}
+                </button>
+              )}
             </div>
           </div>
         </div>
