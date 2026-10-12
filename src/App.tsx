@@ -435,10 +435,20 @@ export default function App() {
         /**
          * 标题状态必须如实：PDF 首页排版多变，实测会把摘要句抓成标题。
          * 不像标题的一律先标「待确认」，等模型在原文里核验出真标题再改写。
+         *
+         * 2026-10-12 用户实测补充：启发式还会抓到期刊页眉（"JOURNAL OF LATEX CLASS
+         * FILES, VOL. 14, NO. 8, AUGUST 2021"）、作者行（"Charles R. Qi Li Yi Hao Su
+         * Leonidas J. Guibas"）和摘要片段。抓得不像标题时用**文件名**顶上 ——
+         * 用户自己的文件名通常比这些垃圾片段更像标题；依旧标 unverified（界面显示
+         * 「标题待确认」），模型抽取成功后会按原文核验替换。
          */
+        const fileTitle = file.name.replace(/\.pdf$/i, '').trim();
+        const guessOk = looksLikeTitle(outcome.paper.title);
+        const useFileTitle = !guessOk && looksLikeTitle(fileTitle) && fileTitle.length >= 6;
         const paper: Paper = {
           ...outcome.paper,
-          titleFrom: looksLikeTitle(outcome.paper.title) ? 'heuristic' : 'unverified',
+          title: guessOk ? outcome.paper.title : useFileTitle ? fileTitle : outcome.paper.title,
+          titleFrom: guessOk ? 'heuristic' : 'unverified',
         };
         outcome.warnings.forEach((w) => log(`  提示：${w}`));
         if (!outcome.ok) {
@@ -564,11 +574,16 @@ export default function App() {
         log('  重新解析失败：解析器没有返回论文对象。');
         return;
       }
+      // 标题兜底与导入路径一致：猜得不像标题时用文件名顶上，标 unverified（标题待确认）
+      const fileTitle = file.name.replace(/\.pdf$/i, '').trim();
+      const guessOk = looksLikeTitle(outcome.paper.title);
+      const useFileTitle = !guessOk && looksLikeTitle(fileTitle) && fileTitle.length >= 6;
       const next: Paper = {
         ...outcome.paper,
         // 沿用原来的 id，避免同一篇论文出现两条记录（方法/关系的关联也不会断）
         id: target.id,
-        titleFrom: looksLikeTitle(outcome.paper.title) ? 'heuristic' : 'unverified',
+        title: guessOk ? outcome.paper.title : useFileTitle ? fileTitle : outcome.paper.title,
+        titleFrom: guessOk ? 'heuristic' : 'unverified',
       };
       outcome.warnings.forEach((w) => log(`  提示：${w}`));
       if (outcome.ok) {

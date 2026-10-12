@@ -45,7 +45,13 @@ function primaryStatus(p: Paper, m: Method | undefined, job: JobState | undefine
   if (p.parseStatus === 'failed') return { kind: 'bad', text: '解析失败' };
   if (job?.status === 'running') return { kind: 'info', text: '正在等待模型响应' };
   if (job?.status === 'canceled') return { kind: 'pending', text: '已停止等待（未完成）' };
-  if (job?.status === 'failed') return { kind: 'bad', text: '分析失败（未完成）' };
+  if (job?.status === 'failed') {
+    // 2026-10-12 用户实测：只写「分析失败」用户不知道下一步该干什么（密钥？额度？端点？）。
+    // 失败原因截断展示在这里，完整版在「查看报告」与运行日志里。
+    const reason = (job.error || '').replace(/\s+/g, ' ').trim();
+    const short = reason.length > 60 ? reason.slice(0, 60) + '…' : reason;
+    return { kind: 'bad', text: short ? `分析失败：${short}` : '分析失败（未完成）' };
+  }
   if (m) return m.cached ? { kind: 'cached', text: '分析完成 · 缓存结果' } : { kind: 'live', text: '分析完成 · 实时分析' };
   return { kind: 'pending', text: '尚未提取方法字段' };
 }

@@ -352,12 +352,18 @@ export function looksLikeTitle(s: string | undefined): boolean {
   if (t.length < 6 || t.length > 160) return false;
   // 句末标点后还有内容 → 更像句子而不是标题
   if (/[.?!;]\s+[A-Za-z(]/.test(t)) return false;
-  // 以逗号或小写词开头且很长 → 更像从句/摘要
-  if (/^[a-z]/.test(t) && t.length > 60) return false;
+  // 以小写词开头：真标题极少小写开头，且通常很短；长的小写开头句基本都是摘要片段
+  // （实测 "learning framework named Continual 3D Anomaly Detection" 就是这么混进来的）
+  if (/^[a-z]/.test(t) && t.length > 40) return false;
   // 词数过多
   if (t.split(/\s+/).length > 22) return false;
   // 常见的摘要/正文起始词
   if (/^(we |this |in this |our |the last |however|abstract)/i.test(t) && t.length > 40) return false;
+  // 期刊/模板页眉（arXiv 旧模板的 "JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021" 实测被当成标题）
+  if (/^(journal of|proceedings of|transactions on|ieee|acm\b|preprint|submitted to|to appear in|manuscript|technical report)/i.test(t)) return false;
+  if (/\b(VOL|NO|ISSUE)\.\s*\d/i.test(t)) return false;
+  // 机构行（"YONGBIN SUN, Massachusetts Institute of Technology" 实测被当成标题）
+  if (/\b(university|institute|laborator|department|academy|college)\b/i.test(t) && t.split(/\s+/).length <= 12) return false;
   return true;
 }
 

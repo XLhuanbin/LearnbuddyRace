@@ -352,14 +352,28 @@ export function UploadFlowView({
     const r = q.result;
     if (!r) return { text: '等待分析', cls: 'text-[var(--fg-3)]' };
     if (r.error) return { text: `异常：${r.error}`, cls: 'text-red-600' };
-    if (r.skipped) return { text: r.skipped, cls: 'text-[var(--fg-3)]' };
-    const p = r.paper;
-    if (!p) return { text: '未入库', cls: 'text-red-600' };
+    /**
+     * 重复跳过的文件：导入侧确实无事可做，但**分析状态必须看论文本身**。
+     * 旧实现在这里直接返回「已跳过（不重复消耗额度）」就不再往下看 —— 用户会以为这篇已经
+     * 提取过了，而论文集合里它可能还是「未提取 / 分析失败」（2026-10-12 用户实测的矛盾：
+     * 上传页显示已处理、论文集合显示全部分析失败）。跳过信息只作为补充说明。
+     */
+    const p = resolvePaper(r);
+    if (!p) return { text: r.skipped || '未入库', cls: r.skipped ? 'text-[var(--fg-3)]' : 'text-red-600' };
     if (p.parseStatus === 'failed') return { text: `解析失败：${p.parseError || '未知原因'}`, cls: 'text-red-600' };
     const job = jobs[p.id];
     if (job?.status === 'running') return { text: `提取中：${job.message || '等待模型响应'}`, cls: 'text-[var(--accent)]' };
-    if (methods.some((m) => m.paperId === p.id)) return { text: '已完成：字段与证据已生成', cls: 'text-emerald-700' };
-    if (job?.status === 'failed') return { text: `提取失败：${job.error || '模型调用失败'}`, cls: 'text-red-600' };
+    if (methods.some((m) => m.paperId === p.id)) {
+      return {
+        text: r.skipped ? '已完成：字段与证据已生成（重复文件，未重复消耗额度）' : '已完成：字段与证据已生成',
+        cls: 'text-emerald-700',
+      };
+    }
+    if (job?.status === 'failed') {
+      const reason = (job.error || '模型调用失败').replace(/\s+/g, ' ');
+      return { text: `提取失败：${reason.length > 90 ? reason.slice(0, 90) + '…' : reason}`, cls: 'text-red-600' };
+    }
+    if (r.skipped) return { text: '与已入库论文重复；该篇尚未提取，点上方按钮提取', cls: 'text-[var(--fg-3)]' };
     return { text: modelReady ? '已解析，等待提取' : '已解析；未配置模型，不会产生替代结果', cls: 'text-[var(--fg-3)]' };
   };
 

@@ -3,6 +3,7 @@
  */
 
 import type { PageText } from '../types';
+import { looksLikeTitle } from '../rules';
 
 export interface AssembleResult {
   pages: PageText[];
@@ -44,7 +45,24 @@ const ARXIV_RE = /arxiv[:\s]*([0-9]{4}\.[0-9]{4,5})(v\d+)?/i;
 const ARXIV_OLD_RE = /arxiv[:\s]*([a-z-]+(?:\.[A-Z]{2})?\/[0-9]{7})(v\d+)?/i;
 /** arXiv 页脚的 "Preprint. Under review." 等噪声行 */
 const NOISE_RE =
-  /^(preprint|under review|published as|accepted at|conference paper|workshop|doi:|copyright|all rights reserved|provided proper attribution)/i;
+  /^(preprint|under review|published as|accepted at|conference paper|workshop|doi:|copyright|all rights reserved|provided proper attribution|permission|licensed under|creative commons|corresponding|contact)/i;
+/** 以 ©/® 或引用标记开头的版权行 */
+const COPYRIGHT_LINE_RE = /^[©®™(]?\s*(©|\(c\)|copyright)/i;
+/**
+ * 期刊/模板页眉与机构行（2026-10-12 用户实测的坏标题来源）：
+ * - "JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2021"（arXiv 旧模板页眉）
+ * - "Proceedings of the IEEE" / "In Proceedings of ..."（venue 行）
+ * - "Massachusetts Institute of Technology"（标题下方的机构行）
+ */
+const TEMPLATE_HEADER_RE =
+  /^(journal of|proceedings of|in proceedings|transactions on|ieee|acm\b|preprint|submitted to|to appear in|manuscript|technical report)/i;
+const VOLUME_RE = /\b(VOL|VOLUME|NO|ISSUE|PP)\.\s*\d/i;
+const AFFILIATION_RE = /\b(university|institute|laborator|department|dept\.|academy|college|school of|research cent|research group|inc\.|ltd\.|corporation)\b/i;
+/** 章节标题行（"1 Introduction" / "Related Work"）：不能当论文标题 */
+const SECTION_HEADER_RE =
+  /^\d+(\.\d+)*[\.\:\s]/;
+const SECTION_WORD_RE =
+  /^(abstract|introduction|related work|background|methods?|approach|experiments?|results?|discussion|conclusions?|references|acknowledg(e)?ments?|appendix|overview|motivation|preliminaries|contents|keywords|index terms)\b/i;
 /** 标题续行的常见起始词：只有以这些词或小写字母开头的行才可能是标题的延续 */
 const CONTINUATION_START_RE =
   /^(a|an|the|of|for|with|without|and|or|in|on|at|to|from|by|toward|towards|is|are|via|using|based|machine|deep|neural)\b/i;
@@ -76,6 +94,25 @@ function looksLikeAuthorLine(line: string): boolean {
 }
 
 /**
+ * 空格分隔的作者行（无逗号）—— "Charles R. Qi∗ Hao Su∗ Kaichun Mo Leonidas J. Guibas"
+ * 实测被当成标题（PointNet 首页）。判据：所有 token 都是人名/中间名缩写，且带有
+ * 中间名缩写（"R."）或作者标记（∗/†/‡）—— 二者必须占其一。
+ * ⚠️ 不能只凭「全是首字母大写词」判断：实测 "Denoising Diffusion Probabilistic Models"
+ * 这种全首字母大写的真标题会被误杀（2026-10-12 verify:import 抓到的回归）。
+ */
+function looksLikeSpaceSeparatedAuthors(line: string): boolean {
+  const cleaned = line.replace(/[∗*†‡§¶]/g, ' ').replace(/\s+/g, ' ').trim();
+  const tokens = cleaned.split(' ').filter(Boolean);
+  if (tokens.length < 3) return false;
+  const nameLike = (t: string) => /^[A-Z][A-Za-z'\-]{1,20}$/.test(t) || /^[A-Z]\.?$/.test(t);
+  const surnameLike = (t: string) => /^[A-Z][a-z]{2,}$/.test(t);
+  if (!tokens.every(nameLike)) return false;
+  if (tokens.filter(surnameLike).length < 3) return false;
+  // 必须有中间名缩写或作者标记（原行里有 ∗/† 时 cleaned 已抹掉，回退查原行）
+  return /\b[A-Z]\./.test(cleaned) || /[∗*†‡§¶]/.test(line);
+}
+
+/**
  * 从首页文本启发式猜测标题/作者/年份/arXiv ID。
  * 只做「有把握的直接读取」，不确定就留空，不猜测。
  */
@@ -103,38 +140,54 @@ export function guessPdfMeta(firstPageText: string): PdfMetaGuess {
     .map((l) => l.trim())
     .filter((l) => l.length > 0);
 
-  // 标题：从顶部开始找，跳过噪声行；标题通常是前若干行中被大写/位数达标的长行
+  // 标题：从顶部开始找，跳过噪声行。**位置优先**——首页第一条像样的行通常就是标题；
+  // 不再用「大写占比 / 关键词」当门槛（实测会把 Title Case 的真标题漏掉，
+  // 转而放过摘要句），改为一律拼上可能的续行后过 looksLikeTitle 整句校验。
   for (let i = 0; i < Math.min(lines.length, 40); i++) {
     const line = lines[i];
-    if (NOISE_RE.test(line)) continue;
-    if (line.length < 12 || line.length > 250) continue;
+    if (NOISE_RE.test(line) || COPYRIGHT_LINE_RE.test(line)) continue;
+    if (TEMPLATE_HEADER_RE.test(line)) continue;
+    if (VOLUME_RE.test(line)) continue;
+    if (AFFILIATION_RE.test(line)) continue;
+    if (SECTION_HEADER_RE.test(line) || (SECTION_WORD_RE.test(line) && line.length < 40)) continue;
+    if (line.length < 10 || line.length > 250) continue;
     if (/^arxiv/i.test(line)) continue;
     if (/^[0-9\s.]+$/.test(line)) continue;
     if (/@/.test(line)) continue;
+    if (/^https?:/i.test(line)) continue;
     // arXiv 页边竖排水印会把标题切成单字符行，跳过过短行
     const words = line.split(/\s+/);
-    if (words.length < 3) continue;
-    const capsRatio = line.replace(/[^A-Za-z]/g, '').length
-      ? (line.match(/[A-Z]/g) || []).length / line.replace(/[^A-Za-z]/g, '').length
-      : 0;
-    const titleLike =
-      capsRatio > 0.25 ||
-      /^(toward|towards|a |an |the |on |learning|deep|attention|bert|exploring|scaling|efficient|improving|rethinking|understanding|language|neural)/i.test(line);
-    if (!titleLike) continue;
+    if (words.length < 2) continue;
     if (looksLikeAuthorLine(line)) continue;
+    if (looksLikeSpaceSeparatedAuthors(line)) continue;
     // 标题可能跨行延续：仅当下一行以小写字母或功能词开头、且不像作者行时才拼接，
     // 避免把 "Attention Is All You Need" 后面的 "Ashish Vaswani" 误并进标题。
+    // 拼上之后还必须**仍然像标题**，否则不拼（实测 "Point Transformer" 后面跟着的
+    // 小写行会被硬粘上来）。
     let title = line;
     for (let j = i + 1; j < Math.min(lines.length, i + 3); j++) {
       const next = lines[j];
       if (next.length < 4) break;
-      if (NOISE_RE.test(next) || /@/.test(next) || looksLikeAuthorLine(next)) break;
+      if (NOISE_RE.test(next) || COPYRIGHT_LINE_RE.test(next) || /@/.test(next) || looksLikeAuthorLine(next)) break;
       if (/^abstract/i.test(next)) break;
-      const continuation = /^[a-z]/.test(next) || CONTINUATION_START_RE.test(next);
+      if (TEMPLATE_HEADER_RE.test(next) || AFFILIATION_RE.test(next) || looksLikeSpaceSeparatedAuthors(next)) break;
+      if (/^(keywords|index terms|categories|subject classes|general terms)/i.test(next)) break;
+      // 当前标题以功能词结尾（"…Learning on"）时，下一行即使大写开头也很可能是续行
+      // （实测 PointNet++ 的标题被截断成 "PointNet++: Deep Hierarchical Feature Learning on"）
+      const endsWithFunctionWord = /\b(a|an|the|of|for|with|without|and|or|in|on|at|to|from|by|via|using|based|toward|towards|is|are)$/i.test(title);
+      const continuation = /^[a-z]/.test(next) || CONTINUATION_START_RE.test(next) || (endsWithFunctionWord && /^[A-Z]/.test(next));
       if (!continuation) break;
-      title += ' ' + next;
+      const merged = `${title} ${next}`.replace(/\s+/g, ' ');
+      if (!looksLikeTitle(merged)) break;
+      title = merged;
     }
-    out.title = title.replace(/\s+/g, ' ').slice(0, 250);
+    const candidate = title.replace(/\s+/g, ' ').slice(0, 250);
+    /**
+     * 拼完必须过整句校验（2026-10-12 用户实测：摘要句 "an adaptive geometry-aware masked
+     * attention mod- ule …" 被当成标题）。不像标题就继续找下一行，不将就。
+     */
+    if (!looksLikeTitle(candidate)) continue;
+    out.title = candidate;
     break;
   }
 
