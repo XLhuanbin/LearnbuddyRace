@@ -29,6 +29,13 @@ interface Props {
   /** 停止等待正在生成的阅读路线（只停止本地等待） */
   onCancelGenerate?: () => void;
   /**
+   * 两个「大入口」（2026-10-12 动线）：研究地图 → 跨论文比较 / 阅读路线。
+   * 注意与 `onOpenRelations`（地图内部的「关系与比较」子视图）是两回事——
+   * 这里去的是目录里独立的「跨论文比较」页与「阅读路线」页。
+   */
+  onGoCompare?: () => void;
+  onGoDecision?: () => void;
+  /**
    * 发起一次关系分析（真实模型调用）。地图空状态与「关系与比较」页的直接入口 ——
    * 2026-10-12 用户实测：此前只有目录里的「方法关系图」页有按钮，
    * 在地图上看到「没有关系」时找不到下一步。
@@ -77,6 +84,8 @@ export function MapView({
   onModeChange,
   onGenerate,
   onCancelGenerate,
+  onGoCompare,
+  onGoDecision,
   onAnalyzeRelations,
   relationBusy = false,
   onOpenEvidence,
@@ -351,6 +360,19 @@ export function MapView({
           </div>
 
           <div className="maphead-links">
+            {/* 动线（2026-10-12）：研究地图的两个「大入口」——跨论文比较与阅读路线。
+                都是完整页面（可从顶栏返回研究地图），与地图内部的「关系与比较」子视图不同。
+                样式用普通 btn 而非实心主按钮：首屏实心主按钮 ≤ 1 是布局约束，入口的显著性靠位置与文字。 */}
+            {onGoCompare && (
+              <button className="btn sm" onClick={onGoCompare} disabled={!view.methods.length}>
+                跨论文比较 →
+              </button>
+            )}
+            {onGoDecision && (
+              <button className="btn sm" onClick={onGoDecision}>
+                阅读路线 →
+              </button>
+            )}
             {/* 与「阅读起点」视图同名，避免出现两个相似但不同的说法 */}
             <button className="linkbtn" onClick={() => setSub('start')}>
               阅读起点 →

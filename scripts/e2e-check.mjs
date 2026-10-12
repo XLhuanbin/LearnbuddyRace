@@ -667,9 +667,11 @@ fetch([...document.scripts].find((s) => /app.*\\.js/.test(s.src)).src).then((r) 
 (() => {
   const t = (document.body.innerText || '');
   const homeLink = !!document.querySelector('.mapbrand .logo');
-  return homeLink && ['目录', '返回论文集合'].every((x) => t.includes(x));
+  // 2026-10-12 动线：返回链接按页面显示「返回上一级」（提取→集合→地图→比较/路线→待调查），
+  // 文案随页面变化，断言保护的是「目录 + 返回链接在窄屏下仍然可见」这个不变量
+  return homeLink && t.includes('目录') && /返回/.test(t);
 })()`);
-  check('窄屏下功能入口仍然可见（品牌回首页 + 论文集合 + 研究地图 + 更多）', navVisible);
+  check('窄屏下功能入口仍然可见（品牌回首页 + 目录 + 返回上一级）', navVisible);
   await cdp.send('Emulation.clearDeviceMetricsOverride');
   await sleep(400);
 

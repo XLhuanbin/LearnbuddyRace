@@ -95,6 +95,24 @@ type Tab =
   | 'future';
 
 /**
+ * 动线返回链（2026-10-12 用户要求：每个页面都有「返回上一级」，不是所有页都回论文集合）。
+ *
+ * 层级：方法提取 → 论文集合 → 研究地图 →（跨论文比较 | 阅读路线）→ 待调查问题。
+ * 顶栏右上角的返回链接按当前页取这里；没有登记的页面保持「返回论文集合」。
+ */
+const BACK_OF: Partial<Record<Tab, [string, Tab]>> = {
+  upload: ['返回论文集合', 'library'],
+  library: ['返回方法提取', 'upload'],
+  map: ['返回论文集合', 'library'],
+  graph: ['返回研究地图', 'map'],
+  compare: ['返回研究地图', 'map'],
+  decision: ['返回研究地图', 'map'],
+  divergence: ['返回阅读路线', 'decision'],
+  result: ['返回论文集合', 'library'],
+  experiments: ['返回论文集合', 'library'],
+};
+
+/**
  * 逐文件的导入结果（2026-10-10）。
  * 草稿的「待处理队列」是按**文件**展示的（文件卡：图标 + 文件名 + 大小 • PDF + 删除），
  * 所以底层要把「这次提交的每个文件」和「它的真实结果」对上，界面才能按文件如实显示状态。
@@ -1488,7 +1506,11 @@ export default function App() {
         active={tab}
         onHome={() => setTab('landing')}
         onGo={goTab}
-        onBack={() => setTab('library')}
+        onBack={() => {
+          const back = BACK_OF[tab];
+          if (back) setTab(back[1]);
+        }}
+        backLabel={BACK_OF[tab]?.[0]}
       />
 
       <div className={`app-body${tab === 'map' ? ' mapbody' : ''}`}>
@@ -1595,6 +1617,9 @@ export default function App() {
               onAnalyzeRelations={genRelations}
               relationBusy={relationBusy}
               onGoSettings={() => setTab('settings')}
+              /* 动线（2026-10-12）：研究地图的两个大入口 —— 跨论文比较 / 阅读路线（完整页面，可从顶栏返回） */
+              onGoCompare={() => setTab('compare')}
+              onGoDecision={() => setTab('decision')}
               onOpenEvidence={(ev) => openEvidence(ev, '原文依据', papers.find((x) => x.id === ev.paperId))}
               onAddPapers={() => setTab('upload')}
               onGoLibrary={() => setTab('library')}
@@ -1635,7 +1660,8 @@ export default function App() {
               /* 草稿的前端逻辑：先攒文件 → 点「开始梳理脉络」一次性分析（解析 + 抽取） */
               onAnalyze={analyzeFiles}
               onPaste={importPaste}
-              onEnterMap={() => setTab('map')}
+              /* 动线（2026-10-12）：方法提取 → 论文集合 → 研究地图 */
+              onGoNext={() => setTab('library')}
               /* 本轮分析结束但没有生成方法框架时的重试出口（逐篇重跑提取，不重新解析）。
                  重试抽出新方法后同样自动接一次关系分析（与批量路径一致）。 */
               onExtract={async (paperId: string, force = false) => {

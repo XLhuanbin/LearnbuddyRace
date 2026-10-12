@@ -22,7 +22,8 @@ interface Props {
   onPaste?: (title: string, text: string) => void;
   /** 草稿的前端逻辑：把攒好的文件一次性交给底层分析（导入解析 → 已配置模型时逐篇抽取），返回逐文件结果 */
   onAnalyze: (files: File[]) => Promise<ImportResult[]>;
-  onEnterMap: () => void;
+  /** 梳理完成后的下一站（2026-10-12 动线：方法提取 → 论文集合 → 研究地图） */
+  onGoNext: () => void;
   /** 对单篇论文重跑「提取方法字段」——用于本轮分析结束但没有生成任何方法框架时的重试 */
   onExtract: (paperId: string) => Promise<unknown>;
   /** 关系分析是否正在进行（梳理完成后的自动步骤，界面上如实显示） */
@@ -89,7 +90,7 @@ function stepsOf(p: Paper, m: Method | undefined, job: JobState | undefined, mod
       state: hasMethod ? (verified > 0 ? 'done' : 'waiting') : 'waiting',
       result: hasMethod ? (verified > 0 ? `${verified}/7 个字段的引文已通过全文定位校验` : '没有字段通过定位校验') : '等待方法字段',
     },
-    { no: '05', name: '进入研究地图', state: hasMethod ? 'done' : 'waiting', result: hasMethod ? '可以进入研究地图' : '需要先完成方法字段提取' },
+      { no: '05', name: '进入论文集合', state: hasMethod ? 'done' : 'waiting', result: hasMethod ? '可以在论文集合里查看与继续' : '需要先完成方法字段提取' },
   ];
 }
 
@@ -134,7 +135,7 @@ export function UploadFlowView({
   testing,
   testResult,
   onAnalyze,
-  onEnterMap,
+  onGoNext,
   onExtract,
   relationBusy = false,
   relationCount = 0,
@@ -236,14 +237,14 @@ export function UploadFlowView({
   const retryPapers = queue
     .map((x) => resolvePaper(x.result))
     .filter((p): p is Paper => !!p && p.parseStatus === 'ok' && !hasMethod(p));
-  /** done 态能否给「进入研究地图」：本轮涉及的论文里至少一篇已有方法框架 */
+  /** done 态能否给「进入论文集合」：本轮涉及的论文里至少一篇已有方法框架 */
   const doneNav = queue.length > 0 && queue.every((x) => x.result) && extractedCount > 0;
   /** 库里解析成功但还没有方法框架的论文（不管是不是本轮传的）—— 主按钮要对它们可用 */
   const pendingPapers = papers.filter((p) => p.parseStatus === 'ok' && !hasMethod(p));
   /**
    * 主按钮的派生状态（2026-10-12 用户实测死路后重排）：
    * - hasNewFiles：队列里还有没跑过的文件（导入+解析+提取）
-   * - canNav：本轮已有成果 → 主按钮就是「进入研究地图」（不看 phase：重复选择队列里已完成的
+   * - canNav：本轮已有成果 → 主按钮就是「进入论文集合」（不看 phase：重复选择队列里已完成的
    *   文件时 phase 会被重置为 idle，但事事已做完，不该显示禁着的「开始梳理脉络」）
    * - nothingToDo / blockedNoModel：点了也做不了事的两种原因（没活干 / 没配模型）
    */
@@ -318,7 +319,7 @@ export function UploadFlowView({
               ? '字段抽完后自动进行'
               : '需要至少 2 篇已抽取',
       },
-      { no: '06', name: '进入研究地图', state: anyMethod ? 'done' : 'waiting', result: anyMethod ? '可以进入' : '需先完成提取' },
+        { no: '06', name: '进入论文集合', state: anyMethod ? 'done' : 'waiting', result: anyMethod ? '可以进入' : '需先完成提取' },
     ];
   })();
 
@@ -574,7 +575,7 @@ export function UploadFlowView({
               </div>
               <div className="pt-6 border-t border-[var(--line)] space-y-4">
                 {/* 分析结束后主按钮必须给出**真实的下一步**：
-                    有成果 → 进入研究地图（onEnterMap 此前已传入但漏接，导致「分析完成」是禁用死端）；
+                    有成果 → 进入论文集合（2026-10-12 动线：提取 → 集合 → 地图）；
                     没成果 → 提取/重跑提取（不重新解析、不重复消耗解析额度）。
                     2026-10-12 用户实测：没配模型时文件解析完就卡住，只剩一个「重新提取方法字段」，
                     点了还是失败；队列为空但库里有没提取的论文时按钮直接禁用。现在这两种都有真实出路。 */}
@@ -584,7 +585,7 @@ export function UploadFlowView({
                   onClick={() => {
                     if (running) return;
                     if (canNav) {
-                      onEnterMap();
+                      onGoNext();
                       return;
                     }
                     if (phase === 'idle' && hasNewFiles) {
@@ -601,7 +602,7 @@ export function UploadFlowView({
                       分析中...
                     </>
                   ) : canNav ? (
-                    '进入研究地图 →'
+                    '进入论文集合 →'
                   ) : phase === 'idle' && hasNewFiles ? (
                     '开始梳理脉络'
                   ) : retryPapers.length > 0 || pendingPapers.length > 0 ? (

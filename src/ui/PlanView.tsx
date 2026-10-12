@@ -52,8 +52,8 @@ export function DecisionView({
   onUseSample: () => void;
   sampleProfile?: UserProfile;
   onOpenEvidence: (e: Evidence, label: string, paper?: Paper) => void;
-  /** 打开论文集合 / 研究地图 */
-  onGo: (t: 'library' | 'map') => void;
+  /** 打开论文集合 / 研究地图 / 待调查问题（2026-10-12 动线：阅读路线 → 待调查问题） */
+  onGo: (t: 'library' | 'map' | 'divergence') => void;
   /** 打开某一篇（跳到论文集合并聚焦） */
   onOpenPaper: (paperId: string) => void;
 }) {
@@ -748,6 +748,11 @@ export function DecisionView({
             >
               <DraftIcon name="file-down" />
               导出路线（Markdown）
+            </button>
+            {/* 动线（2026-10-12）：阅读路线 → 待调查问题 */}
+            <button className="btn-outline flex items-center gap-2" onClick={() => onGo('divergence')}>
+              <DraftIcon name="arrow-right" />
+              待调查问题 →
             </button>
             <button className="btn-outline flex items-center gap-2" onClick={() => onGo('library')}>
               <DraftIcon name="arrow-left" />

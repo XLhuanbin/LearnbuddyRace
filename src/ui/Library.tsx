@@ -300,6 +300,11 @@ export function LibraryView({
             <h1 className="text-4xl font-serif font-bold tracking-tight">论文集合</h1>
           </div>
           <div className="flex gap-3">
+            {/* 动线（2026-10-12）：方法提取 → 论文集合 → 研究地图 —— 集合是去地图的必经站，入口放页头 */}
+            <button className="btn-primary" onClick={onGoMap} disabled={!visiblePapers.length}>
+              <DraftIcon name="map" />
+              进入研究地图
+            </button>
             <button className="btn-outline" onClick={onGoCompare} disabled={!visiblePapers.length}>
               <DraftIcon name="layers" />
               跨论文比较
@@ -308,7 +313,7 @@ export function LibraryView({
               <DraftIcon name="map-pin" />
               生成阅读路线
             </button>
-            <button className="btn-primary" onClick={() => fileRef.current?.click()}>
+            <button className="btn-outline" onClick={() => fileRef.current?.click()}>
               <DraftIcon name="upload" />
               上传新论文
             </button>

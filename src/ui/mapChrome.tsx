@@ -65,6 +65,7 @@ export function AppBrandBar({
   onHome,
   onGo,
   onBack,
+  backLabel = '返回论文集合',
 }: {
   corpusLabel: string;
   fontsReady: boolean;
@@ -75,6 +76,11 @@ export function AppBrandBar({
   onHome: () => void;
   onGo: (tab: string) => void;
   onBack: () => void;
+  /**
+   * 返回链接的文字（2026-10-12 动线：每个页面「返回上一级」，不是所有页都回论文集合）。
+   * 层级：方法提取 → 论文集合 → 研究地图 → 跨论文比较 / 阅读路线 → 待调查问题。
+   */
+  backLabel?: string;
 }) {
   const [dirOpen, setDirOpen] = React.useState(false);
   const wrapRef = React.useRef<HTMLDivElement>(null);
@@ -185,7 +191,7 @@ export function AppBrandBar({
         <>
           <span className="casename">{corpusLabel}</span>
           <button className="linkbtn" onClick={onBack}>
-            返回论文集合
+            {backLabel}
           </button>
         </>
       )}
