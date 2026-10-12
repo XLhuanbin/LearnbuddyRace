@@ -1070,6 +1070,31 @@ export default function App() {
     return produced;
   };
 
+  /**
+   * 就地批量提取（论文集合页用，2026-10-12 用户需求）。
+   *
+   * 用户原话：「论文集合里一堆未提取的，要去提取页重新放一遍文件再点提取，太麻烦」。
+   * 论文已经在库里了，就该在列表上就地抽。逐篇串行（不并发，避免打爆用户自配的接口
+   * —— 实测连续重试会被限流），抽出新方法后与「梳理」一样自动接一次关系分析。
+   * 已经有方法框架的会被 extract 内部跳过（保留人工修正），不会重复消耗额度。
+   */
+  const extractMany = async (list: Paper[]) => {
+    if (!modelReady) {
+      log('批量提取中止：未配置模型接口。');
+      return;
+    }
+    const todo = list.filter((p) => p.parseStatus === 'ok');
+    if (!todo.length) return;
+    log(`开始提取 ${todo.length} 篇论文的方法字段（逐篇串行）…`);
+    let extracted = 0;
+    for (const p of todo) {
+      const m = await extract(p.id, false, p);
+      if (m) extracted += 1;
+    }
+    log(`批量提取结束：本次抽出 ${extracted} 篇，${todo.length - extracted} 篇跳过或失败（失败原因见各自的状态与日志）。`);
+    if (extracted > 0) setRelationsAutoTick((t) => t + 1);
+  };
+
   const overrideField = async (paperId: string, field: FieldKey, value: string) => {
     const m = methods.find((x) => x.paperId === paperId);
     if (!m) return;
@@ -1742,6 +1767,8 @@ export default function App() {
               onImport={importFiles}
               onPaste={importPaste}
               onExtract={extract}
+              /* 就地批量提取：论文已经在库里，不必回提取页重新加一遍文件（2026-10-12 用户需求） */
+              onExtractMany={extractMany}
               onCancel={cancelExtract}
               onRemove={removePaper}
               onRestore={restorePaper}

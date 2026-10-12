@@ -107,6 +107,7 @@ export function LibraryView({
   onImport,
   onPaste,
   onExtract,
+  onExtractMany,
   onReparse,
   canReparseInPlace,
   onCancel,
@@ -145,6 +146,11 @@ export function LibraryView({
   onImport: (files: FileList) => void;
   onPaste: (title: string, text: string) => void;
   onExtract: (paperId: string, force?: boolean) => void;
+  /**
+   * 就地批量提取（2026-10-12 用户需求）：对给定的论文逐篇抽取方法字段。
+   * 论文集合页不该让用户「再回提取页重新放一遍文件」才能提取。
+   */
+  onExtractMany: (list: Paper[]) => Promise<void>;
   /** 重新解析 PDF：真正重跑解析（必要时请用户重新选一次文件），不是模型抽取 */
   onReparse: (paperId: string) => void;
   /** 这份 PDF 现在能否直接重解析（文件还在本次会话的内存里） */
@@ -255,6 +261,16 @@ export function LibraryView({
 
   /** 全选：只作用于当前筛选出来的行（真实多选，不是装饰） */
   const visibleIds = rows.map((p) => p.id);
+
+  /**
+   * 待提取的论文：解析成功但还没有方法框架（含抽取失败的可重试）。
+   * 2026-10-12 用户需求：就在列表上给入口，不必回「方法提取」页重新加一遍文件。
+   */
+  const needsExtract = (p: Paper) => p.parseStatus === 'ok' && !methodByPaper.has(p.id);
+  const extractableRows = rows.filter(needsExtract);
+  const selectedExtractable = rows.filter((p) => selected.has(p.id) && needsExtract(p));
+  /** 有抽取在跑时不再叠加新的请求（串行执行，避免并发打爆用户自配的接口） */
+  const anyExtracting = Object.values(jobs).some((j) => j?.status === 'running');
   const allChecked = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
   const toggleAll = () => {
     setSelected((prev) => {
@@ -368,6 +384,30 @@ export function LibraryView({
                   <option value="all">全部论文</option>
                   <option value="analysed">只看已分析</option>
                 </select>
+                {/* 就地提取入口（2026-10-12 用户需求）：选了就抽选中的，没选就抽列表里全部未提取的。
+                    有抽取在跑时禁用，避免并发叠加把自配接口打到限流。 */}
+                {extractableRows.length > 0 && (
+                  <button
+                    className="btn sm"
+                    disabled={anyExtracting || !modelReady}
+                    title={
+                      !modelReady
+                        ? '需要先在「设置」里配置模型接口'
+                        : anyExtracting
+                          ? '正在提取中，完成后可继续'
+                          : '逐篇调用模型抽取方法字段，已有结果的会跳过'
+                    }
+                    onClick={() => {
+                      void onExtractMany(selectedExtractable.length ? selectedExtractable : extractableRows);
+                    }}
+                  >
+                    {anyExtracting
+                      ? '提取中…'
+                      : selectedExtractable.length
+                        ? `提取选中的 ${selectedExtractable.length} 篇`
+                        : `提取全部未提取的 ${extractableRows.length} 篇`}
+                  </button>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <div className="relative">
@@ -450,6 +490,25 @@ export function LibraryView({
                           <button className="text-[var(--accent)] hover:underline font-bold" onClick={() => onOpenResult(p.id)}>
                             查看报告
                           </button>
+                          {/* 解析成功但还没抽出字段的，行内直接给提取入口（含上次失败的「重新提取」） */}
+                          {needsExtract(p) && (
+                            <button
+                              className="text-[var(--accent)] hover:underline font-bold ml-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
+                              disabled={anyExtracting || !modelReady}
+                              title={
+                                !modelReady
+                                  ? '需要先在「设置」里配置模型接口'
+                                  : anyExtracting
+                                    ? '有论文正在提取，完成后可继续'
+                                    : job?.status === 'failed'
+                                      ? `上次提取失败：${(job.error || '').replace(/\s+/g, ' ').slice(0, 80)}`
+                                      : '用模型从这篇论文的正文里抽取方法字段'
+                              }
+                              onClick={() => void onExtractMany([p])}
+                            >
+                              {job?.status === 'running' ? '提取中…' : job?.status === 'failed' ? '重新提取' : '提取字段'}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
