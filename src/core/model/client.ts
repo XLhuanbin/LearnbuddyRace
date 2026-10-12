@@ -43,7 +43,7 @@ export interface CallTrace {
 export class ModelError extends Error {
   constructor(
     message: string,
-    readonly kind: 'config' | 'auth' | 'network' | 'timeout' | 'server' | 'format' | 'canceled',
+    readonly kind: 'config' | 'auth' | 'network' | 'timeout' | 'server' | 'rate' | 'format' | 'canceled',
     readonly detail?: string,
   ) {
     super(message);
@@ -113,6 +113,20 @@ async function callOnce(opts: CallOptions, attempt: number): Promise<{ text: str
       if (res.status === 401 || res.status === 403) {
         throw new ModelError(`模型接口鉴权失败（HTTP ${res.status}）。请检查 API Key 是否有效。`, 'auth', body.slice(0, 300));
       }
+      // 402 = 余额不足：重试没有意义，立即失败并说清该怎么办（2026-10-12 用户实测：
+      // 原来落到通用分支当服务端错误重试 3 次，界面只显示「模型调用失败（HTTP 402）」，
+      // 用户完全不知道是余额问题）
+      if (res.status === 402) {
+        throw new ModelError(
+          '模型接口余额不足（HTTP 402）。请到服务商平台充值，或更换一个有额度的 API Key。',
+          'auth',
+          body.slice(0, 300),
+        );
+      }
+      // 429 = 限流：稍等自愈，归入可重试
+      if (res.status === 429) {
+        throw new ModelError('模型接口限流（HTTP 429）。请求过于频繁，请稍候再试。', 'rate', body.slice(0, 300));
+      }
       if (res.status === 404) {
         throw new ModelError(`模型接口路径不存在（HTTP 404）。请检查 baseUrl 与模型名。`, 'config', body.slice(0, 300));
       }
@@ -177,8 +191,8 @@ export async function chat(opts: CallOptions, onTrace?: (t: CallTrace) => void):
     } catch (e) {
       lastErr = e;
       const kind = e instanceof ModelError ? e.kind : 'network';
-      // 用户取消：立即结束，不再重试
-      const retriable = kind === 'network' || kind === 'timeout' || kind === 'server';
+      // 用户取消：立即结束，不再重试。限流（rate）稍等自愈，也允许退避重试
+      const retriable = kind === 'network' || kind === 'timeout' || kind === 'server' || kind === 'rate';
       const trace: CallTrace = {
         label: opts.label,
         model: opts.model,
