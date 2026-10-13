@@ -157,13 +157,13 @@ await cdp.evaluate(`(() => { const cb=[...document.querySelectorAll('input[type=
 await sleep(800);
 await cdp.shot(join(OUT, '05-显示待核查关系-desktop.png'), 1440, 1000);
 
-// 关系与比较
-await cdp.evaluate(`(() => { const b=[...document.querySelectorAll('button')].find((x)=>x.textContent.includes('关系与比较')); if (b) b.click(); })()`);
+// 关系明细与依据（2026-10-13 起：研究地图不再有「关系与比较」子视图）
+await cdp.evaluate(`(() => { const b=[...document.querySelectorAll('button')].find((x)=>x.textContent.includes('关系明细与依据')); if (b) b.click(); })()`);
 await sleep(1200);
-await cdp.shot(join(OUT, '06-关系与比较-desktop.png'), 1440, 1200);
+await cdp.shot(join(OUT, '06-关系明细与依据-desktop.png'), 1440, 1200);
 
 // 阅读起点
-await cdp.evaluate(`(() => { const b=[...document.querySelectorAll('button')].find((x)=>x.textContent.includes('阅读起点')); if (b) b.click(); })()`);
+await cdp.evaluate(`(() => { const b=[...document.querySelectorAll('button')].find((x)=>x.textContent.includes('阅读路线')); if (b) b.click(); })()`);
 await sleep(1000);
 await cdp.evaluate(`(() => { const b=[...document.querySelectorAll('button')].find((x)=>x.textContent.includes('给我阅读路线')); if (b) b.click(); })()`);
 await sleep(1600);

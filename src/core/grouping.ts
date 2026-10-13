@@ -18,12 +18,24 @@ import { withEffectiveFields } from './effective';
 
 export type FamilyConfidence = 'evidence' | 'inferred' | 'pending';
 
+/**
+ * 家族 id：架构路线。
+ * ⚠️ 2026-10-13 用户实测：三维点云语料（PointNet / SeDiR / MC3D / C3D / Uni…）里
+ * 一篇都判不出来 —— 旧规则表只有 CNN / Transformer 两类，是**视觉案例**的架构词，
+ * 换一组论文就全部落到「待确认」，方法族这一列因此永远不变化。
+ * 规则表是数据驱动的关键词表（命中即记录依据），扩展它不会牺牲可审计性。
+ */
+export type FamilyId = 'transformer' | 'cnn' | 'pointcloud' | 'graph' | 'mlp' | 'hybrid' | 'pending';
+
+/** 判定依据的来源字段：名称/首句是定义性文本；第三层兜底会用到模型抽取的另外三个字段 */
+export type FamilyBasisSource = '方法名称' | '核心思路首句' | '核心思路全文' | '输入与条件' | '研究任务';
+
 export interface FamilyVerdict {
-  id: 'cnn' | 'transformer' | 'hybrid' | 'pending';
+  id: FamilyId;
   name: string;
   confidence: FamilyConfidence;
   /** 判定依据：用了哪段文字、命中了什么 */
-  basis: { source: '方法名称' | '核心思路首句'; keyword: string; quote: string }[];
+  basis: { source: FamilyBasisSource; keyword: string; quote: string }[];
   /** 需要向用户说明的限制（例如只有名称证据或文本不足） */
   note?: string;
 }
@@ -55,8 +67,12 @@ export interface MethodProfile {
  * 家族判定：只看「定义性文本」= 方法名称 + 核心思路首句
  * ------------------------------------------------------------------ */
 
+/**
+ * 顺序即优先级：名称/首句同时命中多条时，取**第一条**命中的规则（避免「点云 + Transformer」
+ * 这类组合被后加的规则抢走）。命中多条且不同类 → 混合（见 classifyFamily）。
+ */
 const FAMILY_RULES: {
-  id: FamilyVerdict['id'];
+  id: Exclude<FamilyId, 'hybrid' | 'pending'>;
   name: string;
   re: RegExp;
 }[] = [
@@ -70,7 +86,30 @@ const FAMILY_RULES: {
     name: '卷积网络（CNN）',
     re: /convnet|convnext|convolutional|卷积网络|卷积神经|\bresnet\b|res[-\s]?ne|resnext|residual (learning|network|nets?)|残差(学习|网络)|深度可分离卷积|倒置瓶颈/i,
   },
+  /**
+   * 点云 / 三维：PointNet 系、体素与稀疏卷积、点云 Transformer。
+   * 2026-10-13 用户语料（三维点云异常检测，如 C3D-AD / MC3D-AD）实测补 —— 这类论文的
+   * 名称与任务描述里出现的是「3D / 三维异常检测」，不会出现 CNN / Transformer 关键词。
+   */
+  {
+    id: 'pointcloud',
+    name: '点云 / 三维网络',
+    re: /pointnet|point transformer|point[- ]?cloud|\bpct\b|点云|三维|体素|voxel|sparse convolution|稀疏卷积|3d|深度点云/i,
+  },
+  {
+    id: 'graph',
+    name: '图神经网络',
+    re: /graph neural|\bgnn\b|\bgcn\b|\bgraphsage\b|图卷积|图神经网络|message passing|消息传递/i,
+  },
+  {
+    id: 'mlp',
+    name: '多层感知机（MLP）',
+    re: /\bmlp\b|多层感知机|全连接(层|网络)|fully connected/i,
+  },
 ];
+
+/** 家族顺序（泳道 / 图例排序用）：规则表顺序 + 混合 + 待确认放最后 */
+export const FAMILY_ORDER: FamilyId[] = [...FAMILY_RULES.map((r) => r.id), 'hybrid', 'pending'];
 
 /**
  * 节点短贡献：从核心思路里**压缩**出一条可读的短描述。
@@ -139,10 +178,12 @@ export function stripReferenceMentions(text: string): string {
 }
 
 /**
- * 家族判定（架构路线）：
+ * 家族判定（架构路线），三层判定：
  * 1. **方法名称优先**——名称是作者对自己架构身份的表述，名称命中即为该家族；
- * 2. 名称没有架构关键词时，才看「核心思路首句」，且先剔除引用其它方法的语境；
- * 3. 两类都不足以判定 → 待确认（不硬塞）。
+ * 2. 名称没有架构关键词时，看「核心思路首句」，且先剔除引用其它方法的语境；
+ * 3. 仍判不出时，把模型**已抽取**的定义性字段全部扫一遍（核心思路全文 / 输入与条件 / 研究任务，
+ *    同样剔除引用语境）——首句经常只是任务描述，架构词在后几句或输入形式里。
+ * 4. 三层都不足以判定 → 待确认（不硬塞），note 会说明看过哪些字段。
  * 因此「提到 CNN 教师」「以 ResNet 为起点」「引入 Swin 的设计」都不会改变本方法的家族。
  */
 export function classifyFamily(method: Method): FamilyVerdict {
@@ -164,10 +205,12 @@ export function classifyFamily(method: Method): FamilyVerdict {
   if (nameHits.length > 1) {
     return {
       id: 'hybrid',
-      name: '混合（卷积 + 注意力）',
+      /* 混合名由**实际命中的家族**拼出，不再写死「卷积 + 注意力」：
+         点云 + Transformer 这类组合写出来才不会读成另一回事。 */
+      name: `混合（${nameHits.map((r) => r.name.replace(/（.*?）/g, '')).join(' + ')}）`,
       confidence: 'evidence',
       basis: nameHits.map((r) => ({ source: '方法名称' as const, keyword: (r.re.exec(name)?.[0] ?? '').trim(), quote: name.slice(0, 120) })),
-      note: '方法名称里同时出现两类架构关键词，按混合路线处理。',
+      note: '方法名称里同时出现多类架构关键词，按混合路线处理。',
     };
   }
 
@@ -187,10 +230,56 @@ export function classifyFamily(method: Method): FamilyVerdict {
   if (clauseHits.length > 1) {
     return {
       id: 'hybrid',
-      name: '混合（卷积 + 注意力）',
+      name: `混合（${clauseHits.map((r) => r.name.replace(/（.*?）/g, '')).join(' + ')}）`,
       confidence: 'inferred',
       basis: clauseHits.map((r) => ({ source: '核心思路首句' as const, keyword: (r.re.exec(cleaned)?.[0] ?? '').trim(), quote: clause.slice(0, 120) })),
-      note: '核心思路首句同时出现两类架构关键词（已剔除引用语境），按混合路线处理。',
+      note: '核心思路首句同时出现多类架构关键词（已剔除引用语境），按混合路线处理。',
+    };
+  }
+
+  /**
+   * 第三层兜底（2026-10-13 用户实测：三维点云语料三篇仍落「待确认」）：
+   * 首句经常是任务描述（「面向持续三维异常检测…」），架构词出现在**核心思路的后几句、
+   * 输入与条件（「输入为三维点云」）或研究任务**里。这一层把模型已经抽取出来的
+   * 定义性字段全部扫一遍（同样剔除引用其它方法的语境），有一致命中就归类，
+   * 依据如实记录来源字段 —— 仍然可审计，不是拍脑袋。
+   */
+  const tier3: { source: FamilyBasisSource; text: string }[] = [
+    { source: '核心思路全文', text: method.fields.coreIdea?.value ?? '' },
+    { source: '输入与条件', text: method.fields.inputsConditions?.value ?? '' },
+    { source: '研究任务', text: method.fields.researchTask?.value ?? '' },
+  ];
+  const tier3Hits: { rule: (typeof FAMILY_RULES)[number]; source: FamilyBasisSource; keyword: string; quote: string }[] = [];
+  for (const { source, text } of tier3) {
+    if (!text.trim()) continue;
+    const cleanedText = stripReferenceMentions(text);
+    REFERENCE_CTX.lastIndex = 0;
+    for (const rule of FAMILY_RULES) {
+      const m = rule.re.exec(cleanedText);
+      REFERENCE_CTX.lastIndex = 0;
+      if (m) tier3Hits.push({ rule, source, keyword: m[0].trim(), quote: text.slice(0, 120) });
+    }
+  }
+  if (tier3Hits.length) {
+    const distinct = [...new Set(tier3Hits.map((h) => h.rule.id))];
+    const basis = tier3Hits.map((h) => ({ source: h.source, keyword: h.keyword, quote: h.quote }));
+    const sourceNames = [...new Set(tier3Hits.map((h) => h.source))].join('、');
+    if (distinct.length === 1) {
+      const rule = tier3Hits[0].rule;
+      return {
+        id: rule.id,
+        name: rule.name,
+        confidence: 'inferred',
+        basis,
+        note: `名称与核心思路首句都没有架构关键词，家族依据来自${sourceNames}（已剔除引用其它方法的语境）。`,
+      };
+    }
+    return {
+      id: 'hybrid',
+      name: `混合（${distinct.map((id) => FAMILY_RULES.find((r) => r.id === id)!.name.replace(/（.*?）/g, '')).join(' + ')}）`,
+      confidence: 'inferred',
+      basis,
+      note: `${sourceNames}里同时出现多类架构关键词（已剔除引用语境），按混合路线处理。`,
     };
   }
 
@@ -199,7 +288,7 @@ export function classifyFamily(method: Method): FamilyVerdict {
     name: '待确认',
     confidence: 'pending',
     basis: [],
-    note: '方法名称与核心思路首句（剔除引用语境后）都没有出现可判定的架构关键词，因此不强行归类。',
+    note: '方法名称、核心思路、输入与条件、研究任务里都没有出现可判定的架构关键词，因此不强行归类；你可以在「结果页」人工修正方法名或核心思路，家族会跟着重算。',
   };
 }
 

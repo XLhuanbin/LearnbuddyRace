@@ -404,6 +404,21 @@
 }
 .foot-copy { font-size: 12px; color: var(--fg-3); white-space: nowrap; margin: 0; }
 
+/* 页脚右下角装饰字（2026-10-13 用户要求：功能列下方右下角有点空）。
+   复用「更多」页的 .deco-wm（同字体、同淡色、同 nowrap），只覆盖外边距与字号；
+   在文档流内、右对齐，不覆盖任何内容，不与底部说明行重叠。 */
+.foot-deco {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 32px;
+  pointer-events: none;
+}
+.foot-deco .deco-wm {
+  margin-left: 0;
+  padding-top: 0;
+  font-size: clamp(26px, 4.4vw, 64px);
+}
+
 @media (min-width: 1024px) {
   .foot-c6 { grid-column: span 6 / span 6; }
   .foot-c3 { grid-column: span 3 / span 3; }

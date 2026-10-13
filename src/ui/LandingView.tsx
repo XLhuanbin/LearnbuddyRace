@@ -3,7 +3,12 @@ import React, { useEffect } from 'react';
 interface Props {
   onExperienceCase: () => void;
   onUploadOwn: () => void;
-  onGo: (tab: 'library' | 'upload' | 'map' | 'experiments' | 'decision') => void;
+  /**
+   * 页脚出口。2026-10-13 修正两处：
+   *   - 「开发状态」以前点进去是**实验可比性**页（标签与落地页不一致，属于骗人）→ 改为 status；
+   *   - 「未来展望 / 提建议」以前只在「更多」里，首页页脚补一个入口。
+   */
+  onGo: (tab: 'library' | 'upload' | 'map' | 'experiments' | 'decision' | 'status' | 'future' | 'more') => void;
 }
 
 /* =====================================================================
@@ -418,14 +423,23 @@ export function LandingView({ onExperienceCase, onUploadOwn, onGo }: Props) {
             <div className="foot-c3">
               <h4 className="foot-lab">关于我们</h4>
               <div className="foot-links">
-                <button className="text-link" id="foot-dev" onClick={() => onGo('experiments')}>
+                {/* 「开发状态」以前跳到实验可比性页，标签与落地页不一致 —— 改成真正的开发状态页 */}
+                <button className="text-link" id="foot-dev" onClick={() => onGo('status')}>
                   开发状态
                 </button>
-                <button className="text-link" id="foot-set" onClick={() => onGo('experiments')}>
-                  偏好设置
+                <button className="text-link" id="foot-future" onClick={() => onGo('future')}>
+                  未来展望 · 给我们提建议
+                </button>
+                <button className="text-link" id="foot-more" onClick={() => onGo('more')}>
+                  全部页面
                 </button>
               </div>
             </div>
+          </div>
+          {/* 右下角装饰字：与「更多」页同一套淡色衬线字（纯装饰、aria-hidden、在文档流内不遮挡内容）。
+              放在功能列与底部说明行之间，正好填住页脚右下角那块空白。 */}
+          <div className="foot-deco" aria-hidden="true">
+            <span className="deco-wm">ResearchPilot</span>
           </div>
           <div className="foot-bottom">
             <p className="disclaimer">

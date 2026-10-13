@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import type { Evidence, Method, Paper, Relation, RelationType } from '../core/types';
 import { buildMethodProfile, shortContribution } from '../core/grouping';
+import { effectiveField, effectiveFieldValue } from '../core/effective';
 import { DraftIcon } from '../draft-icons';
 import { INNOVATION_TIERS, innovationColor } from './innovationScale';
 
@@ -11,14 +12,29 @@ interface Props {
   /** 语料名（真实，来自 scope） */
   scopeLabel: string;
   onOpenEvidence: (ev: Evidence) => void;
+  /**
+   * **未经过可见性筛选**的全部关系，仅用于**布局**（见下方 layoutRelations 的说明）。
+   * 必须是完整集合：节点位置不能随页头筛选变化，否则筛一下「待核查」整张图就重排了。
+   */
+  allRelations?: Relation[];
   /** 打开该篇的分析结果页 */
   onOpenResult: (paperId: string) => void;
-  /** 加入对比队列 */
-  onAddToCompare: (paperId: string) => void;
-  /** 切到「关系与比较」（草稿只给两个视图，这两个入口改放子头右侧） */
-  onOpenRelations: () => void;
-  /** 切到「阅读起点」 */
-  onOpenStart: () => void;
+  /**
+   * 三个入口都去**独立页面**（2026-10-13 去重）：地图内部不再有「关系与比较 / 阅读起点」子视图，
+   * 因此这里不再是「切子视图」，而是「离开地图去对应的完整页面」。
+   * 按钮文案必须跟着改 —— 否则用户点「加入对比队列」却什么都没加入，属于骗人。
+   */
+  /** 去「跨论文比较」页（用这篇作为一端；另一端在比较页里选） */
+  onGoCompare?: () => void;
+  /** 去「方法关系」页（关系图 + 关系明细整表） */
+  onGoGraph?: () => void;
+  /** 去「阅读路线」页 */
+  onGoDecision?: () => void;
+  /**
+   * 去「待调查问题」页（2026-10-13 用户实测：这一页原本只藏在「更多」里，
+   * 从地图没有任何入口，读完了也不知道还有这么一页）。
+   */
+  onGoDivergence?: () => void;
   /** 切到「时间线」 */
   onOpenTimeline: () => void;
   /**
@@ -64,12 +80,14 @@ export function MapNetworkView({
   papers,
   methods,
   relations,
+  allRelations,
   scopeLabel,
   onOpenEvidence,
   onOpenResult,
-  onAddToCompare,
-  onOpenRelations,
-  onOpenStart,
+  onGoCompare,
+  onGoGraph,
+  onGoDecision,
+  onGoDivergence,
   onOpenTimeline,
   onAnalyzeRelations,
   relationBusy = false,
@@ -97,8 +115,19 @@ export function MapNetworkView({
     return map;
   }, [methods, papers]);
 
+  /**
+   * 布局用的关系集合 = **未筛选**的全部关系。
+   *
+   * ⚠️ 2026-10-13 用户实测踩到的坑：布局原来直接吃，而调用方传进来的是
+   * **已按「全部 / 可用 / 待核查」筛选过**的关系。于是筛「待核查」时（只剩 3 条 similar，
+   * 一条有方向的边都没有）分层算法把 5 个节点全算成第 0 层 → 一列竖排，
+   * 整张图看起来从「演进图」塌成「一条竖线」。筛选只该决定**画哪些连线**，
+   * 不该决定**节点摆在哪**：位置必须稳定，否则每次筛选都像换了一张图。
+   */
+  const layoutRelations = allRelations ?? relations;
+
   /** 布局：按关系深度分层（没有关系的排在最左），层内纵向均分 —— 确定性，不随机 */
-  const { nodes, edges } = useMemo(() => {
+  const layout = useMemo(() => {
     const ids = methods.map((m) => m.id);
 
     /**
@@ -111,7 +140,7 @@ export function MapNetworkView({
      * 只用有方向的边分层，横向关系就只画线、不参与定序，图才分得出层次与分支。
      */
     const DIRECTED: RelationType[] = ['extends', 'improves', 'combines'];
-    const directed = relations.filter((r) => DIRECTED.includes(r.type));
+    const directed = layoutRelations.filter((r) => DIRECTED.includes(r.type));
 
     const depth = new Map<string, number>();
     for (const id of ids) depth.set(id, 0);
@@ -150,7 +179,8 @@ export function MapNetworkView({
     const hasBranch = maxLayer > 1;
 
     const placed = new Map<string, { x: number; y: number; r: number }>();
-    const degOf = (id: string) => relations.filter((r) => r.fromMethodId === id || r.toMethodId === id).length;
+    // 半径同样按**完整**关系算：筛选一变节点大小乱跳会让人以为数据变了
+    const degOf = (id: string) => layoutRelations.filter((r) => r.fromMethodId === id || r.toMethodId === id).length;
     const radiusOf = (id: string) => 13 + Math.min(degOf(id), 5) * 2;
     const yearOf = (id: string) => {
       const m = methods.find((x) => x.id === id);
@@ -194,30 +224,64 @@ export function MapNetworkView({
     const edgeList = relations
       .filter((r) => placed.has(r.fromMethodId) && placed.has(r.toMethodId))
       .map((r) => ({ id: r.id, type: r.type, from: placed.get(r.fromMethodId)!, to: placed.get(r.toMethodId)! }));
-    return { nodes: nodeList, edges: edgeList };
-  }, [methods, relations, profiles]);
+    /**
+     * 分层诊断（2026-10-13 用户实测：「我们的地图算法算出来只有两层，是不是有点问题？」）。
+     * 层数不是算法想当然，而是**数据决定的**：只有被判成「继承 / 改进 / 组合」的关系才声明方向、
+     * 才参与定序；「相似 / 待核查」不声明方向，不把谁推到下一层。把这些数字摆在界面上，
+     * 用户一眼能看出「少一层」是缺关系，而不是算错了。
+     */
+    const layerCount = byDepth.size;
+    const directedCount = directed.filter(
+      (r) => placed.has(r.fromMethodId) && placed.has(r.toMethodId),
+    ).length;
+    const undirectedCount = layoutRelations.length - directed.length;
+    return { nodes: nodeList, edges: edgeList, layerCount, directedCount, undirectedCount, hasBranch };
+  }, [methods, relations, profiles, layoutRelations]);
+
+  const { nodes, edges } = layout;
 
   const q = query.trim().toLowerCase();
+  /**
+   * 搜索范围：方法短名（含别名）+ 论文标题 + 方法名称（有效值）。旧实现只比 `n.name`，
+   * 于是「搜索论文或方法」其实只能搜方法短名，输入论文标题或方法别名一律搜不到。
+   */
   const dimmed = useMemo(() => {
     if (!q) return new Set<string>();
-    const hit = new Set(nodes.filter((n) => n.name.toLowerCase().includes(q)).map((n) => n.id));
+    const hayOf = (n: { id: string; name: string; paperId?: string }): string => {
+      const parts: string[] = [n.name];
+      const p = papers.find((x) => x.id === n.paperId);
+      if (p?.title) parts.push(p.title);
+      const m = methods.find((x) => x.id === n.id);
+      if (m) {
+        parts.push(effectiveFieldValue(m, 'methodName'));
+        parts.push(m.fields.methodName?.value ?? '');
+      }
+      return parts.filter(Boolean).join(' ').toLowerCase();
+    };
+    const hit = new Set(nodes.filter((n) => hayOf(n).includes(q)).map((n) => n.id));
     return new Set(nodes.filter((n) => !hit.has(n.id)).map((n) => n.id));
-  }, [q, nodes]);
+  }, [q, nodes, papers, methods]);
 
   const sel = selId ? nodes.find((n) => n.id === selId) : undefined;
   const selMethod = selId ? methods.find((m) => m.id === selId) : undefined;
   const selPaper = sel ? papers.find((p) => p.id === sel.paperId) : undefined;
   const selProfile = selId ? profiles.get(selId) : undefined;
 
-  /** 已核验字段数（真实统计，用来替掉草稿的「引用频次」） */
+  /** 已核验字段数（真实统计，用来替掉草稿的「引用频次」；人工修正过的字段不再算已核验） */
   const verifiedFields = useMemo(() => {
     if (!selMethod) return { verified: 0, total: 7 };
     const keys = Object.keys(selMethod.fields) as (keyof typeof selMethod.fields)[];
     return {
-      verified: keys.filter((k) => selMethod.fields[k]?.evidence?.verified).length,
+      verified: keys.filter((k) => {
+        const f = effectiveField(selMethod, k);
+        return !f.userCorrected && !!f.evidence?.verified;
+      }).length,
       total: keys.length,
     };
   }, [selMethod]);
+
+  /** 「方法论核心」读有效值；AI 原值与原证据仍保留供对照 */
+  const selCore = selMethod ? effectiveField(selMethod, 'coreIdea') : undefined;
 
   const related = useMemo(
     () => (selId ? relations.filter((r) => r.fromMethodId === selId || r.toMethodId === selId) : []),
@@ -292,11 +356,8 @@ export function MapNetworkView({
               className="pl-10 pr-4 py-2 bg-[var(--bg)] border border-[var(--line)] rounded-lg text-sm w-64 focus:outline-none focus:border-[var(--accent)] transition-colors"
             />
           </div>
-          {/* 草稿的「筛选」是模态筛选器；我们这里没有等价功能，改为**真实可用的**两个次级视图入口 */}
-          <button className="btn-outline flex items-center gap-1.5" onClick={onOpenRelations}>
-            <DraftIcon name="filter" />
-            关系与比较
-          </button>
+          {/* 「关系明细」入口已并入面板底部的动线枢纽（与跨论文比较 / 阅读路线 / 待调查问题同排），
+              子头不再放一个重复出口 —— 2026-10-13 用户要求把入口按钮规划好，而不是到处都放。 */}
           <button className="btn-primary flex items-center gap-1.5" onClick={exportImage}>
             <DraftIcon name="download" />
             导出图片
@@ -399,7 +460,7 @@ export function MapNetworkView({
                     <span>{t.label}</span>
                   </div>
                 ))}
-                <div className="mt-3 pt-3 border-t border-[var(--line)] space-y-2 text-[10px] text-[var(--fg-3)]">
+                <div className="mt-3 pt-3 border-t border-[var(--line)] space-y-2 text-xs text-[var(--fg-3)]">
                   <span>方法演进路径（由真实关系数据得出）：</span>
                   {Object.entries(PATH_STYLE).map(([k, s]) => (
                     <div key={k} className="flex items-center gap-3 text-xs text-[var(--fg-2)]">
@@ -415,7 +476,27 @@ export function MapNetworkView({
                   ))}
                 </div>
                 <p className="text-[10px] text-[var(--fg-3)] pt-2 border-t border-[var(--line)]">
+                  实线箭头 = 有方向的关系（继承/基于 · 改进 · 组合）；「相似 / 关系待核查」<b>不声明方向</b>，
+                  画布上只画虚线、不画箭头，避免凭空造出一条继承方向。
+                </p>
+                <p className="text-[10px] text-[var(--fg-3)] pt-2 border-t border-[var(--line)]">
                   ⚠️ 创新度是模型评估（不是论文给出的分数），灰色节点表示本篇还没有评估结果。
+                </p>
+                {/* 分层诊断：回答「为什么只有两层」——层数由**数据**决定，不是算法想当然 */}
+                <p className="text-xs text-[var(--fg-2)] pt-2 border-t border-[var(--line)] leading-relaxed">
+                  当前共 <b>{nodes.length}</b> 个方法，按 <b>{layout.directedCount}</b> 条「有方向」的关系分成{' '}
+                  <b>{layout.layerCount}</b> 层
+                  {layout.hasBranch ? '' : '（没有分叉，改按年份排成一条演进线）'}。
+                  {layout.undirectedCount > 0 && (
+                    <>
+                      {' '}
+                      另有 <b>{layout.undirectedCount}</b> 条「相似 / 待核查」关系<b>不参与定序</b>。
+                    </>
+                  )}
+                </p>
+                <p className="text-[10px] text-[var(--fg-3)] leading-relaxed">
+                  层数看起来少了，通常是某一步没被判成「继承 / 改进 / 组合」（例如原文只说「compared with」，
+                  没有指名继承关系）——去「关系明细」核对那几条的原文依据。
                 </p>
               </div>
               )}
@@ -426,18 +507,24 @@ export function MapNetworkView({
           <div className="absolute bottom-8 right-8 flex gap-2">
             <button
               className="w-10 h-10 bg-white border border-[var(--line)] rounded-lg flex items-center justify-center shadow-sm hover:bg-[var(--bg-3)]"
+              aria-label="放大"
+              title="放大"
               onClick={() => setScale((s) => Math.min(2, +(s + 0.2).toFixed(2)))}
             >
               <DraftIcon name="zoom-in" />
             </button>
             <button
               className="w-10 h-10 bg-white border border-[var(--line)] rounded-lg flex items-center justify-center shadow-sm hover:bg-[var(--bg-3)]"
+              aria-label="缩小"
+              title="缩小"
               onClick={() => setScale((s) => Math.max(0.5, +(s - 0.2).toFixed(2)))}
             >
               <DraftIcon name="zoom-out" />
             </button>
             <button
               className="w-10 h-10 bg-white border border-[var(--line)] rounded-lg flex items-center justify-center shadow-sm hover:bg-[var(--bg-3)]"
+              aria-label="恢复默认缩放"
+              title="恢复默认缩放"
               onClick={() => setScale(1)}
             >
               <DraftIcon name="maximize" />
@@ -449,6 +536,11 @@ export function MapNetworkView({
         <aside className="w-[400px] shrink-0 bg-white border-l border-[var(--line)] flex flex-col">
           <div className="p-8 info-panel overflow-y-auto flex-1">
             {!sel ? (
+              /**
+               * 空态只做一件事：告诉用户点节点会发生什么。
+               * 「下一步去哪」不靠静态说明 —— 出口常驻在面板底部（动线枢纽，见下方），
+               * 不会因为点了节点就消失（2026-10-13 用户二轮反馈）。
+               */
               <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
                 <DraftIcon name="mouse-pointer-2" className="text-5xl mb-4" />
                 <p className="text-sm">
@@ -490,14 +582,22 @@ export function MapNetworkView({
                 <div>
                   <h4 className="text-xs font-black uppercase tracking-widest text-[var(--fg-3)] mb-4">方法论核心</h4>
                   <div className="bg-[var(--bg-2)] border border-[var(--line)] p-4 rounded-xl text-sm leading-relaxed">
-                    <p>{selMethod ? shortContribution(selMethod.fields.coreIdea?.value ?? '') || '未提取到核心思路' : ''}</p>
+                    <p>{selCore ? shortContribution(selCore.value ?? '') || '未提取到核心思路' : ''}</p>
                   </div>
-                  {selMethod?.fields.coreIdea?.evidence && (
+                  {selCore?.userCorrected && (
+                    <p className="text-[10px] mt-2" style={{ color: 'var(--warn)' }}>
+                      人工修正值（有效值，按待人工核对对待）
+                      {selMethod?.fields.coreIdea?.value?.trim()
+                        ? ` · AI 原值：${selMethod.fields.coreIdea.value}`
+                        : ''}
+                    </p>
+                  )}
+                  {selCore?.evidence && (
                     <button
                       className="text-link text-xs mt-2"
-                      onClick={() => onOpenEvidence(selMethod.fields.coreIdea!.evidence!)}
+                      onClick={() => onOpenEvidence(selCore.evidence!)}
                     >
-                      查看原文依据（p.{selMethod.fields.coreIdea.evidence.page ?? '?'}）
+                      查看{selCore.userCorrected ? ' AI 原始' : ''}原文依据（p.{selCore.evidence.page ?? '?'}）
                     </button>
                   )}
                 </div>
@@ -510,16 +610,27 @@ export function MapNetworkView({
                         const otherId = r.fromMethodId === selId ? r.toMethodId : r.fromMethodId;
                         const other = nodes.find((n) => n.id === otherId);
                         const s = PATH_STYLE[r.type] ?? PATH_STYLE.unclear;
+                        const undirected = r.type === 'similar' || r.type === 'unclear';
                         return (
                           <div
                             key={r.id}
-                            className="flex items-center justify-between p-3 border border-[var(--line)] rounded-lg hover:bg-[var(--bg)] cursor-pointer transition-colors"
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`${other?.name ?? '未知方法'}：${s.label}，查看该方法详情`}
+                            className="flex items-center justify-between p-3 border border-[var(--line)] rounded-lg hover:bg-[var(--bg)] cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
                             onClick={() => setSelId(otherId)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                setSelId(otherId);
+                              }
+                            }}
                           >
                             <div>
                               <p className="text-xs font-bold">{other?.name ?? '未知方法'}</p>
                               <p className="text-[10px] text-[var(--fg-3)] uppercase">
-                                {s.label} / {r.evidenceState === 'explicit' ? '原文明示' : r.evidenceState === 'inferred' ? '系统推断' : '待核查'}
+                                {s.label}
+                                {undirected ? ' · 不声明方向' : ''} / {r.evidenceState === 'explicit' ? '原文明示' : r.evidenceState === 'inferred' ? '系统推断' : '待核查'}
                               </p>
                             </div>
                             <DraftIcon name="chevron-right" />
@@ -551,20 +662,33 @@ export function MapNetworkView({
             )}
           </div>
 
+          {/**
+           * 动线枢纽（2026-10-13 用户二轮反馈：动线要靠入口按钮的规划，不是静态说明；
+           * 也不能点开节点就找不回来）。这个区块**常驻**，与是否选中节点无关：
+           *   - 上面：节点级动作（选中后才可用）—— 看这一篇的完整分析报告；
+           *   - 下面：语料级出口 2×2 —— 跨论文比较 / 阅读路线 / 关系明细 / 待调查问题，
+           *     它们都不依赖选了哪个节点，所以永远可点。
+           */}
           <div className="p-6 border-t border-[var(--line)] bg-[var(--bg-2)] shrink-0">
             <button className="w-full btn-primary mb-3" disabled={!sel} onClick={() => sel && onOpenResult(sel.paperId!)}>
               查看完整分析报告
             </button>
-            {/* 草稿这里是「添加到对比队列」；我们已有真实的「关系与比较 / 阅读起点」，如实接过去 */}
-            <button className="w-full btn-outline" disabled={!sel} onClick={() => sel && onAddToCompare(sel.paperId!)}>
-              加入对比队列
-            </button>
-            <div className="flex gap-2 mt-3">
-              <button className="btn-outline flex-1 text-xs" onClick={onOpenRelations}>
-                关系与比较
+            <div className="grid grid-cols-2 gap-2">
+              <button className="btn-outline text-xs flex items-center justify-center gap-1.5" disabled={!onGoCompare} onClick={onGoCompare} title="打开跨论文比较页（另一端在那边选）">
+                <DraftIcon name="git-compare" className="text-sm" />
+                跨论文比较
               </button>
-              <button className="btn-outline flex-1 text-xs" onClick={onOpenStart}>
-                阅读起点
+              <button className="btn-outline text-xs flex items-center justify-center gap-1.5" disabled={!onGoDecision} onClick={onGoDecision} title="打开阅读路线页：阅读顺序 + 生成个性化路线">
+                <DraftIcon name="compass" className="text-sm" />
+                阅读路线
+              </button>
+              <button className="btn-outline text-xs flex items-center justify-center gap-1.5" disabled={!onGoGraph} onClick={onGoGraph} title="打开方法关系页：关系图 + 全部关系清单（含证据状态与原文依据）">
+                <DraftIcon name="git-graph" className="text-sm" />
+                关系明细
+              </button>
+              <button className="btn-outline text-xs flex items-center justify-center gap-1.5" disabled={!onGoDivergence} onClick={onGoDivergence} title="打开待调查问题页：跨论文的分歧与未解决的问题">
+                <DraftIcon name="alert-triangle" className="text-sm" />
+                待调查问题
               </button>
             </div>
           </div>

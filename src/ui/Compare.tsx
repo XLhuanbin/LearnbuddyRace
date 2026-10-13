@@ -3,6 +3,7 @@ import type { Evidence, FieldKey, Method, Paper, Relation } from '../core/types'
 import { FIELD_STATUS_TEXT, METHOD_FIELD_LABELS, RELATION_LABELS, RELATION_STATE_LABELS } from '../core/types';
 import { LEVEL_LABELS, type ComparabilityReport } from '../core/comparability';
 import { buildComparison, toMarkdown } from '../core/compare';
+import { withEffectiveMethods } from '../core/effective';
 import { buildMethodProfile } from '../core/grouping';
 import { DraftIcon } from '../draft-icons';
 import { innovationColor } from './innovationScale';
@@ -184,38 +185,49 @@ export function CompareView({
   };
 
   const exportJson = () => {
+    // 与 Markdown 导出同口径：都写人工修正后的有效值；AI 原值另存 aiValue，避免丢信息
+    const eff = withEffectiveMethods(chosen);
+    const rawByPaper = new Map(chosen.map((m) => [m.paperId, m]));
     const payload = {
       exportedAt: new Date().toISOString(),
       notice:
-        '本文件由 ResearchPilot 导出。字段状态含义：可核验=引文已通过全文定位；待人工核对=引文未通过定位；' +
-        '未找到证据=模型未给引文；缺失=论文未报告或未提取到。comparability 为规则计算结果，系统不做排名。',
+        '本文件由 ResearchPilot 导出。字段值（value / status）为人工修正后的**有效值**，与 Markdown 导出口径一致；' +
+        '字段状态含义：可核验=引文已通过全文定位；待人工核对=引文未通过定位或该值为人工修正；' +
+        '未找到证据=模型未给引文；缺失=论文未报告或未提取到。' +
+        'aiValue 为 AI 原始抽取，仅供对照。comparability 为规则计算结果，系统不做排名。',
       comparability: cmp?.comparability,
-      papers: chosen.map((m) => {
+      papers: eff.map((m) => {
         const p = paperById.get(m.paperId);
         return { title: p?.title, year: p?.year, source: p?.source.url, parseStatus: p?.parseStatus };
       }),
-      methods: chosen.map((m) => ({
-        paperId: m.paperId,
-        model: m.model,
-        promptVersion: m.promptVersion,
-        cached: !!m.cached,
-        fields: Object.fromEntries(
-          Object.entries(m.fields).map(([k, v]) => [
-            k,
-            {
-              value: v.value ?? null,
-              status: v.status,
-              statusText: FIELD_STATUS_TEXT[v.status],
-              evidence: v.evidence
-                ? { page: v.evidence.page, verified: v.evidence.verified, quote: v.evidence.quote, matchType: v.evidence.matchType }
-                : null,
-            },
-          ]),
-        ),
-        conditions: m.conditions,
-        validation: m.validation,
-        overrides: m.overrides,
-      })),
+      methods: eff.map((m) => {
+        const raw = rawByPaper.get(m.paperId);
+        return {
+          paperId: m.paperId,
+          model: m.model,
+          promptVersion: m.promptVersion,
+          cached: !!m.cached,
+          fields: Object.fromEntries(
+            Object.entries(m.fields).map(([k, v]) => [
+              k,
+              {
+                value: v.value ?? null,
+                status: v.status,
+                statusText: FIELD_STATUS_TEXT[v.status],
+                userCorrected: !!v.userCorrected,
+                // AI 原值：这一项被人工修正前的抽取值（未修正时与 value 相同）
+                aiValue: raw?.fields[k as FieldKey]?.value ?? null,
+                evidence: v.evidence
+                  ? { page: v.evidence.page, verified: v.evidence.verified, quote: v.evidence.quote, matchType: v.evidence.matchType }
+                  : null,
+              },
+            ]),
+          ),
+          conditions: m.conditions,
+          validation: m.validation,
+          overrides: m.overrides,
+        };
+      }),
       relations: relations.map((r) => ({
         from: r.fromMethodId,
         to: r.toMethodId,

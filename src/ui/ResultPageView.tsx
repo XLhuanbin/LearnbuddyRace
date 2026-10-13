@@ -3,9 +3,10 @@ import type { Evidence, FieldKey, Method, MethodAssessmentItem, MethodFieldResul
 import { CONDITION_DIMENSIONS, CONDITION_LABELS, ISSUE_CODE_TEXT, METHOD_FIELD_LABELS, FIELD_STATUS_TEXT, TRAINING_STAGE_LABELS } from '../core/types';
 import { FIELD_KEYS_ORDER } from '../core/cache';
 import { buildMethodProfile } from '../core/grouping';
+import { effectiveFields, overriddenFieldLabels, withEffectiveFields } from '../core/effective';
 import { DraftIcon } from '../draft-icons';
 import { verifiedOf, type JobState } from './Library';
-import { FieldCard } from './common';
+import { Banner, FieldCard } from './common';
 
 interface Props {
   /** 当前查看的论文 */
@@ -101,25 +102,37 @@ export function ResultPageView({
 
   const totalFields = FIELD_KEYS_ORDER.length;
 
-  /** 真实统计（全部来自库里已存的分析结果，不现算、不编造） */
+  /**
+   * 有效方法视图：人工修正过的字段换成修正值（状态降为「待人工核对」），
+   * 没有任何修正时就是原始 method（withEffectiveFields 不制造新对象）。
+   * 报告主字段、统计、复制/导出都读它；AI 原值与原证据仍从原始 method 取，用于对照。
+   */
+  const effMethod = useMemo(() => (method ? withEffectiveFields(method) : undefined), [method]);
+  const effFields = useMemo(
+    () => (method ? effectiveFields(method) : ({} as Record<FieldKey, MethodFieldResult>)),
+    [method],
+  );
+  const correctedFields = useMemo(() => (method ? overriddenFieldLabels(method) : []), [method]);
+
+  /** 真实统计（全部来自库里已存的分析结果，人工修正过的按有效值口径统计） */
   const stats = useMemo(() => {
-    if (!method) return { verified: 0, total: totalFields, expCount: 0, evTotal: 0, evVerified: 0, coverage: 0 };
-    const verified = verifiedOf(method);
+    if (!effMethod) return { verified: 0, total: totalFields, expCount: 0, evTotal: 0, evVerified: 0, coverage: 0 };
+    const verified = verifiedOf(effMethod);
     const evs: Evidence[] = [];
     for (const k of FIELD_KEYS_ORDER) {
-      const e = method.fields[k]?.evidence;
+      const e = effMethod.fields[k]?.evidence;
       if (e) evs.push(e);
     }
     const evVerified = evs.filter((e) => e.verified).length;
     return {
       verified,
       total: totalFields,
-      expCount: method.experiments?.length ?? 0,
+      expCount: effMethod.experiments?.length ?? 0,
       evTotal: evs.length,
       evVerified,
       coverage: evs.length ? Math.round((evVerified / evs.length) * 100) : 0,
     };
-  }, [method, totalFields]);
+  }, [effMethod, totalFields]);
 
   /**
    * 草稿的三项评估指标（创新度 / 复杂度 / 领域相关性）。
@@ -143,16 +156,17 @@ export function ResultPageView({
         ? `依据已回到原文定位（p.${item.evidence.page ?? '?'}）。`
         : '模型未给出可定位的原文依据，请当作参考，不要当结论。';
 
-  /** 大纲 = 真实的 7 个方法字段 */
+  /** 大纲 = 真实的 7 个方法字段（读有效值；AI 原值在原字段里，人工修正时另起一行对照） */
   const outline = useMemo(
     () =>
       FIELD_KEYS_ORDER.map((k, i) => ({
         key: k,
         no: `${i + 1}.`,
         title: `${i + 1}. ${METHOD_FIELD_LABELS[k]}`,
-        field: method?.fields[k] as MethodFieldResult | undefined,
+        field: effFields[k] as MethodFieldResult | undefined,
+        aiValue: method?.fields[k]?.value,
       })),
-    [method],
+    [effFields, method],
   );
 
   /** 相似方法论 = 同一方法族的其它论文（家族判定来自 grouping.ts，不新造判断） */
@@ -169,18 +183,18 @@ export function ResultPageView({
       .slice(0, 3);
   }, [method, methods, papers, paper]);
 
-  /** 重点摘录 = 已核验的引文（页码是程序定位出来的真实页码） */
+  /** 重点摘录 = 已核验的引文（页码是程序定位出来的真实页码；人工修正过的字段不再算已核验） */
   const quotes = useMemo(() => {
-    if (!method) return [];
+    if (!effMethod) return [];
     const out: { ev: Evidence; label: string }[] = [];
     for (const k of FIELD_KEYS_ORDER) {
-      const f = method.fields[k];
-      if (f?.evidence?.verified && f.evidence.quote) {
+      const f = effMethod.fields[k];
+      if (f?.evidence?.verified && f.evidence.quote && !f.userCorrected) {
         out.push({ ev: f.evidence, label: METHOD_FIELD_LABELS[k] });
       }
     }
     return out.slice(0, 4);
-  }, [method]);
+  }, [effMethod]);
 
   /** 草稿用 JS 做滚动高亮；这里等价实现（只做高亮，不改结构） */
   useEffect(() => {
@@ -222,15 +236,18 @@ export function ResultPageView({
     : '尚未分析';
   const sourceTag = !method ? '等待分析' : method.cached ? '预置样例结果' : '本次实时分析';
 
-  /** 复制结论（真实功能：把这篇的真实结论拷到剪贴板） */
+  /** 复制结论（真实功能：把这篇的真实结论拷到剪贴板；人工修正过的字段用有效值并注明状态） */
   const copySummary = async () => {
-    if (!method) return;
+    if (!effMethod) return;
     const lines = FIELD_KEYS_ORDER.map((k) => {
-      const f = method.fields[k];
+      const f = effMethod.fields[k];
       const v = f?.value?.trim();
-      return `${METHOD_FIELD_LABELS[k]}：${v ? v : '未提取到'}`;
+      const tag = f?.userCorrected ? '（人工修正，待人工核对）' : '';
+      return `${METHOD_FIELD_LABELS[k]}：${v ? v : '未提取到'}${tag}`;
     });
-    const text = [`论文：${paper.title}`, `分析时间：${analyzedAt}（${sourceTag}）`, '', ...lines].join('\n');
+    const header = [`论文：${paper.title}`, `分析时间：${analyzedAt}（${sourceTag}）`];
+    if (correctedFields.length) header.push(`人工修正字段：${correctedFields.join('、')}（按待人工核对对待）`);
+    const text = [...header, '', ...lines].join('\n');
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
@@ -240,12 +257,24 @@ export function ResultPageView({
     }
   };
 
-  /** 导出结果（真实功能：把这篇的真实数据导出成 JSON） */
+  /**
+   * 导出结果（真实功能）：
+   * 有效值（fields）与 AI 原值（aiFields）分开写 —— 人工修正既生效又留痕，不丢信息。
+   */
   const exportResult = () => {
-    if (!method) return;
-    const blob = new Blob([JSON.stringify({ paper: { id: paper.id, title: paper.title }, method }, null, 2)], {
-      type: 'application/json',
-    });
+    if (!method || !effMethod) return;
+    const payload = {
+      paper: { id: paper.id, title: paper.title },
+      /** 报告口径：人工修正后的有效值 */
+      fields: effMethod.fields,
+      /** AI 原始抽取（未做修正），与有效值对照 */
+      aiFields: method.fields,
+      overrides: method.overrides ?? [],
+      correctedFields,
+      note: '本文件由 ResearchPilot 导出。fields 为人工修正后的有效值（人工修正过的字段状态为「待人工核对」）；aiFields 为 AI 原始抽取，仅供对照。',
+      method: { ...effMethod, fields: effMethod.fields },
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -341,15 +370,32 @@ export function ResultPageView({
               <DraftIcon name="download" />
               导出结果
             </button>
-            <button className="btn-primary flex items-center gap-2" onClick={onGoCompare}>
+            <button
+              className="btn-primary flex items-center gap-2"
+              onClick={onGoCompare}
+              disabled={methods.length < 2}
+              title={
+                methods.length < 2
+                  ? '至少需要 2 篇有分析结果的论文才能比较；当前只有 ' + methods.length + ' 篇'
+                  : '打开跨论文比较页，在那里选择要对比的论文'
+              }
+            >
               <DraftIcon name="plus" />
-              加入比较
+              去比较页选择
             </button>
           </div>
         </div>
       </div>
 
       {/* ---------- 主体 ---------- */}
+      {correctedFields.length > 0 && (
+        <div className="max-w-[var(--content-max)] mx-auto px-6 pt-6">
+          <Banner kind="warn">
+            本篇有 {correctedFields.length} 个字段为<strong>人工修正值</strong>（{correctedFields.join('、')}）。
+            修正值不是原文核验结果，一律按「待人工核对」对待；AI 原值与原证据仍保留在下方「字段与人工修正」里可对照。
+          </Banner>
+        </div>
+      )}
       <main className="max-w-[var(--content-max)] mx-auto px-6 pt-10 grid grid-cols-12 gap-8">
         <div className="col-span-12 lg:col-span-9 space-y-10">
           {/* ===== 六张指标卡（草稿 f3570956 v2「指标优化版」）=====
@@ -536,9 +582,17 @@ export function ResultPageView({
                     {open && (
                       <div className="mt-4 text-[var(--fg-2)] leading-relaxed text-sm space-y-3">
                         <div className="bg-[var(--accent-soft)] p-4 rounded-lg border-l-4 border-[var(--accent)]">
-                          <span className="font-bold block mb-1">原文摘录:</span>
+                          <span className="font-bold block mb-1">
+                            {s.field?.userCorrected ? '人工修正值（有效值）:' : '原文摘录:'}
+                          </span>
                           {s.field?.value?.trim() ? s.field.value : '未提取到（论文未报告或本次片段里没有）'}
                         </div>
+                        {s.field?.userCorrected && (
+                          <div className="text-xs text-[var(--fg-3)]">
+                            AI 原值：{s.aiValue?.trim() || '（空）'}　
+                            <span className="text-[var(--warn)]">人工修正值按「待人工核对」对待，不是原文核验结果。</span>
+                          </div>
+                        )}
                         <ul className="list-disc list-inside space-y-2 opacity-80 pl-2">
                           <li>状态：{FIELD_STATUS_TEXT[s.field?.status ?? 'missing']}</li>
                           <li>
@@ -582,14 +636,24 @@ export function ResultPageView({
                 <DraftIcon name="lightbulb" className="text-2xl text-[var(--accent)] mb-4" />
                 <h4 className="font-bold mb-2">复现要点</h4>
                 <p className="text-sm text-[var(--fg-2)] leading-relaxed">
-                  {method.fields.inputsConditions?.value?.trim() || '本篇未写明输入/训练条件'}
+                  {effFields.inputsConditions?.value?.trim() || '本篇未写明输入/训练条件'}
+                  {effFields.inputsConditions?.userCorrected && (
+                    <span className="text-xs text-[var(--warn)] block mt-1">
+                      人工修正值（原 AI 值：{method.fields.inputsConditions?.value?.trim() || '（空）'}）
+                    </span>
+                  )}
                 </p>
               </div>
               <div className="content-card bg-[var(--bg-3)] border-none p-6">
                 <DraftIcon name="arrow-up-right" className="text-2xl text-[var(--fg-2)] mb-4" />
                 <h4 className="font-bold mb-2">已知局限</h4>
                 <p className="text-sm text-[var(--fg-2)] leading-relaxed">
-                  {method.fields.limitations?.value?.trim() || '本篇未写明局限'}
+                  {effFields.limitations?.value?.trim() || '本篇未写明局限'}
+                  {effFields.limitations?.userCorrected && (
+                    <span className="text-xs text-[var(--warn)] block mt-1">
+                      人工修正值（原 AI 值：{method.fields.limitations?.value?.trim() || '（空）'}）
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
@@ -863,7 +927,9 @@ export function ResultPageView({
                       <FieldCard
                         key={k}
                         field={k}
-                        result={method.fields[k]}
+                        /* 有效值用于状态标签（人工修正 → 待人工核对）；AI 原值单独对照展示 */
+                        result={effFields[k]}
+                        aiValue={method.fields[k]?.value}
                         paper={paper}
                         override={ov ? { newValue: ov.newValue, at: ov.at } : undefined}
                         onOverride={(field, value) => onOverride(paper.id, field, value)}

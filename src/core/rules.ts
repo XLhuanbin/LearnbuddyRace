@@ -10,8 +10,15 @@ import type { ConditionDimension, ExperimentConditions, RelationType } from './t
 import { CONDITION_DIMENSIONS } from './types';
 import { escapeRe } from './text';
 
-/** 规则版本：可比性、关系校验、条件范围、证据支持判定。任何影响结论的改动都要升版本。 */
-export const RULES_VERSION = 'r3.3.0';
+/**
+ * 规则版本：可比性、关系校验、条件范围、证据支持判定。任何影响结论的改动都要升版本。
+ *
+ * r3.4.0（2026-10-13）：
+ * - similar 关系也必须具备关系措辞（挡住「We evaluate our model against ResNet as a baseline.」这类基线句）；
+ * - 结论分歧要求双方各自的主张与证据（见 divergenceRules）。
+ * 版本升级后，旧缓存的关系证据状态会被标记为过期并按当前规则重算。
+ */
+export const RULES_VERSION = 'r3.4.0';
 
 /**
  * 字段 note 的判据词：模型把该字段标注为「找到了内容但无法确认」。
@@ -260,7 +267,8 @@ export interface RelationEvidenceAssessment {
  * 3. 各关系类型的额外要求：
  *    - extends / combines：具备继承/组合措辞；
  *    - improves：必须出现改进类措辞；
- *    - similar：必须同时指向两端（另一端可以是本论文自指，如「our work」）；
+ *    - similar：**同样必须出现相似/相关措辞**，且必须同时指向两端
+ *      （另一端可以是本论文自指，如「our work」）。只提「拿它当基线」不算关系主张。
  * 4. 仅出现引用标记、或只出现更泛的技术祖先（如 Vaswani et al.），不能认证具体端点。
  */
 export function assessRelationEvidence(
@@ -309,11 +317,28 @@ export function assessRelationEvidence(
       sufficient = true;
     }
   } else if (type === 'similar') {
-    // 「最相关的工作是 X」这类 related work 表述里，另一端常写作「our work」，
-    // 与 extends 一样接受自指；但两端都必须能指到，不能只提一方。
+    /**
+     * 「最相关的工作是 X」这类 related work 表述里，另一端常写作「our work」，
+     * 与 extends 一样接受自指；但两端都必须能指到，不能只提一方。
+     *
+     * ⚠️ 修复（P1，已复现）：这里**过去完全不要求关系措辞** —— 只要「指名一端 + 自指另一端」
+     * 就 sufficient = true。复现句：`We evaluate our model against ResNet as a baseline.`
+     * → mentionsFrom =「ResNet」、selfReferential =「We」→ 判为「原文明示的相似关系」。
+     * 但这句话说的是「我拿它做了基线对照」，**没有提出任何关系主张**：
+     * 既不表明相似，也不表明继承，更不表明改进。
+     *
+     * 现在与 extends / improves 同一门槛：必须有支撑该关系的措辞
+     * （similar to / comparable to / most related / in contrast to / unlike / related to our work…）。
+     * `against`、`as a baseline`、`compared with` 这类**实验设置**措辞不在白名单里 —— 正是要挡住它们。
+     */
     const hasTo = mentionsTo || selfReferential;
-    if (!mentionsFrom || !hasTo) {
+    if (!mentionsFrom) {
+      missing = '缺少「关系另一端的方法名称」这一必需条件，无法认证该关系';
+    } else if (!hasTo) {
       missing = '「相似/相关」关系需要同时指向关系两端（另一端可以是本论文的自指表述，如「our work」）';
+    } else if (!claimWord) {
+      missing =
+        '缺少能支撑「相似/相关」的措辞（如 similar to / comparable to / most related / in contrast to）。注意「拿它当基线」「against」「compared with」只是实验设置，不构成关系主张';
     } else {
       sufficient = true;
     }

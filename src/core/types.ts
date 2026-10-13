@@ -768,8 +768,42 @@ export interface ExperimentRecord {
   note?: string;
   /**
    * 用户在「实验可比性审查」页人工确认过的条件维度（DIMENSION_KEYS 的子集）。
-   * 人工产物：重新分析时按记录匹配保留（见 reanalysis.mergeReanalysisResult），不被模型输出覆盖。
-   * 只代表「用户声明已在原文核对该项」，不是模型抽取值，界面会与抽取值区分标注。
+   *
+   * ⚠️ 语义收紧（2026-10-13）：**它只表示「用户声明已在原文核对该项」，不提供任何值**。
+   * 旧实现把它当成「该条件已知」，于是「点一下勾选」就能把未知字段变成已知、影响可比性结论；
+   * 同时页面把未知字段计为完整、比较引擎却仍在读未知原值 —— 两处结论相反（已复现）。
+   * 现在它只用于界面标注与提示，**不参与任何判断**。要让一个未知条件变成已知，
+   * 必须给出具体值，写入下面的 `supplements`。
    */
   userSupplemented?: string[];
+  /**
+   * 人工补充的实验条件（**带具体值**）。
+   *
+   * 与 `userSupplemented` 的区别就在这里：人工补充必须给出「值 + 来源 + 时间」，
+   * 只勾选「我核对过」不能把未知值变成已知。人工值是**人工声明**（unverified），
+   * 不是原文核验结果，因此：
+   * - 原 AI 值保存进 `originalValue`，界面上人工值与 AI 原值并列展示；
+   * - 它不继承任何「已核验」标签，也不会让表格行列对应变成已确认。
+   */
+  supplements?: ExperimentConditionSupplement[];
+}
+
+/** 一条人工补充的实验条件 */
+export interface ExperimentConditionSupplement {
+  /** 对应 ExperimentRecord 上的字段名（如 evalSplit / inferenceMode），与页面条件矩阵的行一一对应 */
+  dimension: string;
+  /** 人工填写的具体值（必填；空值不允许入库） */
+  value: string;
+  /** 人工填写时该字段的 AI 原值（用于并列展示与追溯） */
+  originalValue?: string;
+  /** 来源说明（如「论文 Table 3 第 2 行」）——必填，来源为空的人工值不可追溯 */
+  source: string;
+  /** 声明时间 */
+  at: number;
+  /** 可选：支撑该值的原文引文 */
+  quote?: string;
+  /** 可选：引文定位校验结果（只有通过定位校验才 verified=true） */
+  evidence?: Evidence;
+  /** 可选备注 */
+  note?: string;
 }

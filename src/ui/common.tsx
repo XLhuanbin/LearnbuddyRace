@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import type { Evidence, FieldKey, Method, MethodFieldResult, Paper } from '../core/types';
 import { FIELD_STATUS_TEXT, METHOD_FIELD_LABELS } from '../core/types';
 import { contextAround } from '../core/text';
@@ -40,12 +40,64 @@ export function EvidencePopover({
   const hasText = !!paper?.rawText;
   const canShowSpan = hasText && evidence.start !== undefined && evidence.end !== undefined;
   const ctx = canShowSpan ? contextAround(paper!.rawText, evidence.start!, evidence.end!) : undefined;
+  const boxRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  /**
+   * 弹层是模态对话框：打开时把焦点移入、Esc 关闭、Tab 只在弹层内循环、关闭后把焦点
+   * 还给触发元素（记录 document.activeElement）。
+   * onClose 用 ref 保存，effect 只跑一次 —— 否则父组件每次重渲染（内联箭头函数）都会
+   * 重跑 effect、把焦点抢回弹层，用户按 Tab 会被反复打断。
+   */
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    const focusables = (): HTMLElement[] => {
+      const box = boxRef.current;
+      if (!box) return [];
+      return Array.from(
+        box.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'),
+      ).filter((el) => !el.hasAttribute('disabled'));
+    };
+    focusables()[0]?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const els = focusables();
+      if (els.length < 2) return;
+      const first = els[0];
+      const last = els[els.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('keydown', onKey, true);
+      prev?.focus?.();
+    };
+  }, []);
 
   return (
     <div className="ev-pop" onClick={onClose}>
-      <div className="ev-box" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="ev-box"
+        ref={boxRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(e) => e.stopPropagation()}
+      >
         <header>
-          <strong>{fieldLabel} · 原文证据</strong>
+          <strong id={titleId}>{fieldLabel} · 原文证据</strong>
           {evidence.verified ? (
             <Tag kind="ok">已通过全文定位校验</Tag>
           ) : (
@@ -134,13 +186,17 @@ const FIELD_STATUS_TAG: Record<MethodFieldResult['status'], { kind: string; text
 export function FieldCard({
   field,
   result,
+  aiValue,
   paper,
   override,
   onOverride,
   onOpenEvidence,
 }: {
   field: FieldKey;
+  /** 有效值视图：人工修正过的字段 status 已是 unverified（见 core/effective.ts） */
   result: MethodFieldResult;
+  /** AI 原值（人工修正前），独立对照展示，绝不覆盖有效值 */
+  aiValue?: string;
   paper?: Paper;
   override?: { newValue: string; at: number };
   onOverride: (field: FieldKey, value: string) => void;
@@ -156,7 +212,7 @@ export function FieldCard({
       <div className="field-head">
         <span className="field-name">{label}</span>
         <Tag kind={tag.kind}>{tag.text}</Tag>
-        {override && <Tag kind="info">已人工修正</Tag>}
+        {override && <Tag kind="info">人工修正（未核验）</Tag>}
         <span className="spacer" />
         <button
           className="btn ghost sm"
@@ -194,9 +250,12 @@ export function FieldCard({
       ) : override ? (
         <>
           <div className="field-value">{override.newValue || '（用户标记为无可靠信息）'}</div>
-          {result.value && (
+          <div className="field-note">
+            <Tag kind="warn">人工修正值 · 按待人工核对对待</Tag>
+          </div>
+          {aiValue && (
             <div className="field-note">
-              AI 原值：<span className="dim">{result.value}</span>
+              AI 原值：<span className="dim">{aiValue}</span>
             </div>
           )}
         </>
@@ -206,7 +265,9 @@ export function FieldCard({
         </div>
       )}
 
-      {!editing && result.note && result.status !== 'verified' && <div className="field-note">{result.note}</div>}
+      {!editing && !override && result.note && result.status !== 'verified' && (
+        <div className="field-note">{result.note}</div>
+      )}
 
       {!editing && result.evidence &&
         (result.evidence.verified ? (

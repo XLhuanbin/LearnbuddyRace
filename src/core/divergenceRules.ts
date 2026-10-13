@@ -103,14 +103,91 @@ export function applyDivergenceRules(
     );
   }
 
+  /**
+   * 双方主张（sides）在这里就构建好，因为下面的结论分歧判定要用它。
+   *
+   * 每条主张都要过定位校验：引文的页码一律来自定位结果，不采信模型自称的页码；
+   * 定位不通过时保留模型原引文并标 `verified: false`（供人工核对），绝不冒充已核验。
+   */
+  const builtSides = requireArrayOfObjects(
+    optionalArrayField(rawObj, 'sides', '分歧分析结果.findings') ?? [],
+    '分歧分析结果.findings.sides',
+  )
+    .filter((s) => typeof s.paperId === 'string' && validPaperIds.has(s.paperId))
+    .map((s) => {
+      const paperId = s.paperId as string;
+      const claim = asStr(s.claim);
+      const rawQuote = asStr(s.quote).trim();
+      if (!rawQuote) {
+        return { paperId, claim, quote: undefined };
+      }
+      const paper = papers.find((p) => p.id === paperId);
+      // 分歧引文同样必须过定位校验：页码一律来自定位结果，绝不采用模型自称的页码
+      if (!paper || !paper.rawText) {
+        const note = '尚未取回该论文全文，无法做定位校验；这里展示的是模型给出的引文片段，按「待核查」对待。';
+        const ev: Evidence = {
+          paperId,
+          quote: rawQuote.slice(0, 500),
+          locator: 'none',
+          verified: false,
+          verifyNote: note,
+        };
+        return { paperId, claim, quote: rawQuote, quoteEvidence: ev, quoteNote: note };
+      }
+      const ev = buildEvidence(paper, { quote: rawQuote });
+      if (!ev) return { paperId, claim, quote: undefined };
+      return {
+        paperId,
+        claim,
+        // 定位成功时用原文切片（而不是模型给的字符串），失败时保留原字符串供人工核对
+        quote: ev.verified ? ev.quote : rawQuote,
+        page: ev.verified ? ev.page : undefined,
+        quoteEvidence: ev,
+        quoteNote: ev.verified ? undefined : (ev.verifyNote ?? '该引文未能在论文全文中定位。'),
+      };
+    });
+
   if (finalKind === 'conclusion_divergence') {
-    if (paperIds.length < 2) {
+    /**
+     * === 结论分歧的成立条件（P1，已复现）===
+     *
+     * 旧实现只检查「论文数 ≥ 2」与「commonScope 非空」，于是
+     * `sides=[]`、`claimType` 缺失时，只要 commonScope 有值就保留 `conclusion_divergence` ——
+     * 一条**没有任何双方主张、没有证据、也不知道是数值还是定性**的发现，
+     * 会被页面渲染成「存在结论分歧」。这是在替用户下研究结论，风险最高的一类错误。
+     *
+     * 现在要求**同时**满足：
+     * ① 至少涉及两篇**不同**的论文；
+     * ② 双方各自给出**明确主张**（claim 非空）；
+     * ③ 各自的主张有**通过定位校验的证据**（引文能在原文中定位到）；
+     * ④ 有可核对的共同范围（commonScope）；
+     * ⑤ 明确主张类型（numeric / qualitative）。
+     * 缺任意一条即不认定为「结论分歧」，并在 ruleNotes 里写明缺的是哪一条。
+     */
+    const sidePapers = new Set(builtSides.map((s) => s.paperId));
+    const strongSides = builtSides.filter((s) => (s.claim ?? '').trim().length > 0 && s.quoteEvidence?.verified === true);
+    const weakSides = builtSides.filter((s) => !((s.claim ?? '').trim().length > 0 && s.quoteEvidence?.verified === true));
+
+    if (paperIds.length < 2 || sidePapers.size < 2) {
       finalKind = 'none_found';
-      ruleNotes.push('涉及论文不足两篇，无法构成跨论文分歧。');
+      ruleNotes.push('缺少双方主张：结论分歧需要至少两篇**不同**论文各自的主张，当前不满足。');
+      explanation = `缺少双方主张（或双方主张落在同一篇论文上），未认定为结论分歧。${explanation ? `模型说明：${explanation}` : ''}`;
     } else if (!commonScope) {
       finalKind = 'none_found';
       ruleNotes.push('缺少双方主张的共同对象/范围，无法确认两者在比较同一件事，因此不认定为分歧。');
       explanation = `缺少共同比较范围，未认定为分歧。${explanation ? `模型说明：${explanation}` : ''}`;
+    } else if (!claimType) {
+      finalKind = 'none_found';
+      ruleNotes.push(
+        '缺少主张类型（claimType）：未说明这是数值结果层面的差异还是定性主张层面的分歧，无法用对应规则核实，因此不认定为结论分歧。',
+      );
+      explanation = `缺少主张类型（数值 / 定性），未认定为结论分歧。${explanation ? `模型说明：${explanation}` : ''}`;
+    } else if (strongSides.length < 2 || weakSides.length > 0) {
+      finalKind = 'none_found';
+      ruleNotes.push(
+        `结论分歧要求双方各自的主张都有能在原文中定位到的证据；当前 ${builtSides.length} 条主张中只有 ${strongSides.length} 条满足（主张文字与引文定位都需要通过）。`,
+      );
+      explanation = `双方主张的证据不足，未认定为结论分歧。${explanation ? `模型说明：${explanation}` : ''}`;
     } else if (claimType === 'numeric') {
       if (comparabilityLevel !== 'comparable') {
         const diffs: DivergenceFinding['conditionDifferences'] = [];
@@ -192,40 +269,8 @@ export function applyDivergenceRules(
     kind: finalKind,
     topic: asStr(raw.topic) || '未命名主题',
     paperIds,
-    sides: requireArrayOfObjects(optionalArrayField(rawObj, 'sides', '分歧分析结果.findings') ?? [], '分歧分析结果.findings.sides')
-      .filter((s) => typeof s.paperId === 'string' && validPaperIds.has(s.paperId))
-      .map((s) => {
-        const paperId = s.paperId as string;
-        const claim = asStr(s.claim);
-        const rawQuote = asStr(s.quote).trim();
-        if (!rawQuote) {
-          return { paperId, claim, quote: undefined };
-        }
-        const paper = papers.find((p) => p.id === paperId);
-        // 分歧引文同样必须过定位校验：页码一律来自定位结果，绝不采用模型自称的页码
-        if (!paper || !paper.rawText) {
-          const note = '尚未取回该论文全文，无法做定位校验；这里展示的是模型给出的引文片段，按「待核查」对待。';
-          const ev: Evidence = {
-            paperId,
-            quote: rawQuote.slice(0, 500),
-            locator: 'none',
-            verified: false,
-            verifyNote: note,
-          };
-          return { paperId, claim, quote: rawQuote, quoteEvidence: ev, quoteNote: note };
-        }
-        const ev = buildEvidence(paper, { quote: rawQuote });
-        if (!ev) return { paperId, claim, quote: undefined };
-        return {
-          paperId,
-          claim,
-          // 定位成功时用原文切片（而不是模型给的字符串），失败时保留原字符串供人工核对
-          quote: ev.verified ? ev.quote : rawQuote,
-          page: ev.verified ? ev.page : undefined,
-          quoteEvidence: ev,
-          quoteNote: ev.verified ? undefined : (ev.verifyNote ?? '该引文未能在论文全文中定位。'),
-        };
-      }),
+    // 双方主张在上面的结论分歧判定之前就已构建（含引文定位校验）
+    sides: builtSides,
     claimType,
     commonScope,
     conditionDifferences: conditionDifferences.length ? conditionDifferences : undefined,

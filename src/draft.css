@@ -377,6 +377,30 @@
   background: var(--accent-soft);
 }
 
+/* 时间线视图的子头不在 .mapnet 里（它是网络视图的兄弟节点），但两个视图必须共用
+   同一条子头外观 —— 否则切到时间线后「网络视图 / 时间线」按钮会退回浏览器默认样式
+   （2026-10-13 用户截图）。这里只复用按钮规则，不继承 .mapnet 的整页高度/布局。 */
+.mapsub .btn-outline {
+  background: white;
+  border: 1px solid var(--line-2);
+  color: var(--fg-2);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  transition: all 0.2s;
+  font-size: 13px;
+  cursor: pointer;
+}
+.mapsub .btn-outline:hover {
+  background: var(--bg-3);
+  border-color: var(--fg-3);
+}
+.mapsub .btn-outline.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
 /* 画布：草稿是点阵底 + 抓手光标 */
 .mapnet .map-canvas-container {
   background-image: radial-gradient(var(--line) 1px, transparent 1px);

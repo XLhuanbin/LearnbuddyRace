@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { Evidence, Method, Paper, ReadingPlan, UserProfile } from '../core/types';
 import {
   EXECUTION_STAGE_LABELS,
@@ -57,6 +57,7 @@ export function DecisionView({
   /** 打开某一篇（跳到论文集合并聚焦） */
   onOpenPaper: (paperId: string) => void;
 }) {
+  /** 表单草稿：**只是草稿**，与「已生成结果自带的条件（plan.profile）」严格分开 */
   const [profile, setProfile] = useState<UserProfile>({
     background: '计算机相关专业，上过机器学习课，能读懂 Transformer 基本结构',
     interest: '想了解相关方法的训练与评测思路',
@@ -64,7 +65,10 @@ export function DecisionView({
     compute: '只有一台笔记本，无 GPU 集群',
     goal: '选一个能上手复现的小方向做课程项目',
   });
-  const [lastProfile, setLastProfile] = useState<UserProfile | undefined>();
+  /** 用户是否动过表单：动过就不再被 plan / 示例自动覆盖，避免把用户正在编辑的条件冲掉 */
+  const [touched, setTouched] = useState(false);
+  /** 示例载入 / 结果来源的即时反馈 */
+  const [sampleNotice, setSampleNotice] = useState('');
   const [openStep, setOpenStep] = useState<string | null>(null);
   const [showAllReasons, setShowAllReasons] = useState<string | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -73,15 +77,52 @@ export function DecisionView({
   /** 侧栏「AI 建议」默认只显示首句，完整条件敏感性按需展开（草稿 v7 把它收成配置卡底部一行） */
   const [adviceOpen, setAdviceOpen] = useState(false);
 
+  /**
+   * 重新进入页面时恢复条件：优先用「成功路线自带的条件」（plan.profile），
+   * 其次用示例条件（sampleProfile），而不是留一张空表单。
+   * 只在用户还没动过表单时才恢复（动过就别再覆盖他正在编辑的内容）。
+   */
+  useEffect(() => {
+    if (touched) return;
+    const src = plan?.profile ?? sampleProfile;
+    if (src) setProfile((cur) => ({ ...cur, ...src }));
+  }, [plan, sampleProfile, touched]);
+
   const paperById = new Map(papers.map((p) => [p.id, p]));
   const methodById = new Map(methods.map((m) => [m.id, m]));
   const profileOf = (paperId: string) => {
     const m = methods.find((x) => x.paperId === paperId);
     return m ? buildMethodProfile(m, paperById.get(paperId), papers) : undefined;
   };
-  const set = (k: keyof UserProfile) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+  const set = (k: keyof UserProfile) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setTouched(true);
     setProfile({ ...profile, [k]: e.target.value });
+  };
   const pad2 = (n: number) => String(n).padStart(2, '0');
+
+  /** 条件的一句话描述（只陈述真实取值，不编造） */
+  const condText = (p: UserProfile) => `${p.compute || '未填写'} / ${p.time || '未填写'}`;
+
+  /**
+   * 「查看示例路线 / 重新载入示例路线」：**真实载入预置示例条件到表单**并给出反馈，
+   * 不再偷偷调用实时生成（onGenerate）。如果已有用户自己生成的路线，只填条件、不覆盖结果。
+   */
+  const loadSampleIntoForm = () => {
+    const src = sampleProfile;
+    if (!src) {
+      setSampleNotice('当前没有可用的示例条件（示例随预置语料一起提供；先加载演示案例再回来）。');
+      return;
+    }
+    setTouched(true);
+    setProfile((cur) => ({ ...cur, ...src }));
+    if (plan && !plan.cached) {
+      setSampleNotice(
+        `已把示例条件填入表单：${condText(src)}。注意：当前结果是你自己生成的路线（生成于：${condText(plan.profile)}），此操作不会覆盖它。`,
+      );
+    } else {
+      setSampleNotice(`已载入示例条件：${condText(src)}。这是预置示例，未按你的条件个性化。`);
+    }
+  };
 
   /** 侧栏 AI 建议：完整内容 = 模型自述的条件敏感性；默认只显示首句，避免把侧栏撑高 */
   const adviceFull = plan?.conditionSensitivity?.trim() || '';
@@ -137,6 +178,16 @@ export function DecisionView({
                   </span>
                   <span className="w-1 h-1 bg-[var(--line-2)] rounded-full" />
                   <span>{plan ? (plan.cached ? '示例路线（缓存）' : '个性化路线') : '尚未生成'}</span>
+                  {plan && (
+                    <>
+                      <span className="w-1 h-1 bg-[var(--line-2)] rounded-full" />
+                      {/* 结果来源只读 plan.profile（成功产物自带的条件），绝不写成当前表单草稿的条件 */}
+                      <span title="该结果生成时使用的条件（不是当前表单里的草稿）">
+                        该结果生成于：{condText(plan.profile)}
+                        {plan.cached ? '（示例条件）' : '（你填写的条件）'}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             </header>
@@ -629,10 +680,14 @@ export function DecisionView({
                 </h3>
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-black uppercase text-[var(--fg-3)] tracking-widest mb-2">
+                    <label
+                      htmlFor="plan-profile-background"
+                      className="block text-xs font-black uppercase text-[var(--fg-3)] tracking-widest mb-2"
+                    >
                       我的基础水平
                     </label>
                     <textarea
+                      id="plan-profile-background"
                       className="w-full bg-[var(--bg)] border border-[var(--line)] p-2.5 rounded-xl text-sm focus:outline-none focus:border-[var(--accent)]"
                       rows={2}
                       value={profile.background}
@@ -640,10 +695,14 @@ export function DecisionView({
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-black uppercase text-[var(--fg-3)] tracking-widest mb-2">
+                    <label
+                      htmlFor="plan-profile-interest"
+                      className="block text-xs font-black uppercase text-[var(--fg-3)] tracking-widest mb-2"
+                    >
                       研究目标 / 兴趣
                     </label>
                     <textarea
+                      id="plan-profile-interest"
                       className="w-full bg-[var(--bg)] border border-[var(--line)] p-2.5 rounded-xl text-sm focus:outline-none focus:border-[var(--accent)]"
                       rows={2}
                       value={profile.interest}
@@ -652,20 +711,28 @@ export function DecisionView({
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-black uppercase text-[var(--fg-3)] tracking-widest mb-2">
+                      <label
+                        htmlFor="plan-profile-time"
+                        className="block text-xs font-black uppercase text-[var(--fg-3)] tracking-widest mb-2"
+                      >
                         可用时间
                       </label>
                       <input
+                        id="plan-profile-time"
                         className="w-full bg-[var(--bg)] border border-[var(--line)] p-2.5 rounded-xl text-sm focus:outline-none focus:border-[var(--accent)]"
                         value={profile.time ?? ''}
                         onChange={set('time')}
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-black uppercase text-[var(--fg-3)] tracking-widest mb-2">
+                      <label
+                        htmlFor="plan-profile-compute"
+                        className="block text-xs font-black uppercase text-[var(--fg-3)] tracking-widest mb-2"
+                      >
                         计算资源
                       </label>
                       <input
+                        id="plan-profile-compute"
                         className="w-full bg-[var(--bg)] border border-[var(--line)] p-2.5 rounded-xl text-sm focus:outline-none focus:border-[var(--accent)]"
                         value={profile.compute ?? ''}
                         onChange={set('compute')}
@@ -681,11 +748,12 @@ export function DecisionView({
                     style={{ justifyContent: 'center' }}
                     disabled={busy || methods.length === 0}
                     onClick={() => {
-                      setLastProfile(profile);
-                      onGenerate(profile);
+                      /* 表单是草稿；只有配了模型才真生成。未配模型时「查看示例路线」= 真实载入示例条件 */
+                      if (modelReady) onGenerate(profile);
+                      else loadSampleIntoForm();
                     }}
                   >
-                    {busy ? '生成中…' : modelReady ? '重新生成路线' : '查看示例路线'}
+                    {busy ? '生成中…' : modelReady ? '生成个性化路线' : '查看示例路线'}
                   </button>
                   {busy && onCancel && (
                     <button className="w-full btn-outline" style={{ justifyContent: 'center' }} disabled={!modelReady} onClick={onCancel}>
@@ -693,13 +761,25 @@ export function DecisionView({
                     </button>
                   )}
                   {plan?.cached && (
-                    <button className="w-full btn-outline" style={{ justifyContent: 'center' }} disabled={busy || methods.length === 0} onClick={onUseSample}>
-                      重新载入示例路线
+                    <button
+                      className="w-full btn-outline"
+                      style={{ justifyContent: 'center' }}
+                      disabled={busy || methods.length === 0}
+                      onClick={loadSampleIntoForm}
+                    >
+                      重新载入示例条件到表单
                     </button>
                   )}
-                  {lastProfile && plan && !plan.cached && (
-                    <p className="text-[11px] text-[var(--fg-3)] leading-relaxed">
-                      本次结果对应的条件是「{lastProfile.compute || '未填写'} / {lastProfile.time || '未填写'}」。
+                  {sampleNotice && (
+                    <p className="text-xs text-[var(--fg-3)] leading-relaxed" data-sample-notice>
+                      {sampleNotice}
+                    </p>
+                  )}
+                  {plan && (
+                    <p className="text-sm text-[var(--fg-3)] leading-relaxed">
+                      该结果生成于：{condText(plan.profile)}
+                      {plan.cached ? '（示例条件）' : '（你填写的条件）'}；表单里的条件只在点「
+                      {modelReady ? '生成个性化路线' : '生成'}」后才生效。
                     </p>
                   )}
                 </div>

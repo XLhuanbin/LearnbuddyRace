@@ -1,22 +1,21 @@
 # 规则重算记录（未调用模型）
 
-- 执行时间：2026/10/8 17:03:33
-- 规则版本：r3.2.0
+- 执行时间：2026/10/13 12:20:02
+- 规则版本：r3.4.0
 - 模型输出来源：提示词 v3.0.0（本脚本未重新调用模型）
 
 ## 校验问题
 
-- 重算前：18 条 {"page_mismatch":2,"evidence_missing":3,"condition_not_extracted":3,"evidence_not_located":8,"condition_unconfirmed":2}
-- 重算后：18 条 {"page_mismatch":2,"evidence_missing":3,"condition_not_extracted":3,"evidence_not_located":8,"condition_unconfirmed":2}
+- 重算前：7 条 {"title_unverified":2,"condition_unconfirmed":3,"evidence_not_located":2}
+- 重算后：5 条 {"condition_unconfirmed":3,"evidence_not_located":2}
 
 ## 关系可信度
 
 - 状态发生变化的条数：0
 
-- Attention Is All You Need → BERT: Pre-training of Deep：保持 explicit｜引文提到了被继承方法「Transformer」；提到了关系另一端「BERT」；含继承/组合措辞「based on」，足以支撑「extends」关系。
-- BERT: Pre-training of Deep → RoBERTa: A Robustly Optimi：保持 explicit｜引文提到了被继承方法「BERT」；含改进措辞「improves」，足以支撑「improves」关系。
-- BERT: Pre-training of Deep → DistilBERT, a distilled ve：保持 explicit｜引文提到了被继承方法「BERT」；提到了关系另一端「DistilBERT」；含继承/组合措辞「distilled version of」，足以支撑「extends」关系。
-- Attention Is All You Need → DistilBERT, a distilled ve：保持 inferred｜引文提到了被继承方法「Transformer」；含引用标记「[2017]」，足以支撑「extends」关系。
+- Training data-efficient im → A ConvNet for the 2020s：保持 inferred｜引文提到了被继承方法「DeiT」；含引用标记「[73]」。缺少能支撑「相似/相关」的措辞（如 similar to / comparable to / most related / in contrast to）。注意「拿它当基线」「against」「compared with」只是实验设置，不构成关系主张。
+- Swin Transformer: Hierarch → A ConvNet for the 2020s：保持 explicit｜引文提到了被继承方法「Swin Transformer」；提到了关系另一端「ConvNeXt」；含改进措辞「outperform」，足以支撑「improves」关系。
+- Training data-efficient im → Swin Transformer: Hierarch：保持 candidate｜引文提到了被继承方法「DeiT」；含改进措辞「outperforms」；含引用标记「[20, 63]」。句子没有指向关系另一端（既未提到对方方法名，也不是本论文的自指表述）。
 
 ## 分歧发现
 

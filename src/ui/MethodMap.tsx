@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import type { Evidence, Method, Paper, Relation, RelationEvidenceState } from '../core/types';
-import { buildMethodProfile, relationExplanation, relationSentence, shortContribution, type MethodProfile } from '../core/grouping';
+import { buildMethodProfile, FAMILY_ORDER, relationExplanation, relationSentence, shortContribution, type MethodProfile } from '../core/grouping';
 import { Status } from './common';
 
 interface Props {
@@ -30,7 +30,11 @@ const EDGE_STYLE: Record<RelationEvidenceState, { color: string; dash?: string; 
   candidate: { color: '#8a8378', dash: '2 5', width: 1.7, label: '待核查' },
 };
 
-const LANE_ORDER: MethodProfile['family']['id'][] = ['cnn', 'transformer', 'hybrid', 'pending'];
+/**
+ * 泳道顺序：直接取 grouping 的家族顺序（规则表 + 混合 + 待确认）。
+ * 2026-10-13：点云 / 图网络 / MLP 入规则表后，写死的四车道会漏掉新家族的节点。
+ */
+const LANE_ORDER: MethodProfile['family']['id'][] = FAMILY_ORDER;
 const NODE_W = 208;
 const NODE_H = 78;
 const LANE_GAP = 118;

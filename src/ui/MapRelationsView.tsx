@@ -1,3 +1,16 @@
+/**
+ * ⚠️ 已停用（2026-10-13，用户决定）——**当前没有任何地方渲染这个组件**。
+ *
+ * 停用原因：研究地图取消「关系与比较 / 阅读起点」两个子视图 —— 它们与独立页面重复
+ * （同一个东西两个入口）。对应能力都有独立页面承担：
+ *   · 关系明细整表 + 两方法对照 → 已并入「方法关系」页（关系图下方）
+ *   · 跨论文比较 → 「跨论文比较」页
+ *   · 发起关系分析 → 画布上保留入口
+ *
+ * 文件刻意保留而不是删除：内容仍有参考价值，且本机删除动作曾把整个源码目录移进回收站
+ * （见项目记忆），恢复成本高。若确认不再需要，请手动删除；
+ * 若要恢复，需要在 MapView 里重新挂载该子视图并接回入口。
+ */
 import React, { useEffect, useMemo, useState } from 'react';
 import type { Evidence, ExperimentRecord, Method, Paper, Relation } from '../core/types';
 import { effectiveFieldValue } from '../core/effective';

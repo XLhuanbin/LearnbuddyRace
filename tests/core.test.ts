@@ -46,7 +46,9 @@ import {
   CORPUS_META,
   asScopedSnapshot,
   collectPaperRemoval,
+  collectScopeRemoval,
   corpusOfPaperId,
+  danglingRelations,
   isManualRelation,
   mergeCachedMethod,
   mergeCachedMethods,
@@ -56,28 +58,42 @@ import {
   relationsInScope,
   replaceRelationsInScope,
   scopeCorpus,
+  scopeIdentityKey,
   scopeRelations,
 } from '../src/core/corpus';
 import {
   buildMethodOverview,
   buildMethodProfile,
   classifyFamily,
+  FAMILY_ORDER,
   relationSentence,
   shortContribution,
 } from '../src/core/grouping';
 import {
+  analyzeExperimentComparability,
   canonicalDatasetName,
   canonicalMetricName,
+  canonicalMetricUnit,
   canonicalResolution,
+  canonicalSplit,
   compareExperiments,
-  isMetricValueMissing,
+  effectiveExperimentRecords,
+  experimentIdentityKey,
+  groupExperiments,
   isConditionValueMissing,
+  isMetricValueMissing,
+  isUnknownValue,
+  parseMetricValue,
   pickComparableExperimentPair,
   suggestComparablePairs,
+  withSupplements,
 } from '../src/core/experiments';
+import { appendUsage, loadMeta, repo, saveMeta } from '../src/core/storage';
+import { tailHasRiskyTokens } from '../src/core/text';
 import type { ExperimentRecord } from '../src/core/types';
 import { buildComparison, toMarkdown } from '../src/core/compare';
-import { migrateMethod, migrateRelation } from '../src/core/cache';
+import { isCachedCorpusIndex, isCachedPaperText, migrateMethod, migrateRelation } from '../src/core/cache';
+import { bumpSeq, seqIsCurrent } from '../src/core/taskSeq';
 import {
   CANCEL_NOTICE,
   FAILURE_NOTICE,
@@ -363,7 +379,17 @@ console.log('=== 5. 比较页与分歧页结论一致（对应问题一） ===')
 
 console.log('=== 6. 分歧规则复核（对应问题五） ===');
 {
-  const papers2 = [PAPER('a', 'A'), PAPER('b', 'B')];
+  /**
+   * 2026-10-13 收紧：结论分歧要求「两篇不同论文 + 各自明确主张 + 各自证据（引文可在原文定位）+ 可核对共同范围」。
+   * 因此这里的论文必须带 rawText，双方主张必须给出能在原文里定位到的引文。
+   */
+  const TXT_A = 'We report an F1 of 88.5 on the same dataset. Our approach improves over the baselines.';
+  const TXT_B = 'We report an F1 of 86.1 on the same dataset. Our approach differs in design trade-offs.';
+  const papers2 = [PAPER('a', 'A', 2020, TXT_A), PAPER('b', 'B', 2020, TXT_B)];
+  const sided = [
+    { paperId: 'a', claim: '同一数据集上报告 88.5 F1', quote: 'We report an F1 of 88.5 on the same dataset.' },
+    { paperId: 'b', claim: '同一数据集上报告 86.1 F1', quote: 'We report an F1 of 86.1 on the same dataset.' },
+  ];
   const m1 = mkMethod('a', emptyConditions());
   const m2 = mkMethod('b', emptyConditions());
 
@@ -373,7 +399,7 @@ console.log('=== 6. 分歧规则复核（对应问题五） ===');
     commonScope: '同一数据集上的 F1',
     topic: 'F1 差异',
     paperIds: ['a', 'b'],
-    sides: [],
+    sides: sided,
     explanation: '',
   }, 0);
   check(
@@ -396,7 +422,7 @@ console.log('=== 6. 分歧规则复核（对应问题五） ===');
     commonScope: '准确率',
     topic: '准确率差异',
     paperIds: ['a', 'b'],
-    sides: [],
+    sides: sided,
     explanation: '',
   }, 9);
   check('数据集完全不同的数值分歧 → 降为「条件不一致，无法归因于方法」', numericDiff.kind === 'condition_confounded', numericDiff.kind);
@@ -416,6 +442,60 @@ console.log('=== 6. 分歧规则复核（对应问题五） ===');
     explanation: '',
   }, 1);
   check('缺少共同比较范围 → 不认定为分歧', noScope.kind === 'none_found', noScope.kind);
+
+  /* ---- 本轮新增（P1）：结论分歧的成立条件必须同时满足，缺一即不得宣称存在结论分歧 ---- */
+  const noSides = applyDivergenceRules(papers2, [m1, m2], {
+    kind: 'conclusion_divergence',
+    claimType: 'numeric',
+    commonScope: '同一数据集上的 F1',
+    topic: 'x',
+    paperIds: ['a', 'b'],
+    sides: [],
+    explanation: '',
+  }, 10);
+  check('sides 为空（只有共同范围）→ 不认定为结论分歧', noSides.kind === 'none_found', noSides.kind);
+  check('并在复核说明里写明「缺少双方主张」', /缺少双方主张/.test(noSides.ruleNotes?.join('') ?? ''), JSON.stringify(noSides.ruleNotes));
+
+  const noClaimType = applyDivergenceRules(papers2, [m1, m2], {
+    kind: 'conclusion_divergence',
+    commonScope: '同一数据集上的 F1',
+    topic: 'x',
+    paperIds: ['a', 'b'],
+    sides: sided,
+    explanation: '',
+  }, 11);
+  check('缺少 claimType → 不认定为结论分歧', noClaimType.kind === 'none_found', noClaimType.kind);
+  check('并写明缺少主张类型', /缺少主张类型/.test(noClaimType.ruleNotes?.join('') ?? ''), JSON.stringify(noClaimType.ruleNotes));
+
+  const oneSided = applyDivergenceRules(papers2, [m1, m2], {
+    kind: 'conclusion_divergence',
+    claimType: 'numeric',
+    commonScope: '同一数据集上的 F1',
+    topic: 'x',
+    paperIds: ['a', 'b'],
+    sides: [{ paperId: 'a', claim: '同一数据集上报告 88.5 F1', quote: 'We report an F1 of 88.5 on the same dataset.' }],
+    explanation: '',
+  }, 12);
+  check('只有一方给出主张 → 不认定为结论分歧', oneSided.kind === 'none_found', oneSided.kind);
+
+  const unlocatable = applyDivergenceRules(papers2, [m1, m2], {
+    kind: 'conclusion_divergence',
+    claimType: 'numeric',
+    commonScope: '同一数据集上的 F1',
+    topic: 'x',
+    paperIds: ['a', 'b'],
+    sides: [
+      { paperId: 'a', claim: '同一数据集上报告 88.5 F1', quote: 'We report an F1 of 88.5 on the same dataset.' },
+      { paperId: 'b', claim: '同一数据集上报告 86.1 F1', quote: '这句话在 B 的原文里完全不存在，是模型改写的。' },
+    ],
+    explanation: '',
+  }, 13);
+  check('一方引文无法在原文定位 → 证据不足，不认定为结论分歧', unlocatable.kind === 'none_found', unlocatable.kind);
+  check(
+    '两条主张都成立时才进入数值可比性复核（正常路径没有被封死）',
+    numericWorse.kind === 'condition_confounded',
+    numericWorse.kind,
+  );
 
   const sharedNoBasis = applyDivergenceRules(papers2, [m1, m2], {
     kind: 'shared_limitation',
@@ -1082,7 +1162,10 @@ console.log('=== 19. 实验记录：规范化与实验级可比性（本轮核�
   check('归一过程会记录说明', canonicalDatasetName('ImageNet-22K').notes.length > 0);
 
   check('top-1 err. 与 top-1 accuracy 是不同指标', canonicalMetricName('top-1 err.') !== canonicalMetricName('top-1 accuracy'));
-  check('分辨率归一：224² → 224', canonicalResolution('224²') === '224');
+  // 分辨率必须保留完整写法：旧实现用 /(\d{2,4})/ 取第一个数字，224x224 / 224x384 / 224x640 全归成 '224'（已复现）
+  check('分辨率归一：224² → 224x224（保留完整分辨率，不再压成 224）', canonicalResolution('224²') === '224x224', canonicalResolution('224²'));
+  check('分辨率归一：224x224 与 224² 等价', canonicalResolution('224x224') === canonicalResolution('224²'));
+  check('分辨率归一：224x384 / 224x640 不被合并成同一个', canonicalResolution('224x384') !== canonicalResolution('224x640'), `${canonicalResolution('224x384')} / ${canonicalResolution('224x640')}`);
 
   const mk = (over: Partial<ExperimentRecord>): ExperimentRecord => ({
     id: 'x1',
@@ -1092,6 +1175,10 @@ console.log('=== 19. 实验记录：规范化与实验级可比性（本轮核�
     evalDataset: 'ImageNet-1K',
     metricName: 'top-1 accuracy',
     metricValue: '80.0',
+    // 指标单位必须写明：单位未知时不能擅自假定成百分数（见 core/experiments.ts）
+    metricUnit: '%',
+    // 评估划分也必须写明：双方都为空的划分不能算「一致」（本轮修复的「双方 evalSplit 为空仍可直接比较」）
+    evalSplit: 'val',
     pretrainData: 'none',
     trainData: 'ImageNet-1K',
     inputResolution: '224',
@@ -1330,6 +1417,59 @@ console.log('=== 22. 方法家族 / 技术策略 / 概览统计 / 关系方向�
   check('回归①b：名称无架构关键词且首句全是引用语境时，不硬判家族（待确认）',
     classifyFamily(noKeyword).id === 'pending', classifyFamily(noKeyword).id);
   check('回归①b：引用其它方法不会被算作策略证据来源（家族依据为空）', classifyFamily(noKeyword).basis.length === 0);
+
+  /**
+   * 回归（2026-10-13 用户实测）：三维点云语料里「方法族」这一栏**永远不变** ——
+   * 旧规则表只有 CNN / Transformer 两类架构关键词，换一组论文就全部落「待确认」。
+   * 规则表扩展后，点云 / 图网络 / MLP 必须能判出来，且判定依据照旧可审计。
+   */
+  const pointnet = mkM('p_pn', 'PointNet', '直接以三维点云为输入，用多层感知机对每个点编码后再做对称函数聚合。');
+  const famPn = classifyFamily(pointnet);
+  check('点云语料能判出家族（不再是待确认）', famPn.id === 'pointcloud', famPn.id);
+  check('点云家族记录了判定依据', famPn.basis.length > 0 && famPn.basis.every((b) => b.keyword.length > 0));
+  const mc3d = mkM('p_mc3d', 'MC3D-AD', '基于点云的三维异常检测：先体素化，再用稀疏卷积提取多尺度特征。');
+  check('体素 / 稀疏卷积同样判为点云家族', classifyFamily(mc3d).id === 'pointcloud', classifyFamily(mc3d).id);
+  const gnnM = mkM('p_gnn', 'OurGNN', '用图神经网络在关系邻接图上做消息传递，聚合邻居特征。');
+  check('图神经网络家族来自首句关键词', classifyFamily(gnnM).id === 'graph', classifyFamily(gnnM).id);
+  const hybridP = mkM('p_pt', 'Point Transformer', '把 Transformer 的自注意力用在三维点云上。');
+  const famHy = classifyFamily(hybridP);
+  check(
+    '点云 + Transformer 判为混合，且混合名由实际命中的家族拼出',
+    famHy.id === 'hybrid' && famHy.name.includes('点云') && famHy.name.includes('Transformer'),
+    famHy.name,
+  );
+  check(
+    '家族顺序包含全部家族（泳道不会漏掉新家族）',
+    FAMILY_ORDER.includes('pointcloud') && FAMILY_ORDER.includes('graph') && FAMILY_ORDER.includes('mlp') && FAMILY_ORDER.at(-1) === 'pending',
+    FAMILY_ORDER.join(','),
+  );
+  check('仍然不硬塞：没有架构关键词的方法依旧是待确认', classifyFamily(unknown).id === 'pending');
+
+  /**
+   * 第三层兜底（2026-10-13 用户二轮实测：点云语料三篇仍「待确认」）：
+   * 首句经常只是任务描述（「面向持续三维异常检测…」），架构词在核心思路后几句、
+   * 输入与条件或研究任务里 —— 这些都是模型**已经抽取**的字段，判定器应该用上。
+   */
+  const c3d = mkM(
+    'p_c3d',
+    'C3D-AD',
+    '面向持续三维异常检测提出一个新框架；它把增量到来的三维点云数据组织成基于核的表示，并保留旧类别的知识。',
+  );
+  const famC3d = classifyFamily(c3d);
+  check('第三层：架构词在核心思路后几句也能判出（点云）', famC3d.id === 'pointcloud', `${famC3d.id} ${famC3d.name}`);
+  /* 名称「C3D-AD」本身含 3D，第一层就命中 —— 依据应如实来自方法名称 */
+  check('第一层：名称里的 3D 命中且依据记录来源（方法名称）', famC3d.basis.length === 1 && famC3d.basis[0].source === '方法名称', JSON.stringify(famC3d.basis));
+  const nameless = mkM(
+    'p_nameless',
+    'KernelReplay',
+    '面向持续异常检测提出一个新框架；它把增量到来的三维点云数据组织成基于核的表示，并保留旧类别的知识。',
+  );
+  const famNameless = classifyFamily(nameless);
+  check('第三层：首句无关键词、后几句有时，依据如实来自核心思路全文', famNameless.id === 'pointcloud' && famNameless.basis.every((b) => b.source === '核心思路全文'), JSON.stringify(famNameless.basis));
+  const seDir = mkM('p_sedir', 'SeDiR', '提出一个选择性蒸馏与精炼框架，用于三维点云的持续学习。', '三维点云持续学习');
+  check('第三层：研究任务里的「三维」也参与判定', classifyFamily(seDir).id === 'pointcloud', classifyFamily(seDir).id);
+  const refOnlyT3 = mkM('p_ref3', 'OurMethod-B', '本方法以 PointNet 为起点构建骨干，并沿用其训练配方完成检测任务。', '目标检测任务');
+  check('第三层仍尊重引用语境：只以 PointNet 为起点不改变家族（待确认）', classifyFamily(refOnlyT3).id === 'pending', classifyFamily(refOnlyT3).id);
 
   // ---- 回归②：同一篇论文重复提到数据集，不构成跨论文共同数据集 ----
   const a1 = mkM('p_a', 'Method A', '方法 A 的描述', '图像分类任务', 'ImageNet-1K, ImageNet-1K, COCO');
@@ -1642,13 +1782,34 @@ console.log('=== 25. 唯一分析范围 / 关系生命周期 / 案例切换（�
   );
 
   // ---- 5) 切换案例后不会恢复旧案例的 plan / divergence ----
-  const storedPlan = asScopedSnapshot(vid, { kind: 'plan-of-vision' });
-  const storedDiv = asScopedSnapshot(vid, { kind: 'divergence-of-vision' });
-  check('切换案例后不会恢复上一个案例的阅读路线', readScopedSnapshot<{ kind: string }>(storedPlan, nid) === undefined);
-  check('切换案例后不会恢复上一个案例的分歧结果', readScopedSnapshot<{ kind: string }>(storedDiv, nid) === undefined);
-  check('本案例自己的产物仍然能恢复', readScopedSnapshot<{ kind: string }>(storedPlan, vid)?.kind === 'plan-of-vision');
-  check('旧版本没有语料集标识的裸数据一律不复用（宁可显示「尚未生成」）', readScopedSnapshot<{ kind: string }>({ kind: 'legacy' }, vid) === undefined);
-  check('切换时写入的空快照不会被当成有效结果', !readScopedSnapshot(asScopedSnapshot(nid, null), nid));
+  //
+  // ⚠️ 2026-10-13 升级：分析产物的身份由「只看 corpusId」升级为「完整范围身份 scopeKey」
+  // （模式 + 语料集 + 论文集合 + 方法集合），因为 case/own 两个范围的产物会互相串。
+  const vidKey = scopeIdentityKey({ mode: 'case', corpusId: vid, paperIds: ['p_a'], methodIds: ['m_a'] });
+  const nidKey = scopeIdentityKey({ mode: 'case', corpusId: nid, paperIds: ['p_a'], methodIds: ['m_a'] });
+  const ownKey = scopeIdentityKey({ mode: 'own', corpusId: vid, paperIds: ['p_a'], methodIds: ['m_a'] });
+  const storedPlan = asScopedSnapshot(vidKey, vid, { kind: 'plan-of-vision' });
+  const storedDiv = asScopedSnapshot(vidKey, vid, { kind: 'divergence-of-vision' });
+  check('切换案例后不会恢复上一个案例的阅读路线', readScopedSnapshot<{ kind: string }>(storedPlan, nidKey) === undefined);
+  check('切换案例后不会恢复上一个案例的分歧结果', readScopedSnapshot<{ kind: string }>(storedDiv, nidKey) === undefined);
+  check('本案例自己的产物仍然能恢复', readScopedSnapshot<{ kind: string }>(storedPlan, vidKey)?.kind === 'plan-of-vision');
+  check(
+    '同一语料集但切到「我上传的论文」范围后，案例产物不会被复用（case/own 互斥）',
+    readScopedSnapshot<{ kind: string }>(storedPlan, ownKey) === undefined,
+  );
+  check(
+    '范围内论文集合变化后旧产物不复用（结论属于当时那个集合）',
+    readScopedSnapshot<{ kind: string }>(
+      storedPlan,
+      scopeIdentityKey({ mode: 'case', corpusId: vid, paperIds: ['p_a', 'p_b'], methodIds: ['m_a'] }),
+    ) === undefined,
+  );
+  check('旧版本没有语料集标识的裸数据一律不复用（宁可显示「尚未生成」）', readScopedSnapshot<{ kind: string }>({ kind: 'legacy' }, vidKey) === undefined);
+  check(
+    '只有 corpusId、没有 scopeKey 的中间格式也不复用（不能凭 corpusId 冒充范围一致）',
+    readScopedSnapshot<{ kind: string }>({ corpusId: vid, payload: { kind: 'x' } }, vidKey) === undefined,
+  );
+  check('切换时写入的空快照不会被当成有效结果', !readScopedSnapshot(asScopedSnapshot(nidKey, nid, null), nidKey));
 }
 
 console.log('=== 26. 全文路径 / 证据定位 / 关系装配 / 有效值 / 结构校验（本轮修复回归） ===');
@@ -1761,10 +1922,12 @@ console.log('=== 26. 全文路径 / 证据定位 / 关系装配 / 有效值 / �
     cached: false,
     generatedAt: 1,
   } as unknown as ReadingPlan;
-  const storedPlan = asScopedSnapshot(vid, livePlan);
-  const back = readScopedSnapshot<ReadingPlan>(storedPlan, vid);
-  check('实时生成的路线按语料集身份落盘后可原样读回（刷新后仍在）', back?.steps?.length === 1 && back?.cached === false);
-  check('换成别的语料集读不到这条路线', readScopedSnapshot<ReadingPlan>(storedPlan, CORPUS_META['nlp-dev'].id) === undefined);
+  const liveKey = scopeIdentityKey({ mode: 'case', corpusId: vid, paperIds: ['p_resnet'], methodIds: ['m_resnet'] });
+  const otherKey = scopeIdentityKey({ mode: 'case', corpusId: CORPUS_META['nlp-dev'].id, paperIds: ['p_resnet'], methodIds: ['m_resnet'] });
+  const storedPlan = asScopedSnapshot(liveKey, vid, livePlan);
+  const back = readScopedSnapshot<ReadingPlan>(storedPlan, liveKey);
+  check('实时生成的路线按范围身份落盘后可原样读回（刷新后仍在）', back?.steps?.length === 1 && back?.cached === false);
+  check('换成别的语料集读不到这条路线', readScopedSnapshot<ReadingPlan>(storedPlan, otherKey) === undefined);
 
   // ---- 7) 非法模型 JSON 明确失败 ----
   const throws = (fn: () => unknown) => {
@@ -1878,6 +2041,7 @@ console.log('=== 26. 全文路径 / 证据定位 / 关系装配 / 有效值 / �
     ({
       ...e,
       evalSplit: 'test',
+      metricUnit: '%',
       pretrainData: 'none',
       trainData: 'ImageNet-1K',
       inputResolution: '224x224',
@@ -2137,6 +2301,7 @@ console.log('=== 29. 规则语义档三项：未知≠一致 / 可比性不采�
     evalDataset: 'ImageNet-1K',
     metricName: 'top-1 accuracy',
     metricValue: '80.0',
+    metricUnit: '%',
     verification: { quoteLocated: true, rowColConfirmed: true, issues: [] },
   } as ExperimentRecord;
   const ex = (over: Partial<ExperimentRecord>): ExperimentRecord => ({ ...baseExp, ...over }) as ExperimentRecord;
@@ -2579,6 +2744,7 @@ console.log('=== 34. 实验记录数值缺失：必须保留信息不足，不�
     evalDataset: 'ImageNet-1K',
     metricName: 'top-1 accuracy',
     metricValue: '80.0',
+    metricUnit: '%',
     verification: { quoteLocated: true, rowColConfirmed: true, issues: [] },
   } as ExperimentRecord;
   const mk = (over: Partial<ExperimentRecord>): ExperimentRecord => ({ ...baseRec, ...over }) as ExperimentRecord;
@@ -2856,6 +3022,613 @@ console.log('=== 37. 关系证据检索：到引用句 / Related Work 里找明�
   check('存在横向关系（similar）而不是清一色的继承边', lateral.length >= 2, `${lateral.length} 条`);
 }
 
+console.log('=== 38. IndexedDB 事务语义：request success ≠ 事务提交成功 ===');
+{
+  /**
+   * 极简 IDB 模拟：只实现 src/core/storage.ts 用到的那部分语义。
+   *
+   * 之所以必须真的测：
+   * - 旧实现在 `request.onsuccess` 就 resolve，而 `onsuccess` 只表示「这条请求成功」，
+   *   事务仍然可能之后 abort（配额、冲突、隐私策略）。已用最小模拟复现：
+   *   请求成功 → 事务 abort → 调用方 Promise 已 fulfilled，但数据没落库。
+   * - `appendUsage` 的 read→push→save 三段式在并发下会丢记录，必须验证原子读改写。
+   * - 跨表删除必须整体回滚（删除/撤销/切换语料）。
+   */
+  type Pending = () => void;
+  const state = {
+    stores: new Map<string, Map<string, unknown>>(),
+    /** 下一次对该 store 的 put 让事务 abort（模拟「请求成功后事务失败」） */
+    abortPutOnStore: null as string | null,
+  };
+  for (const s of ['papers', 'methods', 'relations', 'plans', 'meta']) state.stores.set(s, new Map());
+
+  class FakeRequest {
+    onsuccess: ((e?: unknown) => void) | null = null;
+    onerror: ((e?: unknown) => void) | null = null;
+    result: unknown = undefined;
+    error: unknown = null;
+  }
+
+  let txQueue: Promise<void> = Promise.resolve();
+
+  class FakeTransaction {
+    oncomplete: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    onabort: (() => void) | null = null;
+    error: unknown = null;
+    private ops: Pending[] = [];
+    private aborted = false;
+    /** 事务开始前各 store 的快照：abort 时整体回滚（真实 IDB 的语义） */
+    private snapshot = new Map<string, Map<string, unknown>>();
+    constructor(public names: string[]) {
+      for (const n of names) this.snapshot.set(n, new Map(state.stores.get(n) ?? new Map()));
+    }
+
+    objectStore(name: string) {
+      if (!state.stores.has(name)) state.stores.set(name, new Map());
+      const data = state.stores.get(name)!;
+      const queue = (fn: () => { result?: unknown; error?: unknown }) => {
+        const r = new FakeRequest();
+        this.ops.push(() => {
+          if (this.aborted) return;
+          const out = fn();
+          if (out.error) {
+            r.error = out.error;
+            r.onerror?.();
+            this.rollback(out.error);
+          } else {
+            r.result = out.result;
+            r.onsuccess?.();
+          }
+        });
+        return r;
+      };
+      return {
+        put: (v: { id: string }) =>
+          queue(() => {
+            if (state.abortPutOnStore === name) {
+              state.abortPutOnStore = null;
+              return { error: new Error('QuotaExceededError（模拟提交失败）') };
+            }
+            data.set(v.id, v);
+            return { result: v.id };
+          }),
+        get: (k: string) => queue(() => ({ result: data.get(k) })),
+        getAll: () => queue(() => ({ result: [...data.values()] })),
+        delete: (k: string) =>
+          queue(() => {
+            data.delete(k);
+            return { result: undefined };
+          }),
+        clear: () =>
+          queue(() => {
+            data.clear();
+            return { result: undefined };
+          }),
+      };
+    }
+
+    /** 事务失败：回滚快照，然后异步派发 error/abort（真实浏览器里两者都会派发，且在请求回调之后） */
+    private rollback(err: unknown) {
+      if (this.aborted) return;
+      this.aborted = true;
+      this.error = err;
+      for (const [name, snap] of this.snapshot) state.stores.set(name, new Map(snap));
+      setTimeout(() => {
+        this.onerror?.();
+        this.onabort?.();
+      }, 0);
+    }
+
+    /** 依次执行排队的请求，然后触发 oncomplete（提交） */
+    async run() {
+      await new Promise((r) => setTimeout(r, 0)); // 先让调用方挂上 oncomplete / onerror / onabort
+      for (const op of this.ops) {
+        if (this.aborted) return;
+        op();
+      }
+      if (this.aborted) return;
+      await new Promise((r) => setTimeout(r, 0));
+      if (!this.aborted) this.oncomplete?.();
+    }
+
+    abort() {
+      this.rollback(new Error('aborted by caller'));
+    }
+  }
+
+  (globalThis as unknown as { indexedDB: unknown }).indexedDB = {
+    open() {
+      const r = new FakeRequest();
+      setTimeout(() => {
+        r.result = {
+          objectStoreNames: { contains: (n: string) => state.stores.has(n) },
+          createObjectStore: (n: string) => state.stores.set(n, new Map()),
+          close: () => undefined,
+          transaction: (names: string | string[], _mode: string) => {
+            const t = new FakeTransaction(Array.isArray(names) ? names : [names]);
+            // 同一 store 上的 readwrite 事务在真实 IDB 里是**串行**的：这里用队列保证同样语义
+            txQueue = txQueue.then(() => t.run());
+            return t;
+          },
+        };
+        r.onsuccess?.();
+      }, 0);
+      return r;
+    },
+  };
+
+  // ---- 1) 正常路径：写入必须等事务提交后才算成功 ----
+  await saveMeta('t_normal', { a: 1 });
+  const backNormal = await loadMeta<{ a: number }>('t_normal');
+  check('正常路径：事务提交后才 resolve，数据可读回', backNormal?.a === 1, JSON.stringify(backNormal));
+
+  // ---- 2) 请求成功但事务 abort：必须 reject，且数据没有落库 ----
+  const before = await repo.listPapers();
+  state.abortPutOnStore = 'papers';
+  let rejected = false;
+  let errText = '';
+  try {
+    await repo.savePaper(PAPER('p_abort', '应当失败', 2020, 'x'));
+  } catch (e) {
+    rejected = true;
+    errText = (e as Error).message;
+  }
+  const after = await repo.listPapers();
+  check('请求成功但事务 abort → 调用方必须收到 reject（不能显示「保存成功」）', rejected, errText);
+  check('事务 abort 后数据没有落库', after.length === before.length && !after.some((p) => p.id === 'p_abort'), String(after.length));
+
+  // ---- 3) 跨表原子：任一操作失败 → 全部回滚 ----
+  state.abortPutOnStore = 'methods';
+  let atomicRejected = false;
+  try {
+    await repo.applyAtomic([
+      { store: 'papers', kind: 'put', value: PAPER('p_atomic', '应当回滚', 2020, 'x') },
+      { store: 'methods', kind: 'put', value: { id: 'm_atomic' } },
+    ]);
+  } catch {
+    atomicRejected = true;
+  }
+  const psAfterAtomic = await repo.listPapers();
+  const msAfterAtomic = await repo.listMethods();
+  check('跨表事务中途失败 → 整体 reject', atomicRejected);
+  check(
+    '跨表事务中途失败 → 先成功的写入也被回滚（不留部分状态）',
+    !psAfterAtomic.some((p) => p.id === 'p_atomic') && !msAfterAtomic.some((m) => m.id === 'm_atomic'),
+    `papers=${psAfterAtomic.length}/methods=${msAfterAtomic.length}`,
+  );
+
+  // ---- 4) 并发 appendUsage 不丢记录（原子读改写） ----
+  await saveMeta('usage', []);
+  await Promise.all([
+    appendUsage({ kind: 'extract', model: 'm', ms: 1, promptChars: 1, completionChars: 1, ok: true }),
+    appendUsage({ kind: 'relations', model: 'm', ms: 2, promptChars: 2, completionChars: 2, ok: true }),
+    appendUsage({ kind: 'plan', model: 'm', ms: 3, promptChars: 3, completionChars: 3, ok: true }),
+  ]);
+  const usage = (await loadMeta<{ kind: string }[]>('usage')) ?? [];
+  check('三次并发 appendUsage 全部保留（旧实现只剩最后一条）', usage.length === 3, `实际 ${usage.length} 条`);
+
+  // ---- 5) 使用记录的运行时结构校验：坏数据按「没有」处理 ----
+  await saveMeta('usage', [{ 不是: '记录' }]);
+  const bad = await loadMeta<unknown[]>('usage', (v) => Array.isArray(v) && v.every((x) => !!x && typeof (x as { id?: unknown }).id === 'string'));
+  check('结构不符的使用记录不会被当成有效数据（返回 undefined）', bad === undefined);
+}
+
+console.log('=== 39. 统一比较引擎：未知值、口径归一、成对判定与分组 ===');
+{
+  const base = {
+    id: 'x',
+    paperId: 'p1',
+    taskTag: 'classification',
+    modelVariant: 'M',
+    evalDataset: 'ImageNet-1K',
+    evalSplit: 'val',
+    metricName: 'top-1 accuracy',
+    metricValue: '80.0',
+    metricUnit: '%',
+    pretrainData: 'none',
+    trainData: 'ImageNet-1K',
+    inputResolution: '224x224',
+    extraData: '无额外数据',
+    distillation: '无',
+    testTimeAug: '无',
+    inferenceMode: 'single model',
+    verification: { quoteLocated: true, rowColConfirmed: true, issues: [] },
+  } as ExperimentRecord;
+  const mk = (o: Partial<ExperimentRecord>): ExperimentRecord => ({ ...base, ...o }) as ExperimentRecord;
+
+  // ---- 未知值词表（统一判据：完整性、比较、抽取侧共用） ----
+  for (const v of ['', '   ', '未知', '未说明', '未报告', '未给出', 'unknown', 'not reported', 'N/A', 'na', '-', '--', '–', '—', '−', 'tbd']) {
+    check(`未知值词表：'${v}' 算未知`, isUnknownValue(v));
+  }
+  for (const v of ['none', '无', '80.0', 'ImageNet-1K', 'single model']) {
+    check(`有意义取值：'${v}' 不算未知（不能被当成占位符）`, !isUnknownValue(v));
+  }
+
+  // ---- 已复现的三个「缺失被当成可直接比较」 ----
+  const bothEmptySplit = compareExperiments(mk({ id: 'a', evalSplit: '' }), mk({ id: 'b', evalSplit: '' }));
+  check('双方 evalSplit 都为空 → 不再判「可直接比较」', bothEmptySplit.level === 'insufficient_info', bothEmptySplit.level);
+  check('并把「评估划分」列入未知项', bothEmptySplit.unknowns.some((u) => u.field === 'evalSplit'), JSON.stringify(bothEmptySplit.unknowns.map((u) => u.field)));
+
+  const placeholderExtra = compareExperiments(mk({ id: 'a', extraData: '未说明' }), mk({ id: 'b', extraData: '—' }));
+  check('双方 extraData 都是占位写法（未说明 / —）→ 信息不足', placeholderExtra.level === 'insufficient_info', placeholderExtra.level);
+
+  const noVerification = compareExperiments(mk({ id: 'a', verification: undefined }), mk({ id: 'b' }));
+  check('缺少 verification 元数据 → 不默认通过（信息不足）', noVerification.level === 'insufficient_info', noVerification.level);
+  check('并明确说明缺的是表格行列对应', noVerification.unknowns.some((u) => u.field === 'tableBinding'), JSON.stringify(noVerification.unknowns.map((u) => u.field)));
+
+  // ---- 表格行列对应：程序核验 / 人工声明 / 未确认 三档必须分开 ----
+  const noMeta = compareExperiments(mk({ id: 'a', verification: undefined }), mk({ id: 'b' }));
+  check('缺核验元数据 → 表格行列对应算未知', noMeta.unknowns.some((u) => u.field === 'tableBinding'));
+  const declared = {
+    ...mk({ id: 'a', verification: undefined }),
+    supplements: [{ dimension: 'tableBinding', value: '已核对', originalValue: '', source: '论文 Table 3 第 2 行', at: 1 }],
+  } as ExperimentRecord;
+  const withDecl = compareExperiments(declared, mk({ id: 'b' }));
+  check('人工声明「已核对」（带来源）不再算未知', !withDecl.unknowns.some((u) => u.field === 'tableBinding'), JSON.stringify(withDecl.unknowns.map((u) => u.field)));
+  check('但必须留下「人工声明、非程序核验」的注意事项', withDecl.caveats.some((c) => /人工声明/.test(c)), JSON.stringify(withDecl.caveats));
+  const declaredNoSource = {
+    ...mk({ id: 'a', verification: undefined }),
+    supplements: [{ dimension: 'tableBinding', value: '已核对', source: '', at: 1 }],
+  } as ExperimentRecord;
+  check('声明没给来源 → 仍然算未知（不可追溯的声明不作数）', compareExperiments(declaredNoSource, mk({ id: 'b' })).unknowns.some((u) => u.field === 'tableBinding'));
+  const declaredVague = {
+    ...mk({ id: 'a', verification: undefined }),
+    supplements: [{ dimension: 'tableBinding', value: '我核对过', source: 'Table 3', at: 1 }],
+  } as ExperimentRecord;
+  check('声明的值含糊（「我核对过」）→ 不作数，仍然算未知', compareExperiments(declaredVague, mk({ id: 'b' })).unknowns.some((u) => u.field === 'tableBinding'));
+  check('程序核验通过时不会有「人工声明」注意事项', !compareExperiments(mk({ id: 'a' }), mk({ id: 'b' })).caveats.some((c) => /人工声明/.test(c)));
+
+  check('正常路径没有被封死：条件齐全且一致 → 可直接比较', compareExperiments(mk({ id: 'a' }), mk({ id: 'b' })).level === 'directly_comparable');
+  check('条件有差异但都已知 → 只能结合条件讨论', compareExperiments(mk({ id: 'a' }), mk({ id: 'b', inputResolution: '384x384' })).level === 'comparable_with_conditions');
+
+  // ---- 指标阈值与预测对象必须保留 ----
+  check('mAP@0.5 与 mAP@0.5:0.95 不是同一口径', canonicalMetricName('mAP@0.5') !== canonicalMetricName('mAP@0.5:0.95'), `${canonicalMetricName('mAP@0.5')} / ${canonicalMetricName('mAP@0.5:0.95')}`);
+  check('box mAP 与 mask mAP 不是同一口径', canonicalMetricName('box mAP') !== canonicalMetricName('mask mAP'), `${canonicalMetricName('box mAP')} / ${canonicalMetricName('mask mAP')}`);
+  check('AP box 与 AP_box 只是写法差异，归一后相同', canonicalMetricName('AP box') === canonicalMetricName('AP_box'), `${canonicalMetricName('AP box')} / ${canonicalMetricName('AP_box')}`);
+  check('top-1 err. 与 top-1 accuracy 仍是不同指标', canonicalMetricName('top-1 err.') !== canonicalMetricName('top-1 accuracy'));
+  check(
+    '阈值不同会被判为硬阻断（不能并列）',
+    compareExperiments(mk({ id: 'a', metricName: 'mAP@0.5' }), mk({ id: 'b', metricName: 'mAP@0.5:0.95' })).level === 'not_comparable',
+  );
+  check(
+    '预测对象不同（box vs mask）会被判为硬阻断',
+    compareExperiments(mk({ id: 'a', metricName: 'box mAP' }), mk({ id: 'b', metricName: 'mask mAP' })).level === 'not_comparable',
+  );
+
+  // ---- 单位必须参与比较 ----
+  const noUnit = compareExperiments(mk({ id: 'a', metricUnit: undefined }), mk({ id: 'b' }));
+  check('指标单位未写 → 不能直接比较（不得擅自假定成百分数）', noUnit.level === 'insufficient_info', noUnit.level);
+  const pctVsRatio = compareExperiments(mk({ id: 'a', metricUnit: '%' }), mk({ id: 'b', metricUnit: 'ratio' }));
+  check(
+    '百分数 vs 比例 → 只能结合条件讨论，并给出显式换算说明',
+    pctVsRatio.level === 'comparable_with_conditions' && pctVsRatio.caveats.some((c) => /换算/.test(c)),
+    `${pctVsRatio.level}/${JSON.stringify(pctVsRatio.caveats)}`,
+  );
+  const incompatibleUnit = compareExperiments(mk({ id: 'a', metricUnit: '%' }), mk({ id: 'b', metricUnit: 'ms' }));
+  check(
+    '单位不同且无换算关系 → 硬阻断',
+    incompatibleUnit.level === 'not_comparable' && incompatibleUnit.blocked.some((b) => b.field === 'metricUnit'),
+    incompatibleUnit.level,
+  );
+
+  // ---- 数据集版本 / 复合来源 / 限定词 / 分辨率 ----
+  check('ImageNet-1K-V2 不等于 ImageNet-1K', canonicalDatasetName('ImageNet-1K-V2').canonical !== canonicalDatasetName('ImageNet-1K').canonical, String(canonicalDatasetName('ImageNet-1K-V2').canonical));
+  const composite = canonicalDatasetName('ImageNet-1K + ImageNet-21K');
+  check('复合来源不被压成单个 1K（21K 这条信息必须保留）', /21K/.test(composite.canonical ?? ''), String(composite.canonical));
+  check(
+    '复合来源与单一来源判为不同数据集',
+    compareExperiments(mk({ id: 'a', evalDataset: 'ImageNet-1K' }), mk({ id: 'b', evalDataset: 'ImageNet-1K + ImageNet-21K' })).level === 'not_comparable',
+  );
+  check(
+    '数据集名后的划分限定词不改变数据集身份（ImageNet validation = ImageNet-1K）',
+    canonicalDatasetName('ImageNet validation').canonical === canonicalDatasetName('ImageNet-1K').canonical,
+    `${canonicalDatasetName('ImageNet validation').canonical}`,
+  );
+  check('非正方形分辨率完整保留（224x384 / 224x640 不被压成 224）', canonicalResolution('224x384') === '224x384' && canonicalResolution('224x640') === '224x640');
+  check('224² 与 224x224 等价', canonicalResolution('224²') === canonicalResolution('224x224'));
+  check('划分同义写法归一（Validation / dev → val）', canonicalSplit('Validation') === 'val' && canonicalSplit('dev') === 'val');
+  check('单位别名归一（percent / % 相同）', canonicalMetricUnit('percent') === canonicalMetricUnit('%'));
+
+  // ---- 数值解析：不把区间 / 上下界 / ± 当成精确值 ----
+  check('区间 78.5–79.1 → range（不是取第一个数当精确值）', parseMetricValue('78.5–79.1').kind === 'range');
+  check('下界 ≥80 → bound', parseMetricValue('≥80').kind === 'bound');
+  check('均值±方差 → approx', parseMetricValue('88.55 ± 0.04').kind === 'approx');
+  check('单值 → point', parseMetricValue('80.0').kind === 'point');
+  check('科学计数法 → point', parseMetricValue('7.2e1').kind === 'point');
+  check('未知占位 → unknown', parseMetricValue('—').kind === 'unknown');
+
+  // ---- 计数对象必须分开：论文 / 实验记录 / 实验对 ----
+  const analysis = analyzeExperimentComparability([mk({ id: 'r1', paperId: 'p1' }), mk({ id: 'r2', paperId: 'p1' }), mk({ id: 'r3', paperId: 'p2' })]);
+  check(
+    '计数对象分开：论文 2 篇 / 记录 3 条 / 实验对 3 个',
+    analysis.paperCount === 2 && analysis.recordCount === 3 && analysis.pairCount === 3,
+    `${analysis.paperCount}/${analysis.recordCount}/${analysis.pairCount}`,
+  );
+  check('成对判定是排列无关的（只遍历 i<j 一次）', analysis.pairs.length === 3);
+
+  // ---- 分组必须隔离任务 / 数据集版本 / 划分 / 指标口径 ----
+  const groups = groupExperiments([
+    mk({ id: 'g1', evalDataset: 'ImageNet-1K', evalSplit: 'val' }),
+    mk({ id: 'g2', evalDataset: 'ImageNet-1K-V2', evalSplit: 'val' }),
+    mk({ id: 'g3', evalDataset: 'ImageNet-1K', evalSplit: 'test' }),
+    mk({ id: 'g4', taskTag: 'detection', evalDataset: 'COCO', metricName: 'mAP@0.5:0.95' }),
+  ]);
+  check('分组隔离数据集版本与划分（1K / 1K-V2 / val≠test / 检测）→ 4 组', groups.length === 4, String(groups.length));
+  check('分组标签写清任务与口径', groups.some((g) => g.label.includes('ImageNet-1K-V2')), groups.map((g) => g.label).join(' | '));
+
+  // ---- 排列不变性（已复现：仅调换论文顺序就改结论） ----
+  const papersABC = [PAPER('pa', 'PA'), PAPER('pb', 'PB'), PAPER('pc', 'PC')];
+  const mAB = mkMethod('pa', cond({ datasets: { values: ['CIFAR-10', 'CIFAR-100'], status: 'verified', scope: 'paper' } }));
+  const mA = mkMethod('pb', cond({ datasets: { values: ['CIFAR-10'], status: 'verified', scope: 'paper' } }));
+  const mB = mkMethod('pc', cond({ datasets: { values: ['CIFAR-100'], status: 'verified', scope: 'paper' } }));
+  const members = [mAB, mA, mB];
+  const perms = [
+    [0, 1, 2],
+    [0, 2, 1],
+    [1, 0, 2],
+    [1, 2, 0],
+    [2, 0, 1],
+    [2, 1, 0],
+  ];
+  const datasetsLevelOf = (order: number[]) => {
+    const rep = compareConditions(papersABC, order.map((i) => members[i]));
+    return rep.dimensions.find((d) => d.dimension === 'datasets')!.level;
+  };
+  const permResults = perms.map(datasetsLevelOf);
+  check('数据集维度的判定与论文排列无关（排列不变性）', new Set(permResults).size === 1, permResults.join(','));
+  check('该例（{A,B} / {A} / {B}）应判「不能直接比较」', permResults[0] === 'not_comparable', permResults[0]);
+  check(
+    '逐对判据本身：{CIFAR-10} 与 {CIFAR-100} 之间没有任何共同项',
+    (mA.conditions!.datasets.values as string[]).every((x) => !(mB.conditions!.datasets.values as string[]).includes(x)),
+  );
+
+  // ---- 一方协议可识别、另一方无法识别：是「不知道」而不是「不同」 ----
+  const protoPairs = [PAPER('x', 'X'), PAPER('y', 'Y')];
+  const protoKnown = mkMethod('x', cond({ experimentalSettings: { values: ['fine-tuning'], status: 'verified', scope: 'paper' } }));
+  const protoUnknown = mkMethod('y', cond({ experimentalSettings: { values: ['从零开始训练了三个不同的变体'], status: 'verified', scope: 'paper' } }));
+  const protoReport = compareConditions(protoPairs, [protoKnown, protoUnknown]);
+  const protoDim = protoReport.dimensions.find((d) => d.dimension === 'experimentalSettings')!;
+  check('一方协议可识别、另一方识别不出 → 判「信息不足」而不是「协议不同」', protoDim.level === 'unknown', protoDim.level);
+}
+
+console.log('=== 40. 引文部分命中：尾部伪造不得被洗成「已核验」 ===');
+{
+  /**
+   * 复现要点：引文必须足够长（归一化后 > 60 字符），才会走到 locateQuote 的「取前 60 字符再试」兜底分支。
+   * 旧实现会按覆盖率 ≥ 0.9 把它升级成 loose → 下游判 verified=true、coverage=1，并替换掉模型给的引文。
+   */
+  const raw =
+    'The proposed method achieves 76.5% top-1 accuracy on ImageNet-1K, outperforming all baselines by a large margin. In addition, we report results on ImageNet-V2 and COCO detection to show the generality of the approach.';
+  const paper = PAPER('p1', 'P1', 2020, raw);
+  const head = raw.slice(0, 120); // 归一化后长度 > 60，确保进入头部兜底分支
+  const fakeTail = head + 'XYZ99'; // 原文前 120 字符 + 5 个虚构尾部（覆盖率高但并非完整命中）
+  const ev = buildEvidence(paper, { quote: fakeTail })!;
+  check('前 60 字符命中 + 虚构尾部 → 不得判为已核验', ev.verified === false, String(ev.verified));
+  check('matchType 必须是 partial', ev.matchType === 'partial', String(ev.matchType));
+  check('部分命中必须保留真实覆盖率（不是 1）', (ev.coverage ?? 1) < 1, String(ev.coverage));
+  check('部分命中保留模型原引文（不替换成原文切片冒充原文）', ev.quote === fakeTail, ev.quote.slice(0, 80));
+  check('并在说明里提醒回原文逐字核对', /逐字核对|疑似被模型改写/.test(ev.verifyNote ?? ''), ev.verifyNote ?? '');
+
+  const hit = locateQuote(raw, fakeTail)!;
+  check('locateQuote 的头部兜底路径永远返回 partial（覆盖率再高也不升级为 loose）', hit.matchType === 'partial', `${hit.matchType}/${hit.coverage}`);
+  const risky = tailHasRiskyTokens(' 78.5% not');
+  check('未命中尾部含数字与否定词时会被标出（这类尾部最容易反转结论）', risky.digits && risky.negation, JSON.stringify(risky));
+  const riskyEv = buildEvidence(paper, { quote: `${head} 92.1% not reported` })!;
+  check('尾部含数字/否定词时说明里会明确提示', /数字|否定词/.test(riskyEv.verifyNote ?? ''), riskyEv.verifyNote ?? '');
+
+  // 完整命中仍然要正常通过（不能把正常路径打死）
+  const okQuote = 'outperforming all baselines by a large margin';
+  const okEv = buildEvidence(paper, { quote: okQuote })!;
+  check('完整命中的引文仍然 verified = true', okEv.verified === true && okEv.coverage === 1, `${okEv.verified}/${okEv.coverage}`);
+}
+
+console.log('=== 41. 基线对照句不得认证为「原文明示的相似关系」 ===');
+{
+  const baseline = assessRelationEvidence('We evaluate our model against ResNet as a baseline.', 'ResNet', 'ViT', 'similar');
+  check('「against X as a baseline」不得判为 sufficient', baseline.sufficient === false, baseline.reason);
+  check('理由明确指向「缺少关系措辞」', /缺少能支撑|措辞/.test(baseline.reason), baseline.reason);
+  const baselineExtends = assessRelationEvidence('We evaluate our model against ResNet as a baseline.', 'ResNet', 'ViT', 'extends');
+  check('同一句用于 extends 也不得通过', baselineExtends.sufficient === false, baselineExtends.reason);
+  const realSimilar = assessRelationEvidence('Unlike ResNet, our model is similar to ViT in its inductive bias.', 'ResNet', 'ViT', 'similar');
+  check('真正的关系措辞仍然可以认证（没有把正常路径封死）', realSimilar.sufficient === true, realSimilar.reason);
+  const mostRelated = assessRelationEvidence('Most related to our work is the Vision Transformer (ViT) [20].', 'ViT', 'Swin-T', 'similar');
+  check('「most related to our work」仍然可以认证', mostRelated.sufficient === true, mostRelated.reason);
+}
+
+console.log('=== 42. 人工补充：身份匹配、条件变化失效、多实验不串 ===');
+{
+  const rec = {
+    id: 'x_p1_1',
+    paperId: 'p1',
+    taskTag: 'classification',
+    modelVariant: 'ViT-B/16',
+    evalDataset: 'ImageNet-1K',
+    evalSplit: 'val',
+    metricName: 'top-1 accuracy',
+    metricValue: '81.8',
+    metricUnit: '%',
+    inputResolution: '224x224',
+  } as ExperimentRecord;
+
+  const keyBase = experimentIdentityKey(rec);
+  check('实验身份来自内容（不依赖数组下标 id）', experimentIdentityKey({ ...rec, id: 'x_p1_9' } as ExperimentRecord) === keyBase);
+  check('划分变化（val → test）会改变身份 → 旧确认失效', experimentIdentityKey({ ...rec, evalSplit: 'test' } as ExperimentRecord) !== keyBase);
+  check('分辨率变化会改变身份', experimentIdentityKey({ ...rec, inputResolution: '384x384' } as ExperimentRecord) !== keyBase);
+  check('单位变化会改变身份', experimentIdentityKey({ ...rec, metricUnit: 'ratio' } as ExperimentRecord) !== keyBase);
+  check('数值变化不改变身份（同一实验重新报告同一口径）', experimentIdentityKey({ ...rec, metricValue: '82.0' } as ExperimentRecord) === keyBase);
+
+  // ---- 人工补充成为有效值，但原对象不变 ----
+  const unknownSplit = { ...rec, evalSplit: '未知' } as ExperimentRecord;
+  const supplemented = {
+    ...unknownSplit,
+    supplements: [{ dimension: 'evalSplit', value: 'val', originalValue: '未知', source: '论文 Table 3 第 2 行', at: 1 }],
+  } as ExperimentRecord;
+  check('人工补充（带具体值）成为比较用的有效值', effectiveExperimentRecords([supplemented])[0].evalSplit === 'val');
+  check('有效视图不修改原对象（AI 原值仍是「未知」）', unknownSplit.evalSplit === '未知' && supplemented.evalSplit === '未知');
+  const onlyChecked = { ...unknownSplit, userSupplemented: ['evalSplit'] } as ExperimentRecord;
+  check('只有「我核对过」标记、没有具体值时，未知仍然是未知', effectiveExperimentRecords([onlyChecked])[0].evalSplit === '未知');
+  check(
+    '「我核对过」标记不参与判定（该维度仍然算未知）',
+    compareExperiments(effectiveExperimentRecords([onlyChecked])[0], { ...rec } as ExperimentRecord).unknowns.some((u) => u.field === 'evalSplit'),
+  );
+  check(
+    '补充值让原本信息不足的条件不再算未知',
+    !compareExperiments(effectiveExperimentRecords([supplemented])[0], { ...rec } as ExperimentRecord).unknowns.some((u) => u.field === 'evalSplit'),
+  );
+
+  // ---- 重新分析：人工产物按身份搬运，条件变化即失效 ----
+  const prevMethod = {
+    id: 'p1',
+    paperId: 'p1',
+    fields: {},
+    overrides: [],
+    experiments: [
+      {
+        ...rec,
+        userSupplemented: ['evalSplit'],
+        supplements: [{ dimension: 'extraData', value: '无额外数据', originalValue: '未知', source: 'Table 2', at: 1 }],
+      } as ExperimentRecord,
+    ],
+  } as unknown as Method;
+  const nextMethod = {
+    id: 'p1',
+    paperId: 'p1',
+    fields: {},
+    overrides: [],
+    experiments: [
+      { ...rec, id: 'x_p1_9' } as ExperimentRecord, // 同口径（划分仍为 val）
+      { ...rec, id: 'x_p1_10', evalSplit: 'test' } as ExperimentRecord, // 条件已变
+    ],
+  } as unknown as Method;
+  const merged = mergeReanalysisResult(prevMethod, nextMethod);
+  check('重新分析：同口径记录保留人工补充值', (merged.experiments?.[0].supplements?.length ?? 0) === 1, JSON.stringify(merged.experiments?.[0].supplements));
+  check('重新分析：同口径记录保留「已核对」标记', (merged.experiments?.[0].userSupplemented ?? []).includes('evalSplit'));
+  check(
+    '重新分析：条件变化（val → test）的记录不携带旧确认（已复现的错带）',
+    (merged.experiments?.[1].supplements?.length ?? 0) === 0 && (merged.experiments?.[1].userSupplemented?.length ?? 0) === 0,
+    JSON.stringify(merged.experiments?.[1]),
+  );
+
+  // ---- 同模型同指标的多条实验不能互相覆盖（一一对应发放） ----
+  const prevTwo = {
+    id: 'p2',
+    paperId: 'p2',
+    fields: {},
+    overrides: [],
+    experiments: [
+      { ...rec, paperId: 'p2', id: 'b1', supplements: [{ dimension: 'inferenceMode', value: 'single model', source: 's1', at: 1 }] } as ExperimentRecord,
+      { ...rec, paperId: 'p2', id: 'b2', supplements: [{ dimension: 'testTimeAug', value: '无', source: 's2', at: 2 }] } as ExperimentRecord,
+    ],
+  } as unknown as Method;
+  const nextTwo = {
+    id: 'p2',
+    paperId: 'p2',
+    fields: {},
+    overrides: [],
+    experiments: [
+      { ...rec, paperId: 'p2', id: 'n1' } as ExperimentRecord,
+      { ...rec, paperId: 'p2', id: 'n2' } as ExperimentRecord,
+    ],
+  } as unknown as Method;
+  const mergedTwo = mergeReanalysisResult(prevTwo, nextTwo);
+  const carriedDims = (mergedTwo.experiments ?? []).map((e) => e.supplements?.[0]?.dimension ?? '—').join(',');
+  check('同模型同指标的多条实验一一对应，不互相覆盖', carriedDims === 'inferenceMode,testTimeAug', carriedDims);
+}
+
+console.log('=== 43. 模型输入使用「有效条件」+ 缓存结构运行时校验 ===');
+{
+  /**
+   * #31 的**入口级复现**：阅读路线 / 跨论文分歧构造模型输入时，
+   * 过去读的是 `m.conditions[dim].values`（抽取时的结构化条件），人工修正不会改变它 ——
+   * 于是用户改了 `datasets`，比较页用新值、模型输入却还是旧值。
+   * 这里真正调用 `generateDecision`，把发给模型的请求体抓下来看。
+   */
+  let captured = '';
+  const payload = {
+    candidates: [{ methodId: 'm_p1', fit: 'suitable', targetStage: 'finetune', reasons: [{ text: 'x', basis: 'profile' }], missing: [] }],
+    readingOrder: [{ paperId: 'p1', focus: 'f', reason: 'r', basis: 'profile' }],
+  };
+  const capServer: Server = createServer((req, res) => {
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204).end();
+      return;
+    }
+    let body = '';
+    req.on('data', (c) => {
+      body += c;
+    });
+    req.on('end', () => {
+      captured += body;
+      res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(payload) } }] }));
+    });
+  });
+  await new Promise<void>((r) => capServer.listen(0, '127.0.0.1', () => r()));
+  const capCfg = {
+    baseUrl: `http://127.0.0.1:${(capServer.address() as { port: number }).port}`,
+    apiKey: 'k',
+    model: 'm',
+    maxAttempts: 1,
+  };
+  const capPaper = PAPER('p1', 'P1', 2020, 'We train on GLUE and evaluate on SQuAD.');
+  const capFields = Object.fromEntries(
+    (['researchTask', 'methodName', 'coreIdea', 'inputsConditions', 'datasets', 'metrics', 'limitations'] as const).map((k) => [k, { value: `v-${k}`, status: 'verified' }]),
+  ) as Method['fields'];
+  const capMethod: Method = {
+    id: 'm_p1',
+    paperId: 'p1',
+    fields: capFields,
+    conditions: cond({ datasets: { values: ['OLD-DATASET-1'], status: 'verified', scope: 'paper' } }),
+    experiments: [],
+    overrides: [{ field: 'datasets', previousValue: 'OLD-DATASET-1', newValue: 'NEW-DATASET-2', at: 1 }],
+  };
+  await generateDecision([capPaper], [capMethod], { background: '研究生', interest: '视觉' }, capCfg);
+  capServer.close();
+  check('阅读路线：模型输入使用**人工修正后**的有效条件', captured.includes('NEW-DATASET-2'), captured.slice(0, 120));
+  check('阅读路线：模型输入不再带旧的抽取值（修复前带的是 OLD）', !captured.includes('OLD-DATASET-1'));
+  check(
+    '阅读路线：人工修正值在送模型时被标注为「非原文核验」',
+    /人工修正值/.test(captured) || /\\u4eba\\u5de5\\u4fee\\u6b63\\u503c/.test(captured),
+  );
+
+  /* ---- 缓存 JSON 的运行时结构校验（#29）：坏结构必须被拒绝，而不是断言成好数据 ---- */
+  check('索引校验：缺 papers/methods/relations → 拒绝', !isCachedCorpusIndex({ cacheVersion: 3, methods: [], relations: [] }));
+  check(
+    '索引校验：方法元素缺 fields → 拒绝（否则下游会在 .map 处抛 TypeError）',
+    !isCachedCorpusIndex({ cacheVersion: 3, papers: [], relations: [], methods: [{ id: 'm1', paperId: 'p1' }] }),
+  );
+  check(
+    '索引校验：关系元素缺两端 id → 拒绝',
+    !isCachedCorpusIndex({ cacheVersion: 3, papers: [], methods: [], relations: [{ id: 'r1' }] }),
+  );
+  check('索引校验：非对象（例如 CDN 返回的 HTML 解析结果）→ 拒绝', !isCachedCorpusIndex('<!doctype html>'));
+  check('索引校验：真实视觉缓存通过', isCachedCorpusIndex(JSON.parse(readFileSync('public/samples-vision/index.json', 'utf8'))));
+  check('全文校验：缺 rawText → 拒绝', !isCachedPaperText({ pages: [] }));
+  check('全文校验：真实全文缓存通过', isCachedPaperText(JSON.parse(readFileSync('public/samples-vision/text/p_arxiv_1512.03385.json', 'utf8'))));
+}
+
+console.log('=== 44. 任务版本号：首次抽取必须是有效版本（NaN 会让判定恒假、静默丢弃结果） ===');
+{
+  /**
+   * 真实缺陷（2026-10-13 用户报「提取卡住、反复点一样」）：
+   * 版本号曾写成 。新论文第一次抽取时该键不存在，
+   *  ⇒ NaN ⇒  恒 false ⇒ **每一次首次抽取都被判过期丢弃**，
+   * 模型返回的结果被静默扔掉，界面永远停在「提取中」。
+   */
+  const seqMap: Record<string, number> = {};
+  const first = bumpSeq(seqMap, 'p_new');
+  check('首次抽取拿到有效版本号（修复前是 NaN）', Number.isFinite(first) && first === 1, `seq=${first}`);
+  check('首次抽取的版本号被认定为「仍然最新」（修复前恒 false，结果被丢弃）', seqIsCurrent(seqMap, 'p_new', first) === true);
+  check('NaN 一律判为「不是最新」（不允许 NaN 悄悄把结果全丢掉）', seqIsCurrent(seqMap, 'p_new', Number.NaN) === false);
+  check('未知论文 + NaN 组合也不通过', seqIsCurrent({}, 'p_other', Number.NaN) === false);
+  // 重新解析 / 移除会让在途结果作废：旧版本号必须失效
+  const second = bumpSeq(seqMap, 'p_new');
+  check('重新解析后旧版本号立即失效', second === 2 && seqIsCurrent(seqMap, 'p_new', first) === false);
+  check('重新解析后的新版本号是最新的', seqIsCurrent(seqMap, 'p_new', second) === true);
+  // 不同论文互不影响（版本号按论文 id 隔离）
+  const other = bumpSeq(seqMap, 'p_other');
+  check('不同论文的版本号互相隔离', other === 1 && seqIsCurrent(seqMap, 'p_new', second) === true);
+}
 console.log('');
 console.log(`结果：通过 ${pass}，失败 ${fail}`);
 

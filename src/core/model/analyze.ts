@@ -34,7 +34,7 @@ import { canonicalDatasetName, isMetricValueMissing } from '../experiments';
 import { locateNear, locateQuote } from '../text';
 import { selectExcerpt } from '../excerpt';
 import { buildEvidence } from '../evidence';
-import { compareConditions, comparePair, differingDimensions, emptyConditions, LEVEL_LABELS, pairLevel } from '../comparability';
+import { compareConditions, comparePair, conditionOf, differingDimensions, emptyConditions, LEVEL_LABELS, pairLevel } from '../comparability';
 import { RULES_VERSION, UNCLEAR_NOTE_KEY, assessClaimScope, assessRelationEvidence, looksLikeNegation, looksLikeTitle, normalizeConditions } from '../rules';
 import { applyDivergenceRules, buildCheckedPairs } from '../divergenceRules';
 import type { RawDivergenceFinding } from '../divergenceRules';
@@ -433,6 +433,26 @@ export function applyTitleCorrection(paper: Paper, method: Method): Paper {
   return { ...paper, titleFrom: 'unverified' };
 }
 
+/**
+ * 送给模型的「**有效条件**」文本（#31：入口级修复）。
+ *
+ * 根因（入口级复现）：阅读路线与跨论文分歧构造模型输入时读的是
+ * `m.conditions[dim].values` —— 那是**抽取时**的结构化条件，**不会随人工修正变化**。
+ * 于是用户人工修正 `datasets` / `metrics` 之后：
+ * - 比较页与关系页走 `effective.ts` / `comparability.conditionOf()` → 用新值；
+ * - 阅读路线与分歧却仍把**旧值**送给模型 → 同一次人工修正，不同入口结论不一致。
+ * （`withEffectiveMethods` 只替换 `fields`，不会重算 `conditions`，因此救不了这里。）
+ *
+ * 现在统一走 `conditionOf()`：人工修正优先；且当取值来自人工修正时，
+ * 明确把「人工修正值，非原文核验」写进送模型的文本 —— 避免模型把人工声明当成原文事实。
+ */
+function effectiveConditionText(m: Method, dim: ConditionDimension): string {
+  const c = conditionOf(m, dim);
+  const text = c.values.join('、');
+  if (!text) return '';
+  return c.status === 'unverified' && /人工修正/.test(c.note ?? '') ? `${text}（人工修正值，非原文核验）` : text;
+}
+
 export interface ExtractProgressEvent {
   paperId: string;
   stage: 'excerpt' | 'model' | 'verify' | 'done';
@@ -798,9 +818,10 @@ export async function generateDecision(
       methodName: m.fields.methodName.value,
       coreIdea: m.fields.coreIdea.value?.slice(0, 500),
       limitations: m.fields.limitations.value?.slice(0, 400),
-      datasets: m.conditions?.datasets.values.join('、') || m.fields.datasets.value,
-      metrics: m.conditions?.metrics.values.join('、') || m.fields.metrics.value,
-      experimentalSettings: m.conditions?.experimentalSettings.values.join('、'),
+      // 有效条件（人工修正优先）——见 effectiveConditionText 的说明
+      datasets: effectiveConditionText(m, 'datasets'),
+      metrics: effectiveConditionText(m, 'metrics'),
+      experimentalSettings: effectiveConditionText(m, 'experimentalSettings'),
       computeResources: compute?.values.join('、'),
       computeStatus: compute?.status ?? 'not_extracted',
       computeStage: compute?.stage,
@@ -1240,9 +1261,10 @@ export async function findDivergences(
       limitationQuote: m.fields.limitations.evidence?.verified
         ? m.fields.limitations.evidence.quote.slice(0, 400)
         : m.fields.limitations.value?.slice(0, 300),
-      datasets: m.conditions?.datasets.values.join('、') || m.fields.datasets.value,
-      metrics: m.conditions?.metrics.values.join('、') || m.fields.metrics.value,
-      experimentalSettings: m.conditions?.experimentalSettings.values.join('、'),
+      // 有效条件（人工修正优先）——见 effectiveConditionText 的说明
+      datasets: effectiveConditionText(m, 'datasets'),
+      metrics: effectiveConditionText(m, 'metrics'),
+      experimentalSettings: effectiveConditionText(m, 'experimentalSettings'),
     };
   });
 

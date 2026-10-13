@@ -28,6 +28,8 @@ const ICONS: Record<string, string> = {
   version: 'M5.5 3.5h9v13h-9z M7.8 7h4.4 M7.8 10h4.4 M7.8 13h2.6',
   future: 'M10 3.5l1.7 4.4 4.3 1.6-4.3 1.6L10 15.5l-1.7-4.4L4 9.5l4.3-1.6z M15.5 14.5h.01 M16.5 5.5h.01',
   settings: 'M10 7.4a2.6 2.6 0 1 0 0 5.2 2.6 2.6 0 0 0 0-5.2z M10 3.4v1.8 M10 14.8v1.8 M3.4 10h1.8 M14.8 10h1.8 M5.5 5.5l1.3 1.3 M13.2 13.2l1.3 1.3 M14.5 5.5l-1.3 1.3 M6.8 13.2l-1.3 1.3',
+  /* 「全部页面」：三层堆叠（layers） */
+  layers: 'M10 3.6 3.8 7l6.2 3.4L16.2 7z M3.8 10.4 10 13.8l6.2-3.4 M3.8 13.6 10 17l6.2-3.4',
 };
 
 function NavIcon({ name }: { name: string }) {
@@ -136,11 +138,17 @@ export function AppBrandBar({
       ],
     },
   ];
+  /**
+   * 2026-10-13：原来「更多」这一页**不在目录里**（只能从版本页 / 未来展望页的返回键进），
+   * 于是待调查问题、未来展望这些页面等于没有入口 —— 目录里补一个「全部页面」。
+   */
   const DEV: [string, string, string][] = [
     ['status', '开发状态', 'status'],
     ['version', '版本信息', 'version'],
     ['future', '未来展望', 'future'],
     ['settings', '设置', 'settings'],
+    /* 「全部页面」是兜底入口，放最后（2026-10-13 用户实测目录太长像被截断，也借机收紧排序） */
+    ['more', '全部页面', 'layers'],
   ];
 
   const item = ([tab, label, icon]: [string, string, string]) => (
@@ -235,11 +243,13 @@ export function AppSideNav({
     { key: 'decision', name: '阅读路线', icon: 'route', target: 'decision' },
     { key: 'divergence', name: '待调查问题', icon: 'question', target: 'divergence' },
   ];
+  /* 与顶栏目录同一套分组：补上「全部页面」，否则「更多」页只能靠返回键进入 */
   const dev: { key: string; name: string; icon: string; target: string }[] = [
     { key: 'status', name: '开发状态', icon: 'status', target: 'status' },
     { key: 'version', name: '版本信息', icon: 'version', target: 'version' },
     { key: 'future', name: '未来展望', icon: 'future', target: 'future' },
     { key: 'settings', name: '设置', icon: 'settings', target: 'settings' },
+    { key: 'more', name: '全部页面', icon: 'layers', target: 'more' },
   ];
 
   const item = (x: { name: string; icon: string; target: string; badge?: string; done?: boolean }) => (

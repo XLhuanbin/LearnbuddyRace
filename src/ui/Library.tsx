@@ -38,12 +38,34 @@ export interface JobState {
   status: 'running' | 'done' | 'failed' | 'canceled';
   attempts: number;
   error?: string;
+  /**
+   * 本次「进入等待」的时刻（毫秒）。用来在界面上显示**已等待多久** ——
+   * 单次模型调用最长要等 180 秒，期间没有新进展，用户很容易以为卡死了（2026-10-13 用户实测反馈）。
+   */
+  at?: number;
+}
+
+/** 「已等待多久」的可读文本（没有起始时刻就返回空串 —— 不编造进度） */
+function waitedText(job: JobState | undefined): string {
+  if (!job?.at) return '';
+  const secs = Math.max(0, Math.round((Date.now() - job.at) / 1000));
+  return secs >= 60 ? `${Math.floor(secs / 60)} 分 ${secs % 60} 秒` : `${secs} 秒`;
 }
 
 /** 列表里唯一的分析状态：只由真实状态派生，等待模型绝不显示成完成 */
 function primaryStatus(p: Paper, m: Method | undefined, job: JobState | undefined): { kind: string; text: string } {
   if (p.parseStatus === 'failed') return { kind: 'bad', text: '解析失败' };
-  if (job?.status === 'running') return { kind: 'info', text: '正在等待模型响应' };
+  /**
+   * 等待中要给出**两个真实信息**（2026-10-13 用户实测：只写「正在等待模型响应」，
+   * 一分钟后看不出是「模型在跑」还是「已经死了」）：
+   *   1. 已等待多久（单次模型调用最长 180 秒，期间确实不会有任何新进展）；
+   *   2. 当前阶段（裁剪原文 / 校验…）——来自抽取过程的真实进度事件。
+   */
+  if (job?.status === 'running') {
+    const waited = waitedText(job);
+    const stage = (job.message || '').trim();
+    return { kind: 'info', text: `正在等待模型响应${waited ? `（已等待 ${waited}）` : ''}${stage ? ` · ${stage}` : ''}` };
+  }
   if (job?.status === 'canceled') return { kind: 'pending', text: '已停止等待（未完成）' };
   if (job?.status === 'failed') {
     // 2026-10-12 用户实测：只写「分析失败」用户不知道下一步该干什么（密钥？额度？端点？）。
@@ -193,6 +215,17 @@ export function LibraryView({
   staleNotes?: string[];
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  /**
+   * 等待秒表的秒级重渲染（2026-10-13）：只要有任务在等模型就每秒刷新一次，
+   * 让上面的「已等待 X 秒」真的在走。没有任务在跑时不开定时器（不做无谓的渲染）。
+   */
+  const [, tickClock] = useState(0);
+  const anyRunning = useMemo(() => Object.values(jobs).some((j) => j.status === 'running'), [jobs]);
+  useEffect(() => {
+    if (!anyRunning) return;
+    const id = window.setInterval(() => tickClock((n) => n + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [anyRunning]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<'创新度' | '日期' | '名称'>('创新度');
@@ -225,10 +258,17 @@ export function LibraryView({
     return acc === undefined ? t : Math.max(acc, t);
   }, undefined);
 
-  const familyOf = (paperId: string): string => {
+  /**
+   * 方法族：来自「方法名称 + 核心思路首句」的架构关键词（grouping.ts 规则表），
+   * 没有可判定关键词时如实写作「待确认」，并把**为什么**挂在 title 上 ——
+   * 2026-10-13 用户反馈「分析完方法族不变」：换一组论文（如三维点云）旧规则表
+   * 全部落待确认，看起来就像没更新。规则表已扩展，说明也跟着暴露出来。
+   */
+  const familyOf = (paperId: string): { name: string; why?: string } => {
     const m = methodByPaper.get(paperId);
-    if (!m) return '未提取';
-    return buildMethodProfile(m, papers.find((p) => p.id === paperId), papers).family.name;
+    if (!m) return { name: '未提取' };
+    const fam = buildMethodProfile(m, papers.find((p) => p.id === paperId), papers).family;
+    return { name: fam.name, why: fam.note };
   };
 
   /** 排序 + 搜索 + 筛选（全部是纯展示层的排列，不改变数据，也不新增判断） */
@@ -239,7 +279,7 @@ export function LibraryView({
     if (q) {
       list = list.filter((p) => {
         const t = (p.title ?? '').toLowerCase();
-        const f = familyOf(p.id).toLowerCase();
+        const f = familyOf(p.id).name.toLowerCase();
         return t.includes(q) || f.includes(q);
       });
     }
@@ -261,6 +301,23 @@ export function LibraryView({
 
   /** 全选：只作用于当前筛选出来的行（真实多选，不是装饰） */
   const visibleIds = rows.map((p) => p.id);
+  /** 已选但被当前筛选（搜索 / 只看已分析）挡在可见行之外的项：显式提示「已保留」而不是静默保留 */
+  const selectedNotInRows = [...selected].filter((id) => !visibleIds.includes(id)).length;
+  /** 当前可见论文里已完成方法抽取的篇数：比较入口至少需要 2 篇 */
+  const visibleAnalysed = visiblePapers.filter((p) => methodByPaper.has(p.id)).length;
+
+  /** 已删除 / 换语料 / 换范围后残留的选择一律清掉（与当前语料可见论文求交集） */
+  const visibleIdKey = visiblePapers.map((p) => p.id).join('|');
+  useEffect(() => {
+    const valid = new Set(visiblePapers.map((p) => p.id));
+    setSelected((prev) => {
+      if (!prev.size) return prev;
+      const next = new Set([...prev].filter((id) => valid.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+    // 仅在可见论文集合真正变化时求交集
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleIdKey, scope.key]);
 
   /**
    * 待提取的论文：解析成功但还没有方法框架（含抽取失败的可重试）。
@@ -305,7 +362,16 @@ export function LibraryView({
               <DraftIcon name="map" />
               进入研究地图
             </button>
-            <button className="btn-outline" onClick={onGoCompare} disabled={!visiblePapers.length}>
+            <button
+              className="btn-outline"
+              onClick={onGoCompare}
+              disabled={visibleAnalysed < 2}
+              title={
+                visibleAnalysed < 2
+                  ? '跨论文比较至少需要 2 篇已完成方法抽取的论文；当前只有 ' + visibleAnalysed + ' 篇'
+                  : '打开跨论文比较页，在那里选择要对比的论文'
+              }
+            >
               <DraftIcon name="layers" />
               跨论文比较
             </button>
@@ -379,6 +445,11 @@ export function LibraryView({
                 <span className="text-sm font-bold text-[var(--fg-2)]">
                   全选{selected.size > 0 ? `（已选 ${selected.size}）` : ''}
                 </span>
+                {selectedNotInRows > 0 && (
+                  <span className="text-[10px] text-[var(--fg-3)]">
+                    已保留 {selectedNotInRows} 项选择（不在当前可见项中）
+                  </span>
+                )}
                 <div className="h-4 w-px bg-[var(--line)]" />
                 <select
                   className="bg-[var(--bg)] border border-[var(--line)] rounded-lg text-xs py-1 px-2 focus:outline-none"
@@ -485,7 +556,16 @@ export function LibraryView({
                             {titleNeedsConfirm(p) ? ' · 标题待确认' : ''}
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-[var(--fg-2)]">{familyOf(p.id)}</td>
+                        <td className="px-6 py-4 text-[var(--fg-2)]">
+                          {(() => {
+                            const fam = familyOf(p.id);
+                            return (
+                              <span title={fam.why ?? undefined} className={fam.name === '待确认' ? 'text-[var(--fg-3)]' : undefined}>
+                                {fam.name}
+                              </span>
+                            );
+                          })()}
+                        </td>
                         <td className="px-6 py-4">
                           <span className={innovationBadgeClass(score)} title="创新度是模型评估，不是论文给出的分数">
                             {score === undefined ? '未评估' : score.toFixed(1)}
@@ -495,6 +575,16 @@ export function LibraryView({
                           <button className="text-[var(--accent)] hover:underline font-bold" onClick={() => onOpenResult(p.id)}>
                             查看报告
                           </button>
+                          {/* 有实验记录的论文：行内直接跳实验比较页并聚焦本片（id 一并传出） */}
+                          {methodByPaper.get(p.id)?.experiments?.length ? (
+                            <button
+                              className="text-[var(--accent)] hover:underline font-bold ml-3"
+                              onClick={() => onOpenExperiments(p.id)}
+                              title="打开实验条件比较页并聚焦这篇论文"
+                            >
+                              查看实验
+                            </button>
+                          ) : null}
                           {/* 解析成功但还没抽出字段的，行内直接给提取入口（含上次失败的「重新提取」） */}
                           {needsExtract(p) && (
                             <button
@@ -600,8 +690,17 @@ export function LibraryView({
               {selected.size > 0 && (
                 <div className="row" style={{ marginTop: 10, gap: 8, flexWrap: 'wrap' }}>
                   <span className="small">已选 {selected.size} 篇：</span>
-                  <button className="btn sm" onClick={onGoCompare}>
-                    比较选中的论文
+                  <button
+                    className="btn sm"
+                    onClick={onGoCompare}
+                    disabled={[...selected].filter((id) => methodByPaper.has(id)).length < 2}
+                    title={
+                      [...selected].filter((id) => methodByPaper.has(id)).length < 2
+                        ? '选中的论文里至少要有 2 篇已完成方法抽取才能比较'
+                        : '打开跨论文比较页（选择会在比较页重新确认）'
+                    }
+                  >
+                    去比较页选择
                   </button>
                   <button className="btn ghost sm" onClick={() => setSelected(new Set())}>
                     清空选择

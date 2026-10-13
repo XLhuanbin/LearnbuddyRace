@@ -3,13 +3,12 @@ import type { Evidence, Method, Paper, ReadingPlan, Relation, RelationEvidenceSt
 import { relationsInScope, type CorpusKey, type CorpusScope, type ScopeMode } from '../core/corpus';
 import { Crumb, Status } from './common';
 import { buildMethodOverview, buildMethodProfile } from '../core/grouping';
+import { DraftIcon } from '../draft-icons';
 import { MethodMap } from './MethodMap';
 import { MapNetworkView } from './MapNetworkView';
 import { EvolutionView } from './EvolutionView';
-import { MapRelationsView } from './MapRelationsView';
-import { MapStartView } from './MapStartView';
 
-type SubView = 'map' | 'timeline' | 'relations' | 'start';
+type SubView = 'map' | 'timeline';
 export type { ScopeMode };
 
 interface Props {
@@ -19,24 +18,25 @@ interface Props {
   scope: CorpusScope;
   corpusLoading: CorpusKey | null;
   plan?: ReadingPlan;
-  questions?: { id: string; text: string; basis?: string; evidence?: Evidence[] }[];
   modelReady: boolean;
-  busy: boolean;
   /** 当前集合（案例 / 我上传的论文）由工作区外框控制，地图只负责渲染 */
   mode: ScopeMode;
   onModeChange: (m: ScopeMode) => void;
-  onGenerate: (profile: UserProfile) => void;
-  /** 停止等待正在生成的阅读路线（只停止本地等待） */
-  onCancelGenerate?: () => void;
   /**
-   * 两个「大入口」（2026-10-12 动线）：研究地图 → 跨论文比较 / 阅读路线。
-   * 注意与 `onOpenRelations`（地图内部的「关系与比较」子视图）是两回事——
-   * 这里去的是目录里独立的「跨论文比较」页与「阅读路线」页。
+   * 三个「去独立页面」的入口（2026-10-13 去重后）：研究地图 → 跨论文比较 / 方法关系 / 阅读路线。
+   *
+   * 地图内部的三个子视图（方法地图 / 关系与比较 / 阅读起点）已按用户决定取消 ——
+   * 后两个与独立页面重复。地图上凡是原来进这两个子视图的地方，现在直接去独立页面，
+   * 因此这三个入口就是地图画布唯一的「往外走」通道，缺一个就会出现死路。
    */
   onGoCompare?: () => void;
+  /** 去「方法关系」页（关系图 + 关系明细整表） */
+  onGoGraph?: () => void;
   onGoDecision?: () => void;
+  /** 去「待调查问题」页（2026-10-13：这页原本只藏在「更多」里，地图没有入口） */
+  onGoDivergence?: () => void;
   /**
-   * 发起一次关系分析（真实模型调用）。地图空状态与「关系与比较」页的直接入口 ——
+   * 发起一次关系分析（真实模型调用）。地图空状态的直接入口 ——
    * 2026-10-12 用户实测：此前只有目录里的「方法关系图」页有按钮，
    * 在地图上看到「没有关系」时找不到下一步。
    */
@@ -77,15 +77,13 @@ export function MapView({
   scope: corpusScope,
   corpusLoading,
   plan,
-  questions,
   modelReady,
-  busy,
   mode,
   onModeChange,
-  onGenerate,
-  onCancelGenerate,
   onGoCompare,
+  onGoGraph,
   onGoDecision,
+  onGoDivergence,
   onAnalyzeRelations,
   relationBusy = false,
   onOpenEvidence,
@@ -98,13 +96,6 @@ export function MapView({
   resetSignal = 0,
 }: Props) {
   const [sub, setSub] = useState<SubView>('map');
-  /**
-   * 对照对的三态：
-   *   null → 没指定（「关系与比较」自己挑一对值得看的）
-   *   []   → 用户点了「去选择对照」，要求他自己选
-   *   [a,b] → 明确的对照两端
-   */
-  const [pair, setPair] = useState<string[] | null>(null);
   /**
    * 关系可见性三态（默认「全部」）：
    *   all     = 画布上显示全部关系（含待核查与「关系不明确」）—— 默认值，避免默认就把大部分关系藏起来
@@ -146,6 +137,13 @@ export function MapView({
   }, [mode, corpusScope, relations]);
 
   const ownCount = corpusScope.ownPapers.length;
+
+  /**
+   * 这里原来有一套「对照选择」状态（pair / pairTouched / pairNotice + 与当前范围求交集）。
+   * 2026-10-13 随「关系与比较」子视图一起移除：研究地图不再维护对照选择，
+   * 对照与关系明细都在独立页面里（跨论文比较 / 方法关系），地图只画地图。
+   * 一并删掉是有意的 —— 留着无人读写的状态只会让下一个人以为它还在起作用。
+   */
 
   /** 案例还没加载、但用户已有自己上传的论文时，直接显示「我上传的论文」 */
   useEffect(() => {
@@ -264,12 +262,6 @@ export function MapView({
     return { id: pick.id, name: profile.shortName, fromPlan: Boolean(byPlan) };
   }, [plan, view]);
 
-  const tabs: { id: SubView; name: string }[] = [
-    { id: 'map', name: '方法地图' },
-    { id: 'relations', name: '关系与比较' },
-    { id: 'start', name: '阅读起点' },
-  ];
-
   return (
     <div>
       {/* 页头：简短面包屑 → 主题与状态 → 三个视图入口与一个主操作 */}
@@ -328,10 +320,17 @@ export function MapView({
                   </button>
                 ))}
               </div>
-              {relStats.visible < relStats.total && (
+              {/*
+                只要有收窄/筛选在生效，就把「隐藏了几条、为什么」写出来 —— 包括**隐藏 0 条**的情形。
+                旧写法是 `visible < total` 才显示，于是开启「只看有证据关系」而一条都没被隐藏时状态行是空的，
+                用户无法判断「是筛选没生效，还是本来就没有可隐藏的」。
+                现在写成「隐藏 0 条：当前收窄条件下没有被隐藏的关系」，
+                与既有验收断言的不变量一致（隐藏数 = 总数 − 显示数；有隐藏必须写明原因）。
+              */}
+              {(relStats.visible < relStats.total || onlyEvidence) && (
                 <span className="small dim">
                   隐藏 {relStats.total - relStats.visible} 条：
-                  {hiddenReasons.join('、')}
+                  {hiddenReasons.length ? hiddenReasons.join('、') : '当前收窄条件下没有被隐藏的关系'}
                 </span>
               )}
               {onlyEvidence && <Status kind="pending">已开启「只看有证据关系」</Status>}
@@ -360,23 +359,9 @@ export function MapView({
           </div>
 
           <div className="maphead-links">
-            {/* 动线（2026-10-12）：研究地图的两个「大入口」——跨论文比较与阅读路线。
-                都是完整页面（可从顶栏返回研究地图），与地图内部的「关系与比较」子视图不同。
-                样式用普通 btn 而非实心主按钮：首屏实心主按钮 ≤ 1 是布局约束，入口的显著性靠位置与文字。 */}
-            {onGoCompare && (
-              <button className="btn sm" onClick={onGoCompare} disabled={!view.methods.length}>
-                跨论文比较 →
-              </button>
-            )}
-            {onGoDecision && (
-              <button className="btn sm" onClick={onGoDecision}>
-                阅读路线 →
-              </button>
-            )}
-            {/* 与「阅读起点」视图同名，避免出现两个相似但不同的说法 */}
-            <button className="linkbtn" onClick={() => setSub('start')}>
-              阅读起点 →
-            </button>
+            {/* 2026-10-13 用户决定：「跨论文比较 →」「阅读路线 →」两个页头入口删除 ——
+                同样的出口已经常驻在网络视图右下角的动线枢纽 2×2 里，两处重复。
+                这里只保留语料模式切换与空态时的加载案例。 */}
             {mode === 'own' && (
               <button className="btn ghost sm" onClick={() => onModeChange('case')}>
                 ← 回到{corpusScope.meta.label}
@@ -445,21 +430,16 @@ export function MapView({
         </div>
       </div>
 
-      {/* 三个视图是同一份关系数据的三个视角：显式切换条，且任何时候都能回到「方法地图」。
-          之前这条切换条被删掉后，关系与比较 / 阅读起点 只剩两条隐式深链，进去也回不来。 */}
-      <div className="mapviews" role="tablist" aria-label="研究地图视图">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={sub === t.id}
-            className={`chip${sub === t.id ? ' on' : ''}`}
-            onClick={() => setSub(t.id)}
-          >
-            {t.name}
-          </button>
-        ))}
-      </div>
+      {/*
+        2026-10-13 用户决定：研究地图**只做方法地图**，原来的三个视图切换条取消。
+        原因：右侧那两项（关系与比较 / 阅读起点）与独立页面重复 ——
+          · 阅读起点（阅读顺序 + 待调查问题）＝「阅读路线」页 +「待调查问题」页；
+          · 关系与比较（两方法对照 + 关系明细）＝ 本页画布 +「方法关系」页（关系明细整表已搬过去）
+            +「跨论文比较」页。
+        信息一条都没丢，只是不再有两个入口指向同一件事。地图内部的次级视图仍保留一个：
+        「发表顺序时间线」（没有独立页面），入口在网络视图里。
+        注意：**筛选条（全部/可用/待核查）不属于视图切换**，它一直在页头，不受这里影响。
+      */}
 
       {view.count === 0 ? (
         <div className="mapwork" style={{ display: 'grid', placeItems: 'center' }}>
@@ -527,16 +507,18 @@ export function MapView({
               /* 画布「画什么」的唯一规则 = relVisible（三态 + 只看有证据），
                  与页头「当前显示 N 条」是同一份筛选；不能让画布拿全量关系自己再画一遍 */
               relations={view.relations.filter(relVisible)}
+              /* 布局用**未筛选**的完整关系：筛选只决定画哪些连线，不该让节点重排（见 MapNetworkView 的 layoutRelations） */
+              allRelations={view.relations}
               scopeLabel={view.isCase ? corpusScope.meta.domain : '我自己上传的论文'}
               onOpenEvidence={onOpenEvidence}
               onOpenResult={onOpenResult ?? (() => undefined)}
-              onAddToCompare={(paperId) => {
-                const m = view.methods.find((x) => x.paperId === paperId);
-                setPair(m ? [m.id] : []);
-                setSub('relations');
-              }}
-              onOpenRelations={() => setSub('relations')}
-              onOpenStart={() => setSub('start')}
+              /* 三处入口改为**跳到对应的独立页面**（地图内部不再有重复子视图）：
+                 对比 →「跨论文比较」页；关系明细 →「方法关系」页（关系明细整表已搬过去）；
+                 阅读起点 →「阅读路线」页。 */
+              onGoCompare={onGoCompare}
+              onGoGraph={onGoGraph}
+              onGoDecision={onGoDecision}
+              onGoDivergence={onGoDivergence}
               onOpenTimeline={() => setSub('timeline')}
               onAnalyzeRelations={onAnalyzeRelations}
               relationBusy={relationBusy}
@@ -544,42 +526,39 @@ export function MapView({
             />
           )}
           {sub === 'timeline' && (
-            <EvolutionView
-              papers={view.papers}
-              methods={view.methods}
-              relations={view.relations}
-              plan={plan}
-              onOpenEvidence={onOpenEvidence}
-            />
-          )}
-          {sub === 'relations' && (
-            /* 明细视图列出**全部**关系（不随画布的可见性筛选变动）——筛选只作用于画布，避免表格被静默删行 */
-            <MapRelationsView
-              papers={view.papers}
-              methods={view.methods}
-              relations={view.relations}
-              onOpenEvidence={onOpenEvidence}
-              onBackToMap={() => setSub('map')}
-              initialPair={pair ?? undefined}
-              requireChoice={pair !== null && pair.length === 0}
-              onAnalyzeRelations={onAnalyzeRelations}
-              relationBusy={relationBusy}
-              modelReady={modelReady}
-            />
-          )}
-          {sub === 'start' && (
-            <MapStartView
-              papers={view.papers}
-              methods={view.methods}
-              plan={plan}
-              modelReady={modelReady}
-              busy={busy}
-              onCancel={onCancelGenerate}
-              onGenerate={onGenerate}
-              onOpenEvidence={onOpenEvidence}
-              questions={questions}
-              onBackToMap={() => setSub('map')}
-            />
+            <>
+              {/**
+               * 时间线视图保留**同一条子头**（2026-10-13 用户明确：返回 = 再点一次「网络视图」，
+               * 不是另加一个返回按钮）。标题、计数、切换按钮与网络视图完全一致，
+               * 只有「当前在哪个视图」的高亮不同 —— 看起来就是同一页面的两个视图。
+               */}
+              <div className="mapsub h-[72px] shrink-0 bg-white border-b border-[var(--line)] px-6 flex justify-between items-center gap-4">
+                <div className="flex items-center gap-6 min-w-0">
+                  <div className="min-w-0">
+                    <h2 className="text-lg font-serif font-bold truncate">
+                      {view.isCase ? corpusScope.meta.domain : '我自己上传的论文'} · 方法论演进地图
+                    </h2>
+                    <p className="text-[10px] text-[var(--fg-3)] uppercase tracking-widest">
+                      已包含 {view.papers.length} 篇文献 • {view.relations.length} 条方法路径
+                    </p>
+                  </div>
+                  <div className="h-8 w-px bg-[var(--line)] shrink-0" />
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button className="btn-outline flex items-center gap-1.5" onClick={() => setSub('map')}>
+                      <DraftIcon name="network" />
+                      网络视图
+                    </button>
+                    <button className="btn-outline flex items-center gap-1.5 active">
+                      <DraftIcon name="git-branch" />
+                      时间线
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                <EvolutionView papers={view.papers} methods={view.methods} relations={view.relations} plan={plan} onOpenEvidence={onOpenEvidence} />
+              </div>
+            </>
           )}
         </>
       )}

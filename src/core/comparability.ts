@@ -97,10 +97,8 @@ export function conditionOf(method: Method | undefined, dim: ConditionDimension)
     if (ov) {
       const eff = effectiveField(method, dim);
       return {
-        values: (eff.value ?? '')
-          .split(/[,;、]|and/)
-          .map((x) => x.trim())
-          .filter(Boolean),
+        // 分项规则与「无人工修正」的路径**共用同一个函数**（见 splitConditionValues 的说明）
+        values: splitConditionValues(eff.value ?? ''),
         status: eff.value ? 'unverified' : 'not_extracted',
         evidence: eff.evidence,
         note: (eff.note ? eff.note + '；' : '') + '该维度按人工修正值计算，不是原文核验结果。',
@@ -117,7 +115,7 @@ export function conditionOf(method: Method | undefined, dim: ConditionDimension)
     const f = effectiveField(method, dim);
     if (f?.value) {
       return {
-        values: f.value.split(/[,;、]|\band\b/).map((s) => s.trim()).filter(Boolean),
+        values: splitConditionValues(f.value),
         status: f.status === 'verified' ? 'verified' : f.status === 'missing' ? 'not_reported' : 'unverified',
         evidence: f.evidence,
         note: f.note,
@@ -143,6 +141,25 @@ const norm = (s: string) =>
     .toLowerCase()
     .replace(/[\s\-_/]+/g, '')
     .replace(/[（）()【】\[\]:：,，.。]/g, '');
+
+/**
+ * 条件条目的**分项规则**（唯一实现）。
+ *
+ * ⚠️ 修复（P2，已复现）：人工修正分支里的 `and` 分隔符实际是退格控制字符
+ * （源码里那两个 0x08 字节本来想写 `\band\b`）—— 也就是说那条分支**从来不会按 and 分项**；
+ * 而退化到 `fields` 的分支用的是正确的 `\band\b`。
+ * 结果：同一条「ImageNet-1K and ImageNet-21K」在「有人工修正」与「没有人工修正」两条路径上
+ * 分项不同 → 可比性结论不同（人工改过反而更差）。
+ *
+ * 现在抽成一个函数、两条路径共用，并且**不写字面量词边界**，避免再次被写成控制字符。
+ * 分隔符限定为「逗号 / 分号 / 顿号 / 两侧有空白的 and / &」，不会误切 `Band`、`Standard` 这类单词。
+ */
+export function splitConditionValues(v: string): string[] {
+  return (v ?? '')
+    .split(/[,;、]|[ \t]+and[ \t]+|[ \t]*&[ \t]*/i)
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
 
 function canonicalList(values: string[]): string[] {
   const out: string[] = [];
@@ -377,25 +394,41 @@ export function compareConditions(papers: Paper[], methods: Method[]): Comparabi
         level = 'comparable';
         basis.push({ kind: 'rule', text: `${usable.length} 篇论文的${CONDITION_LABELS[dim]}完全一致。` });
       } else {
-        const allOverlap = lists.every((l) => overlap(l, lists[0]).length > 0);
-        level = allOverlap ? 'limited' : 'not_comparable';
+        /**
+         * ⚠️ 修复（P2，已复现）：旧实现用 `lists.every((l) => overlap(l, lists[0]).length > 0)`
+         * 判断「是否都存在重叠」。这个判据**不是排列不变的**：
+         * 对 {A,B}、{A}、{B} 三篇，
+         * - 以 {A,B} 为参照 → 三者都与它有交集 → 判「只能有限比较」；
+         * - 把 {B} 排到第一位 → {A} 与 {B} 无交集 → 判「不能直接比较」。
+         * 仅调换论文顺序就改结论，属于不可接受的判定不稳定。
+         *
+         * 现在改为**逐对**判断（只遍历 i < j，天然与顺序无关）：
+         * - 每一对都有共同项 → 「只能有限比较」；
+         * - 只要存在一对完全没有共同项 → 「不能直接比较」（它们的口径根本不同）。
+         */
+        const noCommonPairs: string[] = [];
         for (let i = 0; i < usable.length; i++) {
           for (let j = i + 1; j < usable.length; j++) {
             const a = usable[i];
             const b = usable[j];
+            const common = overlap(a.values, b.values);
             if (!sameSet(a.values, b.values)) {
-              const common = overlap(a.values, b.values);
               differences.push(
                 `${a.paperTitle}（${a.values.join('、') || '空'}）与 ${b.paperTitle}（${b.values.join('、') || '空'}）${
                   common.length ? `仅共有：${common.join('、')}` : '没有共同项'
                 }`,
               );
             }
+            if (!common.length) noCommonPairs.push(`${a.paperTitle.slice(0, 16)} ↔ ${b.paperTitle.slice(0, 16)}`);
           }
         }
+        const allPairsShare = noCommonPairs.length === 0;
+        level = allPairsShare ? 'limited' : 'not_comparable';
         basis.push({
           kind: 'rule',
-          text: allOverlap ? '存在部分重叠但并非同一组，只能就共同部分做有限对照。' : '没有共同项，报告结果来自不同口径，不能直接横向对比。',
+          text: allPairsShare
+            ? '两两之间都存在共同项、但并非同一组，只能就共同部分做有限对照。'
+            : `存在完全无共同项的论文对（${noCommonPairs.join('；')}），它们的口径根本不同，不能直接横向对比。`,
         });
       }
     } else if (dim === 'experimentalSettings') {
@@ -407,6 +440,21 @@ export function compareConditions(papers: Paper[], methods: Method[]): Comparabi
       if (noProto.length === usable.length) {
         level = 'unknown';
         basis.push({ kind: 'missing', text: '未能从论文文本中识别出明确的评估协议（微调/零样本/少样本等），无法判断协议是否一致。' });
+        for (const c of noProto) missing.push(`${c.paperTitle}：评估协议无法从原文识别`);
+      } else if (noProto.length > 0) {
+        /**
+         * ⚠️ 修复（P2，已复现）：旧实现只在「全都识别不出」时才判 unknown。
+         * 若一方协议可识别（如 finetune）、另一方无法识别，`shared` 会是空数组，
+         * 于是直接落到下面的 `shared.length === 0` 分支被判成 **not_comparable**（「协议不同」）——
+         * 把「不知道对方是什么协议」错说成「协议与对方不同」。
+         * 这与项目铁律「未知 ≠ 不同」冲突，因此这里先拦住：只要有一方识别不出，就是信息不足。
+         */
+        level = 'unknown';
+        needsExperimentBinding = true;
+        basis.push({
+          kind: 'missing',
+          text: `有 ${noProto.length} 篇论文的评估协议无法从原文识别，既不能认定协议一致，也不能认定协议不同。`,
+        });
         for (const c of noProto) missing.push(`${c.paperTitle}：评估协议无法从原文识别`);
       } else if (shared.length === 0) {
         level = 'not_comparable';

@@ -489,19 +489,22 @@
 
 .dirbtn { font-size: var(--fs-aux); }
 
-/* 目录浮层：280–320px，不做全屏遮罩 */
+/* 目录浮层：280–320px，不做全屏遮罩。
+   2026-10-13 用户实测：目录补「全部页面」后内容超过旧的 max-height(520px)，
+   弹层内部出现滚动条、看起来像被截断。改为：条目更紧凑 + 高度上限跟随视口
+   （calc(100vh - 96px)），常规屏幕一屏放得下；特别矮的屏幕仍可滚动兜底。 */
 .dirpop {
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
   width: 300px;
   max-width: calc(100vw - 32px);
-  max-height: min(70vh, 520px);
+  max-height: calc(100vh - 96px);
   overflow: auto;
   background: var(--bg-2);
   border: 1px solid var(--line-2);
   border-radius: var(--radius);
-  padding: 8px;
+  padding: 6px;
   z-index: 40;
   animation: dirIn 180ms var(--ease) 1;
 }
@@ -509,11 +512,11 @@
 .dirpop .dirlab {
   font-size: var(--fs-meta);
   color: var(--fg-3);
-  padding: 8px 10px 4px;
+  padding: 7px 10px 3px;
   letter-spacing: .04em;
 }
 
-.dirpop .dirsep { height: 1px; background: var(--line); margin: 6px 2px; }
+.dirpop .dirsep { height: 1px; background: var(--line); margin: 4px 2px; }
 
 .dirpop .diritem {
   display: flex;
@@ -524,8 +527,8 @@
   background: none;
   border: none;
   border-radius: var(--radius-sm);
-  padding: 9px 10px;
-  font-size: 15px;
+  padding: 6px 10px;
+  font-size: 14px;
   color: var(--fg-2);
 }
 

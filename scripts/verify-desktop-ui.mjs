@@ -275,9 +275,18 @@ for (const [tag, w, h] of VIEWPORTS) {
   await ev(`(() => { const cb=document.querySelector('.mapopts input[type=checkbox]'); if(cb && !cb.checked) cb.click(); return true; })()`);
   await sleep(900);
   const relOnly = await measureRel();
+  /**
+   * 2026-10-13：判据改为「有条件隐藏才要求写明原因」。
+   *
+   * 原因：本轮按项目规程升了判定规则版本（r3.4.0）并对预置缓存执行 `scripts/revalidate.mjs`，
+   * 重算后 10 条缓存关系全部带**已定位**的引文，于是「只看有证据」下的隐藏数为 0 ——
+   * 之前那条「无引文或未通过校验」的说明自然不再出现。这是数据状态变化，不是行为回归。
+   * 要保护的不变量是「隐藏数与总数/显示数自洽，且**只要有隐藏就必须说明原因**」。
+   */
   check(
-    `[${tag}] 「全部 + 只看有证据」：隐藏数 = 总数 − 显示数，且写明是「无引文或未通过校验」`,
-    relOnly.hidden === relOnly.total - relOnly.visible && /无引文或未通过校验/.test(relOnly.reasonText),
+    `[${tag}] 「全部 + 只看有证据」：隐藏数 = 总数 − 显示数；有隐藏时写明原因`,
+    relOnly.hidden === relOnly.total - relOnly.visible &&
+      (relOnly.hidden === 0 || /无引文或未通过校验/.test(relOnly.reasonText)),
     `总数 ${relOnly.total} − 显示 ${relOnly.visible} = 隐藏 ${relOnly.hidden}（${relOnly.reasonText}）`,
   );
   check(
@@ -285,6 +294,36 @@ for (const [tag, w, h] of VIEWPORTS) {
     relOnly.visible > 0 && relOnly.edges === relOnly.visible,
     `显示 ${relOnly.visible} / 连线 ${relOnly.edges}`,
   );
+  /**
+   * 2026-10-13 回归：**关系可见性筛选不得改变节点位置**。
+   *
+   * 用户实测：「切到待核查，地图变成一条竖着的线」。根因是布局直接吃了**筛选后**的关系
+   * （只剩 similar 时一条有方向的边都没有 → 所有节点都算第 0 层 → 一列竖排）。
+   * 现在的约定：筛选只决定画哪些连线；节点位置用完整关系集合算，必须稳定。
+   */
+  const nodeXs = () =>
+    ev(`(() => {
+      const svg = document.querySelector('#map-canvas svg');
+      if (!svg) return '';
+      return [...svg.querySelectorAll('circle')]
+        .filter((c) => Number(c.getAttribute('r')) > 6)
+        .map((c) => Math.round(Number(c.getAttribute('cx'))))
+        .sort((a, b) => a - b)
+        .join(',');
+    })()`);
+  const xsAll = await nodeXs();
+  await ev(`(() => { const c=[...document.querySelectorAll('.relview .chip')].find((x)=>x.textContent.trim().startsWith('待核查')); if(c) c.click(); return true; })()`);
+  await sleep(1000);
+  const xsPending = await nodeXs();
+  check(
+    `[${tag}] 切换「待核查」不改变节点位置（布局用完整关系集合，不随筛选重排）`,
+    xsAll !== '' && xsAll === xsPending,
+    `全部=${xsAll} / 待核查=${xsPending}`,
+  );
+  await ev(`(() => { const cb=document.querySelector('.mapopts input[type=checkbox]'); if(cb && cb.checked) cb.click(); return true; })()`);
+  await sleep(400);
+  await ev(`(() => { const b=[...document.querySelectorAll('.mapopts button')].find((x)=>/筛选/.test(x.textContent)); if(b) b.click(); return true; })()`);
+  await sleep(400);
   // 关掉收窄、收起弹层，回到默认态再截图
   await ev(`(() => { const cb=document.querySelector('.mapopts input[type=checkbox]'); if(cb && cb.checked) cb.click(); return true; })()`);
   await sleep(700);
@@ -351,13 +390,27 @@ for (const [tag, w, h] of VIEWPORTS) {
   // 断言改为保护新版的等价不变量：截断必须显式可展开（模型 chips +N 更多 / 实验详情折叠）。
   await goMore('实验可比性');
   await sleep(900);
+  /**
+   * 2026-10-13：实验可比性页按用户要求**重做了信息结构**（主结果从「单条记录 N/8 完整度」改为
+   * 「实验对的四类可比性结论」）。因此这里保护的等价不变量随之更新：
+   * - 原来断言「实验详情可展开」→ 现在是「每个实验对可展开条件矩阵与证据」（同样保证不静默截断信息）；
+   * - 原来断言「比较规则提示」→ 现在是首屏的「不是排行榜 / 不做排名、不给因果结论」口径说明
+   *   （这条是本项目最重要的真实性口径，必须仍在页面上）。
+   */
   const exp = await ev(`(() => {
   const t = document.body.innerText || '';
-  return { expand: /\\+\\d+ 更多|收起/.test(t), details: /查看实验详情|收起实验详情/.test(t), rules: /比较规则提示/.test(t), bars: document.querySelectorAll('.main-inner .stat-bar-fill').length };
+  return {
+    expand: /\\+\\d+ 更多|收起/.test(t),
+    details: /展开条件矩阵与证据|收起条件矩阵与证据/.test(t),
+    rules: /不是排行榜/.test(t) && /不做排名/.test(t),
+    levels: /已知条件下可直接比较/.test(t) && /只能结合条件讨论/.test(t) && /信息不足/.test(t) && /不能直接比较/.test(t),
+    bars: document.querySelectorAll('.main-inner .stat-bar-fill').length,
+  };
 })()`);
   check(`[${tag}] 快速状态的模型列表有显式展开（+N 更多 / 收起）`, exp.expand);
-  check(`[${tag}] 实验详情可显式展开（不静默截断记录）`, exp.details);
-  check(`[${tag}] 比较规则提示在页面上（不是排行榜的口径说明）`, exp.rules && exp.bars >= 0);
+  check(`[${tag}] 实验对可显式展开条件矩阵与证据（不静默截断记录）`, exp.details);
+  check(`[${tag}] 四类可比性结论都在页面上（可直接比较 / 结合条件 / 信息不足 / 不能直接比较）`, exp.levels);
+  check(`[${tag}] 首屏写明「不是排行榜 / 不做排名」的口径（不是排行榜式页面）`, exp.rules && exp.bars >= 0);
   await shot(`地图-实验比较-${tag}.png`);
 
   // ---------- 阅读路线 ----------

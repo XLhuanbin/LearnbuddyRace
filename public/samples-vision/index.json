@@ -13,7 +13,7 @@
     "purpose": "正式参赛案例（真实论文、真实抽取；不是开发流程验证样例）",
     "baseUrlHost": "api.deepseek.com"
   },
-  "rulesVersion": "r3.3.0",
+  "rulesVersion": "r3.4.0",
   "inputsSignature": "p_arxiv_1512.03385,p_arxiv_2010.11929,p_arxiv_2012.12877,p_arxiv_2103.14030,p_arxiv_2201.03545",
   "papers": [
     {
@@ -761,7 +761,7 @@
       "paperTitleGuess": "Deep Residual Learning for Image Recognition",
       "validation": [
         {
-          "id": "vi_muzb7519_1",
+          "id": "vi_mv669x5h_1",
           "scope": "method",
           "refId": "m_p_arxiv_1512.03385",
           "field": "limitations",
@@ -769,10 +769,10 @@
           "severity": "warn",
           "message": "局限：模型给出了内容但没有提供任何原文引文，标记为「未找到证据」。",
           "action": "该值不作为可核验结论使用，需要人工回到原文核对。",
-          "at": 1791450205245
+          "at": 1791865200150
         },
         {
-          "id": "vi_muzb7519_2",
+          "id": "vi_mv669x5i_2",
           "scope": "method",
           "refId": "m_p_arxiv_1512.03385",
           "field": "pretrainingCorpus",
@@ -780,7 +780,7 @@
           "severity": "warn",
           "message": "预训练语料：有内容但引文未通过定位校验或未支撑该主张。",
           "action": "该条件按「信息不足」处理，不参与一致性判断。",
-          "at": 1791450205245
+          "at": 1791865200150
         }
       ],
       "assessment": {
@@ -1399,7 +1399,7 @@
       "paperTitleGuess": "AN IMAGE IS WORTH 16X16 WORDS: TRANSFORMERS FOR IMAGE RECOGNITION AT SCALE",
       "validation": [
         {
-          "id": "vi_muzb7542_3",
+          "id": "vi_mv669x7l_3",
           "scope": "method",
           "refId": "m_p_arxiv_2010.11929",
           "field": "downstreamExtraData",
@@ -1407,10 +1407,10 @@
           "severity": "warn",
           "message": "下游额外训练数据：无法确认（表述含糊）。",
           "action": "需要人工回到原文确认后再用于比较。",
-          "at": 1791450205346
+          "at": 1791865200225
         },
         {
-          "id": "vi_muzb7542_4",
+          "id": "vi_mv669x7l_4",
           "scope": "method",
           "refId": "m_p_arxiv_2010.11929",
           "field": "dataAugmentation",
@@ -1418,7 +1418,7 @@
           "severity": "warn",
           "message": "数据增强：无法确认（表述含糊）。",
           "action": "需要人工回到原文确认后再用于比较。",
-          "at": 1791450205346
+          "at": 1791865200225
         }
       ],
       "assessment": {
@@ -2771,7 +2771,7 @@
       "paperTitleGuess": "Swin Transformer: Hierarchical Vision Transformer using Shifted Windows",
       "validation": [
         {
-          "id": "vi_muzb756l_5",
+          "id": "vi_mv669xav_5",
           "scope": "method",
           "refId": "m_p_arxiv_2103.14030",
           "field": "downstreamExtraData",
@@ -2779,10 +2779,10 @@
           "severity": "warn",
           "message": "下游额外训练数据：无法确认（表述含糊）。",
           "action": "需要人工回到原文确认后再用于比较。",
-          "at": 1791450205437
+          "at": 1791865200343
         },
         {
-          "id": "vi_muzb756l_6",
+          "id": "vi_mv669xav_6",
           "scope": "method",
           "refId": "m_p_arxiv_2103.14030",
           "field": "dataAugmentation",
@@ -2790,10 +2790,10 @@
           "severity": "warn",
           "message": "数据增强：有内容但引文未通过定位校验或未支撑该主张。",
           "action": "该条件按「信息不足」处理，不参与一致性判断。",
-          "at": 1791450205437
+          "at": 1791865200343
         },
         {
-          "id": "vi_muzb756l_7",
+          "id": "vi_mv669xav_7",
           "scope": "method",
           "refId": "m_p_arxiv_2103.14030",
           "field": "pretrainedModel",
@@ -2801,10 +2801,10 @@
           "severity": "warn",
           "message": "预训练模型：无法确认（表述含糊）。",
           "action": "需要人工回到原文确认后再用于比较。",
-          "at": 1791450205437
+          "at": 1791865200343
         },
         {
-          "id": "vi_muzb756l_8",
+          "id": "vi_mv669xav_8",
           "scope": "method",
           "refId": "m_p_arxiv_2103.14030",
           "field": "experimentalSettings",
@@ -2812,7 +2812,7 @@
           "severity": "warn",
           "message": "实验设置：无法确认（表述含糊）。",
           "action": "需要人工回到原文确认后再用于比较。",
-          "at": 1791450205437
+          "at": 1791865200343
         }
       ],
       "assessment": {
@@ -3533,7 +3533,7 @@
       "paperTitleGuess": "A ConvNet for the 2020s",
       "validation": [
         {
-          "id": "vi_muzb757x_9",
+          "id": "vi_mv669xcr_9",
           "scope": "method",
           "refId": "m_p_arxiv_2201.03545",
           "field": "downstreamExtraData",
@@ -3541,10 +3541,10 @@
           "severity": "warn",
           "message": "下游额外训练数据：无法确认（表述含糊）。",
           "action": "需要人工回到原文确认后再用于比较。",
-          "at": 1791450205486
+          "at": 1791865200411
         },
         {
-          "id": "vi_muzb757y_10",
+          "id": "vi_mv669xcr_10",
           "scope": "method",
           "refId": "m_p_arxiv_2201.03545",
           "field": "computeResources",
@@ -3552,7 +3552,7 @@
           "severity": "warn",
           "message": "算力/训练时长：有内容但引文未通过定位校验或未支撑该主张。",
           "action": "该条件按「信息不足」处理，不参与一致性判断。",
-          "at": 1791450205486
+          "at": 1791865200411
         }
       ],
       "assessment": {
@@ -3731,7 +3731,8 @@
         "rationale": "ConvNeXt 只说明其训练配方接近 DeiT 与 Swin，并未声称基于或改进 DeiT；两者是不同技术路线（纯卷积 vs 视觉 Transformer）解决同一图像分类任务，属横向 similar。引文只支持「训练配方接近」，不足以认证继承关系，故标 inferred。",
         "evidenceQuote": "In our study, we use a training recipe that is close to DeiT’s [73] and Swin Transformer’s [45]."
       },
-      "stateAdjusted": []
+      "stateAdjusted": [],
+      "evidenceAssessment": "引文提到了被继承方法「DeiT」；含引用标记「[73]」。缺少能支撑「相似/相关」的措辞（如 similar to / comparable to / most related / in contrast to）。注意「拿它当基线」「against」「compared with」只是实验设置，不构成关系主张。"
     },
     {
       "id": "r_3_m_p_arxiv_2103.14030_m_p_arxiv_2201.03545",
@@ -3842,7 +3843,20 @@
         "rationale": "ViT 与 ResNet 是不同技术路线（纯 Transformer 注意力 vs 卷积残差网络）解决同一图像识别任务，属横向 similar；但检索片段中未出现 ViT 论文对 ResNet 的直接关系陈述，故标 candidate，需核查 ViT 论文中是否明确提及 ResNet 作为对比基线。",
         "evidenceQuote": "To handle 2D images, we reshape the image x ∈ R\nH×W ×C\ninto a\n\nsequence of flattened 2D patches xp ∈ R\nN ×(P\n2\n·C)\n, where (H, W ) is the resolution of the original\n\nimage, C is the number of channels, (P, P ) is the resol"
       },
-      "stateAdjusted": []
+      "stateAdjusted": [],
+      "evidence": {
+        "paperId": "p_arxiv_2010.11929",
+        "quote": "To handle 2D images, we reshape the image x ∈ R\nH×W ×C\ninto a\n\nsequence of flattened 2D patches xp ∈ R\nN ×(P\n2\n·C)\n, where (H, W ) is the resolution of the original\n\nimage, C is the number of channels, (P, P ) is the resol",
+        "page": 3,
+        "start": 9418,
+        "end": 9640,
+        "section": "3 METHOD",
+        "locator": "page+offset",
+        "verified": true,
+        "matchType": "strict",
+        "coverage": 1
+      },
+      "evidenceAssessment": "引文没有提到被继承方法（已按简称/全称/括号别名匹配）。缺少「关系另一端的方法名称」这一必需条件，无法认证该关系。"
     },
     {
       "id": "r_6_m_p_arxiv_1512.03385_m_p_arxiv_2012.12877",
@@ -3883,7 +3897,8 @@
         "rationale": "DeiT 与 ResNet 属不同技术路线（视觉 Transformer vs 卷积残差网络），DeiT 论文中仅将 RegNet 等卷积网络作为蒸馏教师，未陈述与 ResNet 的继承或改进关系；引文只说明 DeiT-B 与 ViT-B 相同，不能支持与 ResNet 的关系，故标 candidate。",
         "evidenceQuote": "DeiT-B is identical to VIT-B, but the training is more adapted to a data-starving regime."
       },
-      "stateAdjusted": []
+      "stateAdjusted": [],
+      "evidenceAssessment": "引文没有提到被继承方法（已按简称/全称/括号别名匹配）；提到了关系另一端「DeiT」。缺少「关系另一端的方法名称」这一必需条件，无法认证该关系。"
     },
     {
       "id": "r_7_m_p_arxiv_1512.03385_m_p_arxiv_2103.14030",
@@ -3900,7 +3915,7 @@
         "section": "1. Introduction",
         "locator": "page+offset",
         "verified": true,
-        "matchType": "loose",
+        "matchType": "strict",
         "coverage": 1
       },
       "evidenceList": [
@@ -3913,7 +3928,7 @@
           "section": "1. Introduction",
           "locator": "page+offset",
           "verified": true,
-          "matchType": "loose",
+          "matchType": "strict",
           "coverage": 1
         }
       ],
@@ -3924,7 +3939,8 @@
         "rationale": "Swin 与 ResNet 是不同技术路线（层级式 Transformer vs 卷积残差网络）解决同一视觉骨干任务，属横向 similar；但检索片段中 Swin 论文未直接陈述与 ResNet 的关系（该句对比对象是 previous Transformer based architectures），故标 candidate，需核查 Swin 论文是否将 ResNet 作为对比基线。",
         "evidenceQuote": "These merits make Swin Transformer suit- able as a general-purpose backbone for various vision tasks, in contrast to previous Transformer based architectures [20] which produce feature maps of a single resolution and have quadratic complexity."
       },
-      "stateAdjusted": []
+      "stateAdjusted": [],
+      "evidenceAssessment": "引文没有提到被继承方法（已按简称/全称/括号别名匹配）；提到了关系另一端「Swin Transformer」；含继承/组合措辞「in contrast to」；含引用标记「[20]」。缺少「关系另一端的方法名称」这一必需条件，无法认证该关系。"
     },
     {
       "id": "r_8_m_p_arxiv_2010.11929_m_p_arxiv_2201.03545",
@@ -3965,7 +3981,8 @@
         "rationale": "ConvNeXt 引用 ViT 的改进训练结果作为对比，但未声称基于或改进 ViT；两者是不同技术路线（纯卷积 vs 视觉 Transformer）解决同一任务，属横向 similar。引文只支持「使用 ViT 的训练结果作对比」，不足以认证继承关系，故标 inferred。",
         "evidenceQuote": "We use the supervised training results from DeiT [73] for ViT-S/B and MAE [26] for ViT-L, as they employ improved training procedures over the original ViTs [20]."
       },
-      "stateAdjusted": []
+      "stateAdjusted": [],
+      "evidenceAssessment": "引文提到了被继承方法「ViT」；含引用标记「[73]」。缺少能支撑「相似/相关」的措辞（如 similar to / comparable to / most related / in contrast to）。注意「拿它当基线」「against」「compared with」只是实验设置，不构成关系主张。"
     },
     {
       "id": "r_9_m_p_arxiv_2012.12877_m_p_arxiv_2103.14030",
@@ -3981,7 +3998,7 @@
         "end": 8036,
         "locator": "page+offset",
         "verified": true,
-        "matchType": "loose",
+        "matchType": "strict",
         "coverage": 1
       },
       "evidenceList": [
@@ -3993,7 +4010,7 @@
           "end": 8036,
           "locator": "page+offset",
           "verified": true,
-          "matchType": "loose",
+          "matchType": "strict",
           "coverage": 1
         }
       ],
@@ -4004,7 +4021,8 @@
         "rationale": "Swin 论文将 DeiT 列为对比对象并声称性能更优，但未声称基于或改进 DeiT；两者同为视觉 Transformer 路线但设计不同（Swin 层级式+移位窗口 vs DeiT 数据高效训练+蒸馏），属并行分支/不同设计的横向 similar。引文只支持性能对比，不足以认证继承关系，故标 inferred。",
         "evidenceQuote": "It outperforms the ViT / DeiT [20, 63] and ResNe(X)t models [30, 70] sig- nificantly with similar latency on the three tasks."
       },
-      "stateAdjusted": []
+      "stateAdjusted": [],
+      "evidenceAssessment": "引文提到了被继承方法「DeiT」；含引用标记「[20, 63]」。句子没有指向关系另一端（既未提到对方方法名，也不是本论文的自指表述）。"
     }
   ],
   "divergences": {
@@ -4202,7 +4220,7 @@
       }
     ],
     "derivedFrom": {
-      "rulesVersion": "r3.2.0",
+      "rulesVersion": "r3.4.0",
       "paperSignature": "p_arxiv_1512.03385,p_arxiv_2010.11929,p_arxiv_2012.12877,p_arxiv_2103.14030,p_arxiv_2201.03545"
     },
     "model": "deepseek-chat",
@@ -4211,7 +4229,7 @@
     "stale": true,
     "generatedAt": 1789725167589,
     "staleReasons": [
-      "本文件的分歧种类与可比性已由程序按规则 r3.2.0 重算（规则重算，未重新调用模型）"
+      "本文件的分歧种类与可比性已由程序按规则 r3.4.0 重算（规则重算，未重新调用模型）"
     ]
   },
   "decisionSample": {
@@ -4881,7 +4899,7 @@
   },
   "tableBindingCheckedAt": "2026-09-18T09:53:08.048Z",
   "revalidatedOnly": true,
-  "revalidationNote": "本文件的「判定类结论」（字段校验问题、条件范围与状态、关系可信度三档、分歧种类与可比性、已检查论文对）已由程序按规则 r3.2.0 在模型输出上重算；模型给出的字段值、引文、理由文字来自提示词 v3.0.0 的那次真实调用（未在重算中重新调用模型）。",
+  "revalidationNote": "本文件的「判定类结论」（字段校验问题、条件范围与状态、关系可信度三档、分歧种类与可比性、已检查论文对）已由程序按规则 r3.4.0 在模型输出上重算；模型给出的字段值、引文、理由文字来自提示词 v3.0.0 的那次真实调用（未在重算中重新调用模型）。",
   "promptVersion": "v3.3.0",
   "relationsOnlyRegeneratedAt": "2026-10-10T17:55:44.832Z"
 }

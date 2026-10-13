@@ -6,7 +6,7 @@
  */
 
 import type { Evidence, Paper } from './types';
-import { guessSection, locateQuote, pageAt } from './text';
+import { guessSection, locateQuote, pageAt, tailHasRiskyTokens } from './text';
 
 export interface RawEvidenceInput {
   quote?: string | null;
@@ -37,8 +37,22 @@ export function buildEvidence(paper: Paper, input: RawEvidenceInput): Evidence |
 
   const page = pageAt(paper.pages, hit.start);
 
-  // 只匹配到前段：说明引文尾部很可能被改写，必须判为未通过校验
+  /**
+   * **部分覆盖**：只有引文前段能在原文中定位到，尾部很可能被模型改写。
+   *
+   * 硬约束（P1，已复现）：
+   * - `verified` 一律 false —— 部分命中**不得**升级为完整核验；
+   * - 保留**真实覆盖率**（不是 1）；
+   * - 保留**模型原引文**（不替换成原文切片），并把「实际匹配到的原文位置」另存，
+   *   这样用户能看出「哪一段对不上」，而不是被一段看起来完全正确的引文误导。
+   */
   if (hit.matchType === 'partial') {
+    const risky = tailHasRiskyTokens(hit.unmatchedTail);
+    const riskNote = risky.digits
+      ? '未命中的尾部含**数字**，这类内容最可能改变结论（例如阈值、提升幅度），务必回原文逐字核对。'
+      : risky.negation
+        ? '未命中的尾部含**否定词**（not / no / without / 未 等），这类内容会让结论完全反转，务必回原文逐字核对。'
+        : '';
     return {
       paperId: paper.id,
       quote: quote.slice(0, 500),
@@ -50,10 +64,17 @@ export function buildEvidence(paper: Paper, input: RawEvidenceInput): Evidence |
       verified: false,
       matchType: 'partial',
       coverage: hit.coverage,
-      verifyNote: `只有引文前 ${Math.round(hit.coverage * 100)}% 能在原文中定位到，尾部疑似被模型改写，因此不视为有效证据（下方展示的是实际匹配到的原文位置）。`,
+      verifyNote:
+        `只有引文前 ${Math.round(hit.coverage * 100)}% 能在原文中定位到，尾部疑似被模型改写，因此不视为有效证据` +
+        `（下方引文是模型给出的原文，另附实际匹配到的位置）。${riskNote}`,
     };
   }
 
+  /**
+   * 完整匹配（strict / loose）才允许 verified = true 与 coverage = 1。
+   * 注意：`quote` 取自**原文切片**（而不是模型给的字符串），
+   * 因为 loose 匹配会忽略标点差异，用原文切片才能保证展示的就是原文。
+   */
   return {
     paperId: paper.id,
     quote: paper.rawText.slice(hit.start, hit.end),

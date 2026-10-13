@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import type { Evidence, Method, Paper, ReadingPlan, Relation } from '../core/types';
 import { Status } from './common';
+import { buildMethodProfile } from '../core/grouping';
 
 interface Props {
   papers: Paper[];
@@ -8,6 +9,7 @@ interface Props {
   relations: Relation[];
   plan?: ReadingPlan;
   onOpenEvidence: (ev: Evidence) => void;
+  /** 返回 = 子头上的「网络视图」按钮（2026-10-13 用户明确），本组件不再自带返回按钮 */
 }
 
 /** 方法的一句话贡献：优先用人工校订过的短句；没有时取「核心思路」的第一句（不新增结论） */
@@ -55,15 +57,17 @@ export function EvolutionView({ papers, methods, relations, plan, onOpenEvidence
     return ps.sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999));
   }, [papers, methods]);
 
-  const nameOf = (p: Paper) => {
-    const t = p.title ?? '';
-    if (/Residual/.test(t)) return 'ResNet';
-    if (/AN IMAGE/.test(t)) return 'ViT';
-    if (/data-efficient/.test(t)) return 'DeiT';
-    if (/Swin/.test(t)) return 'Swin';
-    if (/ConvNet/.test(t)) return 'ConvNeXt';
-    return t.slice(0, 14);
-  };
+  /**
+   * 方法短名与地图保持**同一套**：buildMethodProfile 的 shortName 对任何语料都成立。
+   * 旧实现写死了视觉语料的 5 个正则，用户上传自己的论文后只能显示标题前 14 个字符
+   * （实测显示成「JOURNAL OF LAT」这种期刊页眉）。
+   */
+  const profileByPaper = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of methods) map.set(m.paperId, buildMethodProfile(m, paperById.get(m.paperId), papers).shortName);
+    return map;
+  }, [methods, paperById, papers]);
+  const nameOf = (p: Paper) => profileByPaper.get(p.id) ?? (p.title ?? '').slice(0, 14);
 
   /** 与上一个方法的关系（有则用，没有则如实说明） */
   const relationWithPrev = (paperId: string, prevPaperId?: string) => {
@@ -90,7 +94,7 @@ export function EvolutionView({ papers, methods, relations, plan, onOpenEvidence
     <div>
       <h2 className="page">方法演进</h2>
       <p className="lead">
-        五个代表性方法按时间排成一条线：点任意一个，看它做了什么、与前一个方法的关系，以及原文依据。
+        按时间排成一条演进线：点任意一个，看它做了什么、与前一个方法的关系，以及原文依据。
       </p>
 
       <div className="route">

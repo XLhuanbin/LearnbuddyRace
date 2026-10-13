@@ -8,7 +8,8 @@
  *    跨论文比较与分歧的可比性由程序按当前数据实时重算，因此不需要重新生成，但仍应提示用户复核。
  */
 
-import type { Method } from './types';
+import type { ExperimentRecord, Method } from './types';
+import { experimentIdentityKey } from './experiments';
 
 /** 人工修正记录（实际使用 field + previousValue/newValue；这里保持宽松以便测试与兼容） */
 export interface OverrideLike {
@@ -29,22 +30,44 @@ export function mergeReanalysisResult(prev: Method | undefined, next: Method): M
     if (!merged.some((x) => x.field === o.field)) merged.push(o);
   }
   /**
-   * 实验记录上的人工补充标记（实验可比性审查页的「已确认」勾选）也是人工产物：
-   * 重新分析会替换整份实验记录，按（模型变体 + 指标名 + 评估集）匹配把标记带到新记录上，
-   * 与 overrides 的合并口径一致——人工产物不被模型输出覆盖。匹配不上的（记录本身变了）自然丢弃。
+   * 实验记录上的人工产物（条件补充 `supplements` 与「已确认」标记 `userSupplemented`）必须保留 ——
+   * 重新分析会**整份替换**实验记录，不搬过去就等于全丢。
+   *
+   * ⚠️ 两处修复（P1/P2，均已复现）：
+   *
+   * ① **匹配键不足**：旧键是「模型变体 | 指标名 | 评估集」。实测把评估划分从 val 改成 test 之后，
+   *    旧记录的确认仍然被带到新记录上 —— 条件已经变了，确认却还留着。
+   *    现在统一用 `experimentIdentityKey`（论文 + 任务 + 模型 + 数据集 + **划分** + **分辨率** + 指标 + 单位），
+   *    条件一变键就变，相应的人工产物自然失效。
+   *
+   * ② **同模型同指标的多条记录互相覆盖**：旧实现是 `Map<key, 标记>`，同键的 N 条旧记录只剩最后一条，
+   *    匹配时所有新记录都拿到同一份标记（N 条挤成 1 条，且可能张冠李戴）。
+   *    现在用「键 → 队列」，按出现顺序**一一对应**地发放；新记录比旧记录多时多出来的不带标记，
+   *    比旧记录少时多余的旧标记自然丢弃（不留到下次误配）。
    */
-  const prevMarks = new Map(
-    (prev?.experiments ?? [])
-      .filter((e) => e.userSupplemented?.length)
-      .map((e) => [`${e.modelVariant}|${e.metricName}|${e.evalDataset}`, e.userSupplemented as string[]]),
-  );
+  const pool = new Map<string, ExperimentRecord[]>();
+  for (const e of prev?.experiments ?? []) {
+    if (!e.supplements?.length && !e.userSupplemented?.length) continue;
+    const k = experimentIdentityKey(e);
+    const bucket = pool.get(k);
+    if (bucket) bucket.push(e);
+    else pool.set(k, [e]);
+  }
+  let carriedAny = false;
   const experiments = (next.experiments ?? []).map((e) => {
-    const carried = prevMarks.get(`${e.modelVariant}|${e.metricName}|${e.evalDataset}`);
-    return carried ? { ...e, userSupplemented: carried } : e;
+    const bucket = pool.get(experimentIdentityKey(e));
+    const src = bucket?.shift();
+    if (!src) return e;
+    carriedAny = true;
+    return {
+      ...e,
+      ...(src.supplements?.length ? { supplements: src.supplements } : {}),
+      ...(src.userSupplemented?.length ? { userSupplemented: src.userSupplemented } : {}),
+    };
   });
   return {
     ...next,
-    ...(next.experiments?.length && prevMarks.size ? { experiments } : {}),
+    ...(next.experiments?.length && carriedAny ? { experiments } : {}),
     overrides: merged as Method['overrides'],
     cached: false,
   };

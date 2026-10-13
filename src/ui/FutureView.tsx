@@ -33,7 +33,7 @@ interface Props {
 /** 进行中：草稿的「预计发布」与百分比进度换成真实可数的项数 */
 const IN_PROGRESS: {
   title: string;
-  state: 'doing' | 'pending';
+  state: 'done' | 'doing' | 'pending';
   stateText: string;
   sub: string;
   desc: string;
@@ -43,11 +43,11 @@ const IN_PROGRESS: {
 }[] = [
   {
     title: '把页面统一到同一份设计稿',
-    state: 'doing',
-    stateText: '开发中',
-    sub: '本轮在做',
-    desc: '方法提取、分析结果、研究地图、跨论文对比表、阅读路线、待调查问题六页已完成；版本信息、未来展望两页本轮补上。剩下「整体导航动线」还没改。',
-    done: 6,
+    state: 'done',
+    stateText: '已完成',
+    sub: '决赛打磨轮',
+    desc: '方法提取、分析结果、研究地图、跨论文对比表、阅读路线、待调查问题、版本信息、未来展望八页已用同一套视觉语言；研究地图收口成网络视图 + 时间线，跨页出口统一放到右下角动线枢纽。',
+    done: 8,
     total: 8,
     unit: '页',
   },
@@ -56,7 +56,7 @@ const IN_PROGRESS: {
     state: 'pending',
     stateText: '待排期',
     sub: '尚未排期',
-    desc: '条件缺键时静默通过、390px 下地图详情抽屉溢出、窄屏横向溢出（站级栅格问题）、分歧分析编排入口缺测试、决赛视频成品 —— 五项都还没做。',
+    desc: '实验条件缺键时静默通过、390px 下地图详情抽屉底边溢出、窄屏横向溢出（站级栅格问题）、分歧分析编排入口缺回归测试、3 分钟演示视频成品 —— 五项都还没做，页面上不做任何「即将支持」的承诺。',
     done: 0,
     total: 5,
     unit: '项',
@@ -200,7 +200,7 @@ export function FutureView({ onBack, onGo }: Props) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {IN_PROGRESS.map((p) => {
             const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
-            const color = p.state === 'doing' ? 'var(--progress-green)' : 'var(--progress-yellow)';
+            const color = p.state === 'pending' ? 'var(--progress-yellow)' : 'var(--progress-green)';
             return (
               <div key={p.title} className="content-card relative overflow-hidden">
                 <div className="flex justify-between items-start mb-6">
@@ -211,9 +211,9 @@ export function FutureView({ onBack, onGo }: Props) {
                   <span
                     className="px-3 py-1 text-[10px] font-bold rounded-full border"
                     style={{
-                      background: p.state === 'doing' ? 'var(--warn-soft)' : 'var(--bg-3)',
-                      color: p.state === 'doing' ? 'var(--warn)' : 'var(--fg-3)',
-                      borderColor: p.state === 'doing' ? 'var(--warn-soft)' : 'var(--line)',
+                      background: p.state === 'done' ? 'var(--ok-soft)' : p.state === 'doing' ? 'var(--warn-soft)' : 'var(--bg-3)',
+                      color: p.state === 'done' ? 'var(--ok)' : p.state === 'doing' ? 'var(--warn)' : 'var(--fg-3)',
+                      borderColor: p.state === 'done' ? 'var(--ok-soft)' : p.state === 'doing' ? 'var(--warn-soft)' : 'var(--line)',
                     }}
                   >
                     {p.stateText}

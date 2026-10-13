@@ -40,13 +40,54 @@ function openDb(): Promise<IDBDatabase> {
   return p;
 }
 
+/**
+ * 单条请求 + **等事务真正提交**。
+ *
+ * ⚠️ 修复（P1，已用最小模拟复现）：旧实现在 `request.onsuccess` 就 resolve。
+ * 而 IndexedDB 的 `onsuccess` 只表示「这条请求成功」，**事务仍然可能在此之后 abort**
+ * （配额超限、其它写入冲突、浏览器隐私策略等）。实测症状：调用方的 Promise 已经
+ * fulfilled、界面显示「保存成功」，但 `persisted = false` —— 刷新后数据没了。
+ *
+ * 因此这里：
+ * 1. 请求成功时只**暂存** `request.result`；
+ * 2. 只有 `transaction.oncomplete`（事务已提交）才 resolve；
+ * 3. `error` / `abort` 一律 reject —— 上层不得据此显示「保存成功」。
+ *
+ * `settled` 守卫是必须的：事务出错时浏览器会**同时**派发 `error` 与 `abort`，
+ * 不守卫就会重复 settle（第二次静默无效，但错误信息会丢掉更准的那一个）。
+ */
 async function tx<T>(store: StoreName, mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest): Promise<T> {
   const db = await openDb();
   return new Promise<T>((resolve, reject) => {
-    const t = db.transaction(store, mode);
+    let result: T | undefined;
+    let settled = false;
+    let t: IDBTransaction;
+    try {
+      t = db.transaction(store, mode);
+    } catch (e) {
+      reject(e instanceof Error ? e : new Error('IndexedDB 事务创建失败'));
+      return;
+    }
+    const fail = (err: unknown) => {
+      if (settled) return;
+      settled = true;
+      reject(err instanceof Error ? err : new Error(String(err ?? 'IndexedDB 事务失败，数据未提交')));
+    };
     const req = fn(t.objectStore(store));
-    req.onsuccess = () => resolve(req.result as T);
-    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      result = req.result as T;
+    };
+    // 请求级错误：事务随后会 abort，这里不再单独 settle，避免出现「先 resolve 再 reject」的歧义
+    req.onerror = () => {
+      /* 由事务的 error/abort 统一处理 */
+    };
+    t.oncomplete = () => {
+      if (settled) return;
+      settled = true;
+      resolve(result as T);
+    };
+    t.onerror = () => fail(t.error ?? new Error('IndexedDB 事务失败，数据未提交'));
+    t.onabort = () => fail(t.error ?? new Error('IndexedDB 事务被中断，数据未提交'));
   });
 }
 
@@ -56,19 +97,45 @@ async function tx<T>(store: StoreName, mode: IDBTransactionMode, fn: (s: IDBObje
  * 用途：关系「按范围原子替换」时先整批写新关系，再整批删旧关系。
  * 任一条写入失败 → 事务 abort → 整批回滚，不会留下半套数据（原数据仍然是原样）。
  */
+/**
+ * 在一个已开启的事务上挂统一的 settle 逻辑。
+ *
+ * 与上面 `tx()` 同样的守卫：事务出错时 `error` 与 `abort` 会**都**触发，
+ * 不守卫就会出现「先 resolve 再 reject」（后一次静默失效，但错误信息丢了更准的那一个）。
+ */
+function settleTransaction(t: IDBTransaction, resolve: () => void, reject: (e: unknown) => void): void {
+  let settled = false;
+  const fail = (err: unknown) => {
+    if (settled) return;
+    settled = true;
+    reject(err instanceof Error ? err : new Error('IndexedDB 事务被中断，数据未提交'));
+  };
+  t.oncomplete = () => {
+    if (settled) return;
+    settled = true;
+    resolve();
+  };
+  t.onerror = () => fail(t.error ?? new Error('IndexedDB 事务失败，数据未提交'));
+  t.onabort = () => fail(t.error ?? new Error('IndexedDB 事务被中断，数据未提交'));
+}
+
 async function txBatch(store: StoreName, ops: { kind: 'put' | 'delete'; value?: { id: string }; key?: string }[]): Promise<void> {
   if (!ops.length) return;
   const db = await openDb();
   return new Promise<void>((resolve, reject) => {
-    const t = db.transaction(store, 'readwrite');
+    let t: IDBTransaction;
+    try {
+      t = db.transaction(store, 'readwrite');
+    } catch (e) {
+      reject(e instanceof Error ? e : new Error('IndexedDB 事务创建失败'));
+      return;
+    }
     const os = t.objectStore(store);
     for (const op of ops) {
       if (op.kind === 'put' && op.value) os.put(op.value);
       else if (op.kind === 'delete' && op.key) os.delete(op.key);
     }
-    t.oncomplete = () => resolve();
-    t.onerror = () => reject(t.error);
-    t.onabort = () => reject(t.error ?? new Error('事务被中断'));
+    settleTransaction(t, resolve, reject);
   });
 }
 
@@ -91,15 +158,19 @@ async function txApply(ops: StoreOp[]): Promise<void> {
   const db = await openDb();
   const stores = [...new Set(ops.map((o) => o.store))] as StoreName[];
   return new Promise<void>((resolve, reject) => {
-    const t = db.transaction(stores, 'readwrite');
+    let t: IDBTransaction;
+    try {
+      t = db.transaction(stores, 'readwrite');
+    } catch (e) {
+      reject(e instanceof Error ? e : new Error('IndexedDB 事务创建失败'));
+      return;
+    }
     for (const op of ops) {
       const os = t.objectStore(op.store);
       if (op.kind === 'put') os.put(op.value);
       else os.delete(op.key);
     }
-    t.oncomplete = () => resolve();
-    t.onerror = () => reject(t.error);
-    t.onabort = () => reject(t.error ?? new Error('事务被中断'));
+    settleTransaction(t, resolve, reject);
   });
 }
 
@@ -185,9 +256,76 @@ export async function saveMeta(key: string, value: unknown) {
   await db.put('meta', { id: key, key, value } as never);
 }
 
-export async function loadMeta<T>(key: string): Promise<T | undefined> {
+/**
+ * 读取 meta，并可选用**运行时结构校验**兜底。
+ *
+ * 为什么要校验：meta store 里存的是 JSON，刷新恢复时直接 `as T` 断言，
+ * 一旦本机数据被旧版本写坏（或手工改过），下游拿到结构不符的对象会在
+ * `.map/.filter` 处抛错，表现为「打开页面白屏/恢复失败」而不是一条明确的提示。
+ * 校验不通过时按「没有这份数据」处理（返回 undefined），宁可显示「尚未生成」，
+ * 也不用坏数据冒充结论。
+ */
+export async function loadMeta<T>(key: string, validate?: (v: unknown) => boolean): Promise<T | undefined> {
   const row = await db.get<AppMeta>('meta', key);
-  return row?.value as T | undefined;
+  const value = row?.value;
+  if (value === undefined || value === null) return undefined;
+  if (validate && !validate(value)) return undefined;
+  return value as T | undefined;
+}
+
+/**
+ * **原子** read-modify-write：读取与写入放在**同一个事务**里。
+ *
+ * 背景（P2，已用最小模拟复现）：`appendUsage` 原来是 `loadMeta` → `push` → `saveMeta` 三个独立事务。
+ * 两次并行调用会各自读到同一份旧列表，各自 push 后整份覆盖 —— 后写的把先写的整条覆盖掉，
+ * 使用记录凭空丢失（这是「LearnBuddy 使用证据」的一部分，丢了就无法自证）。
+ *
+ * IndexedDB 对同一 store 的 readwrite 事务是**串行**的：第二次的读一定发生在第一次提交之后，
+ * 因此放在同一事务里就不会互相覆盖。
+ */
+async function txUpdateMeta<T>(key: string, updater: (current: T | undefined) => T): Promise<T> {
+  const dbh = await openDb();
+  return new Promise<T>((resolve, reject) => {
+    let next: T;
+    let settled = false;
+    let t: IDBTransaction;
+    try {
+      t = dbh.transaction('meta', 'readwrite');
+    } catch (e) {
+      reject(e instanceof Error ? e : new Error('IndexedDB 事务创建失败'));
+      return;
+    }
+    const fail = (err: unknown) => {
+      if (settled) return;
+      settled = true;
+      reject(err instanceof Error ? err : new Error('IndexedDB 事务被中断，数据未提交'));
+    };
+    const os = t.objectStore('meta');
+    const req = os.get(key);
+    req.onsuccess = () => {
+      const row = req.result as AppMeta | undefined;
+      try {
+        next = updater(row?.value as T | undefined);
+      } catch (e) {
+        // 更新函数抛错时主动 abort，避免事务悬着
+        try {
+          t.abort();
+        } catch {
+          /* ignore */
+        }
+        fail(e);
+        return;
+      }
+      os.put({ id: key, key, value: next } as never);
+    };
+    t.oncomplete = () => {
+      if (settled) return;
+      settled = true;
+      resolve(next);
+    };
+    t.onerror = () => fail(t.error ?? new Error('IndexedDB 事务失败，数据未提交'));
+    t.onabort = () => fail(t.error ?? new Error('IndexedDB 事务被中断，数据未提交'));
+  });
 }
 
 /** 真实使用记录：每次模型调用都落一条，作为 LearnBuddy 使用证据 */
@@ -204,9 +342,33 @@ export interface UsageRecord {
   error?: string;
 }
 
-export async function appendUsage(rec: Omit<UsageRecord, 'id' | 'at'>) {
-  const list = (await loadMeta<UsageRecord[]>('usage')) || [];
-  list.push({ ...rec, id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, at: Date.now() });
-  // 只保留最近 500 条，避免无限增长
-  await saveMeta('usage', list.slice(-500));
+/** 使用记录最多保留的条数（避免无限增长） */
+const MAX_USAGE_RECORDS = 500;
+
+/** 使用记录的运行时结构校验：坏数据按「没有」处理，不让一条脏记录带崩整个状态页 */
+export function isUsageRecordList(v: unknown): v is UsageRecord[] {
+  if (!Array.isArray(v)) return false;
+  return v.every((x) => {
+    if (!x || typeof x !== 'object') return false;
+    const r = x as Partial<UsageRecord>;
+    return typeof r.id === 'string' && typeof r.at === 'number' && typeof r.kind === 'string';
+  });
+}
+
+/**
+ * 追加一条使用记录（**并发安全**）。
+ *
+ * 见 `txUpdateMeta` 的说明：读与写在同一事务里完成，两次并行调用不会互相覆盖。
+ * 裁剪（只留最近 N 条）也在同一事务里做，避免「先读到 500 条再各自裁剪」的竞态。
+ */
+export async function appendUsage(rec: Omit<UsageRecord, 'id' | 'at'>): Promise<UsageRecord[]> {
+  return txUpdateMeta<UsageRecord[]>('usage', (current) => {
+    const list = isUsageRecordList(current) ? [...current] : [];
+    list.push({
+      ...rec,
+      id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      at: Date.now(),
+    });
+    return list.slice(-MAX_USAGE_RECORDS);
+  });
 }

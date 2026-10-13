@@ -13,7 +13,7 @@
     "purpose": "开发流程验证样例：用于打通 PDF 解析、真实模型抽取、原文证据定位、不可比检测、关系可信度、方法决策与分歧发现。用户尚未确认最终参赛细分领域，本组样例不代表最终选题。",
     "baseUrlHost": "api.deepseek.com"
   },
-  "rulesVersion": "r3.3.0",
+  "rulesVersion": "r3.4.0",
   "inputsSignature": "p_arxiv_1706.03762,p_arxiv_1810.04805,p_arxiv_1907.11692,p_arxiv_1910.01108,p_arxiv_2005.14165",
   "papers": [
     {
@@ -342,7 +342,7 @@
       "paperTitleGuess": "Attention Is All You Need",
       "validation": [
         {
-          "id": "vi_muzb7avs_1",
+          "id": "vi_mv669vdt_1",
           "scope": "method",
           "refId": "m_p_arxiv_1706.03762",
           "field": "inputsConditions",
@@ -350,10 +350,10 @@
           "severity": "warn",
           "message": "输入/训练条件：模型自称页码 p.3，但引文实际定位在第 2 页，已采用实际定位结果。",
           "action": "系统不采信模型自报页码，一律以全文定位结果为准。",
-          "at": 1791450212824
+          "at": 1791865197857
         },
         {
-          "id": "vi_muzb7aw0_2",
+          "id": "vi_mv669ve3_2",
           "scope": "method",
           "refId": "m_p_arxiv_1706.03762",
           "field": "limitations",
@@ -361,10 +361,10 @@
           "severity": "warn",
           "message": "局限：模型给出了内容但没有提供任何原文引文，标记为「未找到证据」。",
           "action": "该值不作为可核验结论使用，需要人工回到原文核对。",
-          "at": 1791450212832
+          "at": 1791865197867
         },
         {
-          "id": "vi_muzb7aw0_3",
+          "id": "vi_mv669ve4_3",
           "scope": "method",
           "refId": "m_p_arxiv_1706.03762",
           "field": "dataSplits",
@@ -372,10 +372,10 @@
           "severity": "warn",
           "message": "数据划分：本次提供的片段中未提取到该信息（不等于论文没有报告）。比较时按「信息不足」处理。",
           "action": "该维度不参与一致性判断。",
-          "at": 1791450212832
+          "at": 1791865197868
         },
         {
-          "id": "vi_muzb7aw0_4",
+          "id": "vi_mv669ve4_4",
           "scope": "method",
           "refId": "m_p_arxiv_1706.03762",
           "field": "pretrainingCorpus",
@@ -383,10 +383,10 @@
           "severity": "warn",
           "message": "预训练语料：本次提供的片段中未提取到该信息（不等于论文没有报告）。比较时按「信息不足」处理。",
           "action": "该维度不参与一致性判断。",
-          "at": 1791450212832
+          "at": 1791865197868
         },
         {
-          "id": "vi_muzb7aw0_5",
+          "id": "vi_mv669ve4_5",
           "scope": "method",
           "refId": "m_p_arxiv_1706.03762",
           "field": "downstreamExtraData",
@@ -394,10 +394,10 @@
           "severity": "warn",
           "message": "下游额外训练数据：有内容但引文未通过定位校验或未支撑该主张。",
           "action": "该条件按「信息不足」处理，不参与一致性判断。",
-          "at": 1791450212832
+          "at": 1791865197868
         },
         {
-          "id": "vi_muzb7aw0_6",
+          "id": "vi_mv669ve4_6",
           "scope": "method",
           "refId": "m_p_arxiv_1706.03762",
           "field": "dataAugmentation",
@@ -405,10 +405,10 @@
           "severity": "warn",
           "message": "数据增强：有内容但引文未通过定位校验或未支撑该主张。",
           "action": "该条件按「信息不足」处理，不参与一致性判断。",
-          "at": 1791450212832
+          "at": 1791865197868
         },
         {
-          "id": "vi_muzb7aw0_7",
+          "id": "vi_mv669ve4_7",
           "scope": "method",
           "refId": "m_p_arxiv_1706.03762",
           "field": "pretrainedModel",
@@ -416,7 +416,7 @@
           "severity": "warn",
           "message": "预训练模型：有内容但引文未通过定位校验或未支撑该主张。",
           "action": "该条件按「信息不足」处理，不参与一致性判断。",
-          "at": 1791450212832
+          "at": 1791865197868
         }
       ],
       "assessment": {
@@ -726,7 +726,7 @@
       "paperTitleGuess": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
       "validation": [
         {
-          "id": "vi_muzb7axb_8",
+          "id": "vi_mv669vfm_8",
           "scope": "method",
           "refId": "m_p_arxiv_1810.04805",
           "field": "limitations",
@@ -734,10 +734,10 @@
           "severity": "warn",
           "message": "局限：模型给出了内容但没有提供任何原文引文，标记为「未找到证据」。",
           "action": "该值不作为可核验结论使用，需要人工回到原文核对。",
-          "at": 1791450212879
+          "at": 1791865197922
         },
         {
-          "id": "vi_muzb7axb_9",
+          "id": "vi_mv669vfm_9",
           "scope": "method",
           "refId": "m_p_arxiv_1810.04805",
           "field": "dataSplits",
@@ -745,10 +745,10 @@
           "severity": "warn",
           "message": "数据划分：本次提供的片段中未提取到该信息（不等于论文没有报告）。比较时按「信息不足」处理。",
           "action": "该维度不参与一致性判断。",
-          "at": 1791450212879
+          "at": 1791865197922
         },
         {
-          "id": "vi_muzb7axb_10",
+          "id": "vi_mv669vfm_10",
           "scope": "method",
           "refId": "m_p_arxiv_1810.04805",
           "field": "downstreamExtraData",
@@ -756,10 +756,10 @@
           "severity": "warn",
           "message": "下游额外训练数据：有内容但引文未通过定位校验或未支撑该主张。",
           "action": "该条件按「信息不足」处理，不参与一致性判断。",
-          "at": 1791450212879
+          "at": 1791865197922
         },
         {
-          "id": "vi_muzb7axb_11",
+          "id": "vi_mv669vfm_11",
           "scope": "method",
           "refId": "m_p_arxiv_1810.04805",
           "field": "dataAugmentation",
@@ -767,7 +767,7 @@
           "severity": "warn",
           "message": "数据增强：有内容但引文未通过定位校验或未支撑该主张。",
           "action": "该条件按「信息不足」处理，不参与一致性判断。",
-          "at": 1791450212879
+          "at": 1791865197922
         }
       ],
       "assessment": {
@@ -1140,7 +1140,7 @@
       "paperTitleGuess": "RoBERTa: A Robustly Optimized BERT Pretraining Approach",
       "validation": [
         {
-          "id": "vi_muzb7ay6_12",
+          "id": "vi_mv669vgk_12",
           "scope": "method",
           "refId": "m_p_arxiv_1907.11692",
           "field": "metrics",
@@ -1148,10 +1148,10 @@
           "severity": "warn",
           "message": "评价指标：模型自称页码 p.4，但引文实际定位在第 5 页，已采用实际定位结果。",
           "action": "系统不采信模型自报页码，一律以全文定位结果为准。",
-          "at": 1791450212910
+          "at": 1791865197956
         },
         {
-          "id": "vi_muzb7aya_13",
+          "id": "vi_mv669vgq_13",
           "scope": "method",
           "refId": "m_p_arxiv_1907.11692",
           "field": "downstreamExtraData",
@@ -1159,10 +1159,10 @@
           "severity": "warn",
           "message": "下游额外训练数据：有内容但引文未通过定位校验或未支撑该主张。",
           "action": "该条件按「信息不足」处理，不参与一致性判断。",
-          "at": 1791450212914
+          "at": 1791865197962
         },
         {
-          "id": "vi_muzb7aya_14",
+          "id": "vi_mv669vgq_14",
           "scope": "method",
           "refId": "m_p_arxiv_1907.11692",
           "field": "dataAugmentation",
@@ -1170,7 +1170,7 @@
           "severity": "warn",
           "message": "数据增强：无法确认（表述含糊）。",
           "action": "需要人工回到原文确认后再用于比较。",
-          "at": 1791450212914
+          "at": 1791865197962
         }
       ],
       "assessment": {
@@ -1496,7 +1496,7 @@
       "paperTitleGuess": "DistilBERT, a distilled version of BERT: smaller, faster, cheaper and lighter",
       "validation": [
         {
-          "id": "vi_muzb7ayn_15",
+          "id": "vi_mv669vh3_15",
           "scope": "method",
           "refId": "m_p_arxiv_1910.01108",
           "field": "limitations",
@@ -1504,10 +1504,10 @@
           "severity": "warn",
           "message": "局限：模型给出了内容但没有提供任何原文引文，标记为「未找到证据」。",
           "action": "该值不作为可核验结论使用，需要人工回到原文核对。",
-          "at": 1791450212927
+          "at": 1791865197975
         },
         {
-          "id": "vi_muzb7ayn_16",
+          "id": "vi_mv669vh3_16",
           "scope": "method",
           "refId": "m_p_arxiv_1910.01108",
           "field": "downstreamExtraData",
@@ -1515,10 +1515,10 @@
           "severity": "warn",
           "message": "下游额外训练数据：无法确认（表述含糊）。",
           "action": "需要人工回到原文确认后再用于比较。",
-          "at": 1791450212927
+          "at": 1791865197975
         },
         {
-          "id": "vi_muzb7ayn_17",
+          "id": "vi_mv669vh3_17",
           "scope": "method",
           "refId": "m_p_arxiv_1910.01108",
           "field": "dataAugmentation",
@@ -1526,7 +1526,7 @@
           "severity": "warn",
           "message": "数据增强：有内容但引文未通过定位校验或未支撑该主张。",
           "action": "该条件按「信息不足」处理，不参与一致性判断。",
-          "at": 1791450212927
+          "at": 1791865197975
         }
       ],
       "assessment": {
@@ -1959,7 +1959,7 @@
       "paperTitleGuess": "Language Models are Few-Shot Learners",
       "validation": [
         {
-          "id": "vi_muzb7b3r_18",
+          "id": "vi_mv669vnb_18",
           "scope": "method",
           "refId": "m_p_arxiv_2005.14165",
           "field": "dataAugmentation",
@@ -1967,7 +1967,7 @@
           "severity": "warn",
           "message": "数据增强：有内容但引文未通过定位校验或未支撑该主张。",
           "action": "该条件按「信息不足」处理，不参与一致性判断。",
-          "at": 1791450213111
+          "at": 1791865198199
         }
       ],
       "assessment": {
@@ -2038,7 +2038,7 @@
         "section": "2 Related Work",
         "locator": "page+offset",
         "verified": true,
-        "matchType": "loose",
+        "matchType": "strict",
         "coverage": 1
       },
       "evidenceList": [
@@ -2051,7 +2051,7 @@
           "section": "2 Related Work",
           "locator": "page+offset",
           "verified": true,
-          "matchType": "loose",
+          "matchType": "strict",
           "coverage": 1
         }
       ],
@@ -2080,7 +2080,7 @@
         "section": "1 Introduction",
         "locator": "page+offset",
         "verified": true,
-        "matchType": "loose",
+        "matchType": "strict",
         "coverage": 1
       },
       "evidenceList": [
@@ -2093,7 +2093,7 @@
           "section": "1 Introduction",
           "locator": "page+offset",
           "verified": true,
-          "matchType": "loose",
+          "matchType": "strict",
           "coverage": 1
         },
         {
@@ -2134,7 +2134,7 @@
         "section": "1 Introduction",
         "locator": "page+offset",
         "verified": true,
-        "matchType": "loose",
+        "matchType": "strict",
         "coverage": 1
       },
       "evidenceList": [
@@ -2147,7 +2147,7 @@
           "section": "1 Introduction",
           "locator": "page+offset",
           "verified": true,
-          "matchType": "loose",
+          "matchType": "strict",
           "coverage": 1
         },
         {
@@ -2212,7 +2212,8 @@
         "rationale": "DistilBERT 原文提到其学生模型是一个更小的 Transformer (Vaswani et al. [2017])，说明其架构承接自 Transformer，但该句主要陈述蒸馏结果，未直接以 'based on/builds upon' 等措辞指名继承 Transformer 原始方法，故标为 inferred。",
         "evidenceQuote": "Using a triple loss, we show that a 40% smaller Transformer (Vaswani et al. [2017]) pre-trained through distillation via the supervision of a bigger Transformer language model can achieve similar performance on a variety of downstream tasks, while being 60% faster at inference time."
       },
-      "stateAdjusted": []
+      "stateAdjusted": [],
+      "evidenceAssessment": "引文提到了被继承方法「Transformer」；含引用标记「[2017]」。缺少能说明继承/组合的措辞（引用标记只能说明提到了这篇工作，不能替代关系措辞）。"
     },
     {
       "id": "r_4_m_p_arxiv_1810.04805_m_p_arxiv_2005.14165",
@@ -2251,7 +2252,8 @@
         "rationale": "GPT-3 原文仅在 DROP 数据集上把 few-shot GPT-3 与 fine-tuned BERT baseline 做性能对比，未陈述架构继承或改进关系。两者属于不同技术路线（BERT 为双向编码器微调范式，GPT-3 为自回归语言模型少样本上下文学习），可视为横向 similar，但缺少直接陈述关系的句子，故标为 candidate。",
         "evidenceQuote": "On DROP [DWD + 19 ], a dataset testing discrete reasoning and numeracy in the context of reading comprehension, GPT-3 in a few-shot setting outperforms the fine-tuned BERT baseline from the original paper but is still well below both human performance and state-of-the-art approaches which augment neural networks with symbolic systems [RLL + 19 ]."
       },
-      "stateAdjusted": []
+      "stateAdjusted": [],
+      "evidenceAssessment": "引文提到了被继承方法「BERT」；提到了关系另一端「GPT-3」；含引用标记「[DWD\n+\n19 ]」。缺少能支撑「相似/相关」的措辞（如 similar to / comparable to / most related / in contrast to）。注意「拿它当基线」「against」「compared with」只是实验设置，不构成关系主张。"
     },
     {
       "id": "r_5_m_p_arxiv_1706.03762_m_p_arxiv_1907.11692",
@@ -2280,7 +2282,20 @@
         "rationale": "RoBERTa 保持 BERT 架构不变，而 BERT 架构本身基于 Transformer，因此 RoBERTa 间接承接 Transformer 架构。但 RoBERTa 原文未直接指名 Transformer 并陈述继承关系，故标为 inferred。",
         "evidenceQuote": "This section explores and quantifies which choices\n\nare important for successfully pretraining BERT\n\nmodels. We keep the model architecture fixed."
       },
-      "stateAdjusted": []
+      "stateAdjusted": [],
+      "evidence": {
+        "paperId": "p_arxiv_1907.11692",
+        "quote": "This section explores and quantifies which choices\n\nare important for successfully pretraining BERT\n\nmodels. We keep the model architecture fixed.",
+        "page": 4,
+        "start": 13709,
+        "end": 13855,
+        "section": "results depend on a several task-specific modifica-",
+        "locator": "page+offset",
+        "verified": true,
+        "matchType": "strict",
+        "coverage": 1
+      },
+      "evidenceAssessment": "引文没有提到被继承方法（已按简称/全称/括号别名匹配）。缺少「被继承方法名称」这一必需条件，仅凭引用标记或更泛的技术名称不能认证该端点。"
     },
     {
       "id": "r_6_m_p_arxiv_1706.03762_m_p_arxiv_2005.14165",
@@ -2321,7 +2336,8 @@
         "rationale": "GPT-3 是自回归语言模型，与 Transformer 的编码器-解码器注意力架构属于不同技术路线（GPT-3 强调少样本上下文学习而非微调）。原文未直接陈述与 Transformer 的继承或改进关系，故标为 candidate。",
         "evidenceQuote": "Specifically, we train GPT-3, an autoregressive language model with 175 billion\n\nparameters, 10x more than any previous non-sparse language model, and test its performance in\n\nthe few-shot setting."
       },
-      "stateAdjusted": []
+      "stateAdjusted": [],
+      "evidenceAssessment": "引文没有提到被继承方法（已按简称/全称/括号别名匹配）；提到了关系另一端「GPT-3」。缺少「关系另一端的方法名称」这一必需条件，无法认证该关系。"
     },
     {
       "id": "r_7_m_p_arxiv_1907.11692_m_p_arxiv_1910.01108",
@@ -2350,7 +2366,20 @@
         "rationale": "DistilBERT 原文提到应用了 Liu et al.（即 RoBERTa）最近提出的 BERT 训练最佳实践，说明两者共享 BERT 预训练技术路线，但未陈述继承或改进关系，属于并行分支/同源横向关系，故标为 similar 且 evidenceState=candidate。",
         "evidenceQuote": "Distillation We applied best practices for training BERT model recently proposed in Liu et al."
       },
-      "stateAdjusted": []
+      "stateAdjusted": [],
+      "evidence": {
+        "paperId": "p_arxiv_1910.01108",
+        "quote": "Distillation We applied best practices for training BERT model recently proposed in Liu et al.",
+        "page": 3,
+        "start": 8173,
+        "end": 8267,
+        "section": "Model # param. Inf. time",
+        "locator": "page+offset",
+        "verified": true,
+        "matchType": "strict",
+        "coverage": 1
+      },
+      "evidenceAssessment": "引文没有提到被继承方法（已按简称/全称/括号别名匹配）。缺少「关系另一端的方法名称」这一必需条件，无法认证该关系。"
     },
     {
       "id": "r_8_m_p_arxiv_1907.11692_m_p_arxiv_2005.14165",
@@ -2549,7 +2578,7 @@
       }
     ],
     "derivedFrom": {
-      "rulesVersion": "r3.2.0",
+      "rulesVersion": "r3.4.0",
       "paperSignature": "p_arxiv_1706.03762,p_arxiv_1810.04805,p_arxiv_1907.11692,p_arxiv_1910.01108,p_arxiv_2005.14165"
     },
     "model": "deepseek-chat",
@@ -2558,7 +2587,7 @@
     "stale": true,
     "generatedAt": 1789631208078,
     "staleReasons": [
-      "本文件的分歧种类与可比性已由程序按规则 r3.2.0 重算（规则重算，未重新调用模型）"
+      "本文件的分歧种类与可比性已由程序按规则 r3.4.0 重算（规则重算，未重新调用模型）"
     ]
   },
   "decisionSample": {
@@ -3350,7 +3379,7 @@
     "totalFields": 35
   },
   "revalidatedOnly": true,
-  "revalidationNote": "本文件的「判定类结论」（字段校验问题、条件范围与状态、关系可信度三档、分歧种类与可比性、已检查论文对）已由程序按规则 r3.2.0 在模型输出上重算；模型给出的字段值、引文、理由文字来自提示词 v3.0.0 的那次真实调用（未在重算中重新调用模型）。",
+  "revalidationNote": "本文件的「判定类结论」（字段校验问题、条件范围与状态、关系可信度三档、分歧种类与可比性、已检查论文对）已由程序按规则 r3.4.0 在模型输出上重算；模型给出的字段值、引文、理由文字来自提示词 v3.0.0 的那次真实调用（未在重算中重新调用模型）。",
   "promptVersion": "v3.3.0",
   "relationsOnlyRegeneratedAt": "2026-10-10T17:56:23.944Z"
 }

@@ -337,15 +337,68 @@ export interface LoadedCorpus {
  * 原因：部署通道是静态托管，样本 JSON 会被 CDN 按 URL 缓存；若不带版本串，
  * 重新部署后访问者可能读到旧语料（实测出现过）。构建脚本会把指纹写入 build.json。
  */
+/** 静态资源请求的默认超时（毫秒）。没有任何后端，超时只可能来自网络/部署通道异常。 */
+export const CACHE_FETCH_TIMEOUT_MS = 15000;
+
+/**
+ * 带超时与取消的 fetch（静态资源请求的统一入口）。
+ *
+ * 为什么必须有：旧实现里的 `fetch` 既没有超时也没有取消。在弱网/部署通道异常时，
+ * 「加载案例」会一直挂在 pending 上：按钮停在「正在加载…」，既不会成功也不会失败，
+ * 用户看不到任何可操作的出路。现在超时/取消都会抛出**明确的**错误（带 kind，便于上层区分）。
+ */
+async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = CACHE_FETCH_TIMEOUT_MS, signal?: AbortSignal): Promise<Response> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(new Error('timeout')), timeoutMs);
+  const onAbort = () => ctrl.abort(signal?.reason ?? new Error('canceled'));
+  if (signal) {
+    if (signal.aborted) onAbort();
+    else signal.addEventListener('abort', onAbort, { once: true });
+  }
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } catch (e) {
+    const aborted = (e as Error)?.name === 'AbortError' || ctrl.signal.aborted;
+    if (aborted) {
+      const err = new Error(
+        signal?.aborted ? `请求已取消：${url}` : `请求超时（超过 ${Math.round(timeoutMs / 1000)} 秒）：${url}`,
+      ) as Error & { kind?: string };
+      err.kind = signal?.aborted ? 'canceled' : 'timeout';
+      throw err;
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+    if (signal) signal.removeEventListener('abort', onAbort);
+  }
+}
+
 let buildIdPromise: Promise<string> | undefined;
+
+/**
+ * 读取构建指纹（用作静态资源的版本查询串）。
+ *
+ * ⚠️ 修复（P2）：**失败时不能把结果永久缓存**。
+ *
+ * 旧实现 `.catch(() => 'dev')` 把失败转成 'dev' 并**存进 `buildIdPromise`**，
+ * 于是这一次的瞬时失败（部署中、断网、CDN 抽风）会变成**整个会话**的版本串 'dev' ——
+ * 后续所有语料请求都带 `?v=dev`，正好命中 CDN 上按 URL 缓存的旧语料，
+ * 用户拿到过期数据且完全无从察觉（与「重新部署后读到旧语料」是同一类问题）。
+ *
+ * 现在：本次仍返回 'dev'（保证功能可用、不因指纹缺失而卡死），
+ * 但**失败不入缓存** —— 下一次调用会重新尝试读取指纹。
+ */
 function currentBuildId(): Promise<string> {
   if (!buildIdPromise) {
-    buildIdPromise = fetch('./build.json', { cache: 'no-store' })
+    const attempt = fetchWithTimeout('./build.json', { cache: 'no-store' }, 8000)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((j) => (typeof j?.buildId === 'string' ? j.buildId : 'dev'))
-      .catch(() => 'dev');
+      .then((j) => (typeof j?.buildId === 'string' && j.buildId ? j.buildId : 'dev'));
+    buildIdPromise = attempt;
+    attempt.catch(() => {
+      if (buildIdPromise === attempt) buildIdPromise = undefined;
+    });
   }
-  return buildIdPromise;
+  return buildIdPromise.catch(() => 'dev');
 }
 
 /**
@@ -391,12 +444,60 @@ export function normalizeRestoredData(
   return { methods: migratedMethods, relations: check.relations, notes: check.notes };
 }
 
+/**
+ * 缓存索引的**运行时结构校验**（P2）。
+ *
+ * 旧实现是 `(await res.json()) as CachedCorpusIndex` —— 纯类型断言，运行时不检查任何东西。
+ * 一旦文件被旧版本写坏、被 CDN 返回一页 HTML、或部署时漏传字段，
+ * 下游会在 `index.papers.map(...)` 处抛 TypeError，表现为「加载案例失败」但没有可读原因；
+ * 更糟的情况是**字段缺失但没抛错**（例如 methods 全是空对象），界面就会显示一份看似正常的空语料。
+ * 这里显式校验结构，不通过就明确失败并说明拒绝加载的理由。
+ */
+export function isCachedCorpusIndex(v: unknown): v is CachedCorpusIndex {
+  if (!v || typeof v !== 'object') return false;
+  const o = v as Partial<CachedCorpusIndex>;
+  if (typeof o.cacheVersion !== 'number') return false;
+  if (!Array.isArray(o.papers) || !Array.isArray(o.methods) || !Array.isArray(o.relations)) return false;
+  const papersOk = o.papers.every((p) => !!p && typeof (p as { id?: unknown }).id === 'string');
+  const methodsOk = o.methods.every(
+    (m) =>
+      !!m &&
+      typeof (m as { id?: unknown }).id === 'string' &&
+      typeof (m as { paperId?: unknown }).paperId === 'string' &&
+      !!(m as { fields?: unknown }).fields &&
+      typeof (m as { fields?: unknown }).fields === 'object',
+  );
+  const relationsOk = o.relations.every(
+    (r) =>
+      !!r &&
+      typeof (r as { id?: unknown }).id === 'string' &&
+      typeof (r as { fromMethodId?: unknown }).fromMethodId === 'string' &&
+      typeof (r as { toMethodId?: unknown }).toMethodId === 'string',
+  );
+  return papersOk && methodsOk && relationsOk;
+}
+
+/** 论文全文缓存的运行时结构校验 */
+export function isCachedPaperText(v: unknown): v is CachedPaperText {
+  if (!v || typeof v !== 'object') return false;
+  const o = v as Partial<CachedPaperText>;
+  return typeof o.rawText === 'string' && Array.isArray(o.pages);
+}
+
 /** 浏览器端加载缓存索引（自动带构建指纹，避免读到 CDN 缓存的旧语料） */
-export async function loadCorpusIndex(base = './samples/'): Promise<{ index: CachedCorpusIndex; formatMismatch?: string }> {
+export async function loadCorpusIndex(
+  base = './samples/',
+  signal?: AbortSignal,
+): Promise<{ index: CachedCorpusIndex; formatMismatch?: string }> {
   const v = await currentBuildId();
-  const res = await fetch(`${base}index.json?v=${v}`, { cache: 'no-cache' });
+  const res = await fetchWithTimeout(`${base}index.json?v=${v}`, { cache: 'no-cache' }, CACHE_FETCH_TIMEOUT_MS, signal);
   if (!res.ok) throw new Error(`预置语料索引加载失败（HTTP ${res.status}）。`);
-  const raw = (await res.json()) as CachedCorpusIndex;
+  const raw: unknown = await res.json();
+  if (!isCachedCorpusIndex(raw)) {
+    throw new Error(
+      '预置语料索引的结构不符合当前格式（缺少 cacheVersion / papers / methods / relations 或字段类型不对），已拒绝加载：不用结构可疑的数据冒充正常结果。',
+    );
+  }
   // 版本不一致不再直接失败：旧结构由 migrateMethod/migrateRelation 迁移，并作为过期原因上报给界面。
   const formatMismatch =
     raw.cacheVersion !== CACHE_VERSION
@@ -407,11 +508,15 @@ export async function loadCorpusIndex(base = './samples/'): Promise<{ index: Cac
 }
 
 /** 按需加载某篇论文的全文（用于证据上下文展示） */
-export async function loadPaperText(paperId: string, base = './samples/'): Promise<CachedPaperText> {
+export async function loadPaperText(paperId: string, base = './samples/', signal?: AbortSignal): Promise<CachedPaperText> {
   const v = await currentBuildId();
-  const res = await fetch(`${base}text/${paperId}.json?v=${v}`, { cache: 'no-cache' });
+  const res = await fetchWithTimeout(`${base}text/${paperId}.json?v=${v}`, { cache: 'no-cache' }, CACHE_FETCH_TIMEOUT_MS, signal);
   if (!res.ok) throw new Error(`论文全文加载失败（HTTP ${res.status}）：${paperId}`);
-  return (await res.json()) as CachedPaperText;
+  const raw: unknown = await res.json();
+  if (!isCachedPaperText(raw)) {
+    throw new Error(`论文全文缓存结构不符合当前格式（缺少 rawText / pages）：${paperId}。已拒绝使用该缓存。`);
+  }
+  return raw;
 }
 
 /** 把缓存元数据补成完整 Paper（全文需另行注入） */

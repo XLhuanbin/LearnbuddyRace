@@ -151,15 +151,19 @@ export function UploadFlowView({
   const fileRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState(config);
   const [dragOver, setDragOver] = useState(false);
+  /** 就地提示（例如「本次队列没有文件」）：不静默失败，也不隐式分析其它范围 */
+  const [notice, setNotice] = useState('');
 
   const running = phase === 'running';
   const showAnalysis = phase !== 'idle';
   const casePapers = scope.presetPapers;
   const ownPapers = scope.ownPapers;
+  /** 当前分析范围（预设 + 自传）—— 本页所有「库里有哪些论文」的口径都来自它 */
+  const scopePapers = scope.papers;
   const listMode: 'case' | 'own' = scope.mode === 'own' || (casePapers.length === 0 && ownPapers.length > 0) ? 'own' : 'case';
   const hiddenOwn = listMode === 'case' && ownPapers.length > 0 ? ownPapers.length : 0;
   const hasMethod = (p: Paper) => methods.some((m) => m.paperId === p.id);
-  const needModel = !modelReady && papers.some((p) => p.parseStatus === 'ok' && !hasMethod(p));
+  const needModel = !modelReady && scopePapers.some((p) => p.parseStatus === 'ok' && !hasMethod(p));
 
   const addFiles = (files: FileList | File[]) => {
     const list = Array.from(files);
@@ -184,23 +188,15 @@ export function UploadFlowView({
   };
 
   const start = async () => {
-    if (running) return;
+    if (busy || running) return;
+    setNotice('');
     const todo = queue.filter((x) => !x.result);
     if (!todo.length) {
       /**
-       * 队列为空、但库里有还没提取字段的论文（2026-10-12 用户实测死路）：
-       * 旧实现此时主按钮是禁用的 —— 用户即使配好了模型也无从下手，只能重新选一次文件，
-       * 而重新选同样的文件又会全部命中「重复跳过」，于是永远卡在 0 方法。
-       * 这里直接对库里的论文补提取，不必让用户重新选文件。
+       * 本批没有文件：**不再**把全量 `papers` 隐式送去分析（那会把其它范围的论文一起抽掉）。
+       * 批量分析只处理「本次队列里的文件」。这里给出明确提示，需要提取的论文可到论文集合页就地提取。
        */
-      const pending = papers.filter((p) => p.parseStatus === 'ok' && !hasMethod(p));
-      if (!pending.length) return;
-      setPhase('running');
-      try {
-        for (const p of pending) await onExtract(p.id);
-      } finally {
-        setPhase('done');
-      }
+      setNotice('本次队列里没有待分析的文件：批量分析只处理你本次加入队列的 PDF，请先在上方加入文件。');
       return;
     }
     setPhase('running');
@@ -227,7 +223,16 @@ export function UploadFlowView({
     r?.paper ?? (r?.skippedPaperId ? papers.find((p) => p.id === r.skippedPaperId) : undefined);
 
   const queuedPapers = queue.map((x) => resolvePaper(x.result)).filter(Boolean) as Paper[];
-  const stagePapers = queuedPapers.length ? queuedPapers : papers;
+  const stagePapers = queuedPapers.length ? queuedPapers : scopePapers;
+
+  /**
+   * 「本页忙不忙」不能只看 phase（2026-10-13 用户实测「提取卡住」的根因之一）：
+   * 批次重叠时，先结束的那个批次的 finally 会把 phase 置回 done，
+   * 于是进度卡显示「本轮分析已结束」而步骤 03 与文件卡还在「提取中」——用户以为卡死了。
+   * 只要还有任何一篇在等模型，本页就是忙的。
+   */
+  const anyJobRunning = stagePapers.some((x) => jobs[x.id]?.status === 'running');
+  const busy = running || anyJobRunning;
 
   /** 本轮分析结束后：多少篇真正有方法框架（含跳过重复=库里已有）、多少篇解析成功但还没提取 */
   const extractedCount = queue.filter((x) => {
@@ -239,23 +244,27 @@ export function UploadFlowView({
     .filter((p): p is Paper => !!p && p.parseStatus === 'ok' && !hasMethod(p));
   /** done 态能否给「进入论文集合」：本轮涉及的论文里至少一篇已有方法框架 */
   const doneNav = queue.length > 0 && queue.every((x) => x.result) && extractedCount > 0;
-  /** 库里解析成功但还没有方法框架的论文（不管是不是本轮传的）—— 主按钮要对它们可用 */
-  const pendingPapers = papers.filter((p) => p.parseStatus === 'ok' && !hasMethod(p));
+  /** 当前范围（预设+自传）里解析成功但还没有方法框架的论文 —— 仅用于提示，不会隐式分析 */
+  const pendingPapers = scopePapers.filter((p) => p.parseStatus === 'ok' && !hasMethod(p));
   /**
    * 主按钮的派生状态（2026-10-12 用户实测死路后重排）：
    * - hasNewFiles：队列里还有没跑过的文件（导入+解析+提取）
    * - canNav：本轮已有成果 → 主按钮就是「进入论文集合」（不看 phase：重复选择队列里已完成的
    *   文件时 phase 会被重置为 idle，但事事已做完，不该显示禁着的「开始梳理脉络」）
+   * - retryPapers：队列里已解析但没提取成的（本页可就地重跑提取）
    * - nothingToDo / blockedNoModel：点了也做不了事的两种原因（没活干 / 没配模型）
+   *
+   * ⚠️ 断链说明：`pendingPapers`（范围里其它未提取论文）**不**参与主按钮可用性 ——
+   * 批量分析只处理本次队列的文件，不会把范围里其它论文隐式送去分析（见下方提示与论文集合入口）。
    */
   const hasNewFiles = queue.some((x) => !x.result);
   const canNav = doneNav && !hasNewFiles;
-  const nothingToDo = !canNav && !hasNewFiles && retryPapers.length === 0 && pendingPapers.length === 0;
+  const nothingToDo = !canNav && !hasNewFiles && retryPapers.length === 0;
   const blockedNoModel = !canNav && !modelReady && !hasNewFiles;
 
   /** 本轮结束但没提取成（典型：点开始时还没配模型，之后才保存配置）→ 逐篇重跑提取，不再重新解析 */
   const retryExtract = async () => {
-    if (running || !retryPapers.length) return;
+    if (busy || running || !retryPapers.length) return;
     setPhase('running');
     try {
       for (const p of retryPapers) await onExtract(p.id);
@@ -273,19 +282,20 @@ export function UploadFlowView({
    */
   const [resumeTick, setResumeTick] = useState(0);
   useEffect(() => {
-    if (resumeTick === 0 || !modelReady || running) return;
+    if (resumeTick === 0 || !modelReady || busy || running) return;
     setResumeTick(0);
     if (phase === 'idle' && queue.some((x) => !x.result)) void start();
     else if (retryPapers.length) void retryExtract();
     else void start();
-  }, [resumeTick, modelReady, running]);
+  }, [resumeTick, modelReady, busy, running]);
 
   const overview: { no: string; name: string; state: StepState; result: string }[] = (() => {
     const anyUploaded = stagePapers.length > 0;
     const anyParsed = stagePapers.some((p) => p.parseStatus === 'ok');
     const allParseFailed = stagePapers.length > 0 && stagePapers.every((p) => p.parseStatus === 'failed');
     const extracting = stagePapers.some((p) => jobs[p.id]?.status === 'running');
-    const anyExtractFailed = stagePapers.some((p) => jobs[p.id]?.status === 'failed');
+    // 作废（canceled）也算这一类：本轮确实没成，但要给用户可点的重试（retryPapers 会带着它）
+    const anyExtractFailed = stagePapers.some((p) => { const s = jobs[p.id]?.status; return s === 'failed' || s === 'canceled'; });
     const anyMethod = stagePapers.some(hasMethod);
     const anyVerified = stagePapers.some((p) => {
       const m = methods.find((x) => x.paperId === p.id);
@@ -327,9 +337,32 @@ export function UploadFlowView({
   const stepDone = overview.filter((s) => s.state === 'done').length;
   const pct = Math.round((stepDone / stepTotal) * 100);
   const anyRunning = overview.some((s) => s.state === 'running');
+
+  /**
+   * 「已等待多久」的秒表（2026-10-13 用户实测反馈「像卡住」）。
+   *
+   * 单次模型调用最长要等 180 秒，这期间**不会**有任何新进展事件 —— 界面看起来完全静止。
+   * 因此这里在忙的时候每秒重渲染一次，把「已等待 X 分 Y 秒」写出来：
+   * 用户能确认「它在等模型，不是死了」；超时上限也写清楚，不用猜。
+   */
+  const [, tickClock] = useState(0);
+  useEffect(() => {
+    if (!busy) return;
+    const id = window.setInterval(() => tickClock((n) => n + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [busy]);
+  /** 当前正在等待的那一篇等了多久（没有正在等待的返回 null） */
+  const waitingJob = stagePapers.map((x) => jobs[x.id]).find((j) => j?.status === 'running');
+  const waitedSec = waitingJob?.at ? Math.max(0, Math.round((Date.now() - waitingJob.at) / 1000)) : null;
+  const waitedText =
+    waitedSec === null
+      ? ''
+      : waitedSec >= 60
+        ? `${Math.floor(waitedSec / 60)} 分 ${waitedSec % 60} 秒`
+        : `${waitedSec} 秒`;
   // 本轮分析结束但没到 100% 时，不能显示「等待开始梳理」（用户会以为卡住了）——如实说明本轮已结束、还差什么。
   // relationBusy 单独一档：字段抽完后关系分析还在后台跑，这不是「还有步骤未完成」
-  const progTitle = running
+  const progTitle = busy
     ? '正在深度分析方法论...'
     : relationBusy
       ? '正在推断方法关系...'
@@ -363,12 +396,26 @@ export function UploadFlowView({
     if (!p) return { text: r.skipped || '未入库', cls: r.skipped ? 'text-[var(--fg-3)]' : 'text-red-600' };
     if (p.parseStatus === 'failed') return { text: `解析失败：${p.parseError || '未知原因'}`, cls: 'text-red-600' };
     const job = jobs[p.id];
-    if (job?.status === 'running') return { text: `提取中：${job.message || '等待模型响应'}`, cls: 'text-[var(--accent)]' };
+    if (job?.status === 'running') {
+      /**
+       * 把「已等待多久」写进卡片本身（2026-10-13 用户实测反馈「反复点也是一样的结果」）：
+       * 单次模型调用最长 180 秒，这期间**不会**有新的进展事件，卡片看起来完全静止 ——
+       * 用户唯一能判断「在等，不是死了」的信息就是这个秒表。
+       */
+      const secs = job.at ? Math.max(0, Math.round((Date.now() - job.at) / 1000)) : null;
+      const wait = secs === null ? '' : `（已等待 ${secs >= 60 ? `${Math.floor(secs / 60)} 分 ${secs % 60} 秒` : `${secs} 秒`}）`;
+      return { text: `提取中：${job.message || '等待模型响应'}${wait}`, cls: 'text-[var(--accent)]' };
+    }
     if (methods.some((m) => m.paperId === p.id)) {
       return {
         text: r.skipped ? '已完成：字段与证据已生成（重复文件，未重复消耗额度）' : '已完成：字段与证据已生成',
         cls: 'text-emerald-700',
       };
+    }
+    if (job?.status === 'canceled') {
+      // 作废不能悄悄变成「等待提取」：用户会以为从没跑过，而日志里其实有模型返回过结果
+      const reason = (job.error || '原因见日志').replace(/\s+/g, ' ').slice(0, 80);
+      return { text: `本次抽取已作废：${reason}`, cls: 'text-[var(--warn)]' };
     }
     if (job?.status === 'failed') {
       const reason = (job.error || '模型调用失败').replace(/\s+/g, ' ');
@@ -487,6 +534,15 @@ export function UploadFlowView({
                       {progNote}
                     </span>
                   </div>
+                  {/*
+                    真实的等待秒表：单次模型调用最长 180 秒且期间没有新进展事件，
+                    不写出来用户会以为界面死了（2026-10-13 用户实测「反复点也是一样的结果」）。
+                  */}
+                  {waitedSec !== null && (
+                    <p className="text-xs text-[var(--fg-2)] mt-3" data-wait-clock>
+                      ⏳ 已等待 {waitedText}（单次模型调用上限 180 秒，超时会自动重试；等待期间不要重复点击，重复点击不会加速）
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -539,6 +595,11 @@ export function UploadFlowView({
                 <h4 className="font-serif font-bold text-xl">待处理队列</h4>
                 <span className="text-xs font-bold bg-[var(--accent-soft)] text-[var(--accent)] px-2 py-1 rounded">{`${queue.length} 个文件`}</span>
               </div>
+              {/* 口径显式写清：批量分析只处理本次队列的文件，不会把当前范围的其它论文一起送去分析 */}
+              <p className="text-sm text-[var(--fg-3)] mb-4 leading-relaxed" data-queue-scope>
+                本次队列 {queue.length} 个文件 · 当前范围（{scope.meta.label}）共 {scopePapers.length} 篇论文；
+                批量分析只处理队列里的文件，不会隐式分析范围里的其它论文。
+              </p>
               <div className="space-y-4 max-h-[400px] overflow-y-auto mb-8 pr-2 custom-scrollbar">
                 {queue.length > 0 ? (
                   queue.map((q) => {
@@ -561,7 +622,7 @@ export function UploadFlowView({
                           {/* 草稿没有这一行；每个文件的真实状态必须如实给出 */}
                           <p data-file-status className={`text-[10px] mt-0.5 leading-relaxed ${st.cls}`}>{st.text}</p>
                         </div>
-                        <button data-file-remove className="text-[var(--fg-3)] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeFile(q.id)} disabled={running} aria-label={`移除 ${q.file.name}`} title="移除">
+                        <button data-file-remove className="text-[var(--fg-3)] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeFile(q.id)} disabled={busy} aria-label={`移除 ${q.file.name}`} title="移除">
                           <DraftIcon name="x" className="text-lg" />
                         </button>
                       </div>
@@ -581,9 +642,9 @@ export function UploadFlowView({
                     点了还是失败；队列为空但库里有没提取的论文时按钮直接禁用。现在这两种都有真实出路。 */}
                 <button
                   className={`w-full disabled:opacity-50 disabled:cursor-not-allowed ${phase === 'done' ? 'btn-primary is-done' : 'btn-primary'}`}
-                  disabled={running || nothingToDo || blockedNoModel}
+                  disabled={busy || nothingToDo || blockedNoModel}
                   onClick={() => {
-                    if (running) return;
+                    if (busy) return;
                     if (canNav) {
                       onGoNext();
                       return;
@@ -592,11 +653,14 @@ export function UploadFlowView({
                       void start();
                       return;
                     }
-                    if (retryPapers.length) void retryExtract();
-                    else void start();
+                    if (retryPapers.length) {
+                      void retryExtract();
+                      return;
+                    }
+                    void start();
                   }}
                 >
-                  {running ? (
+                  {busy ? (
                     <>
                       <DraftIcon name="loader-2" className="animate-spin mr-2" />
                       分析中...
@@ -605,7 +669,7 @@ export function UploadFlowView({
                     '进入论文集合 →'
                   ) : phase === 'idle' && hasNewFiles ? (
                     '开始梳理脉络'
-                  ) : retryPapers.length > 0 || pendingPapers.length > 0 ? (
+                  ) : retryPapers.length > 0 ? (
                     extractedCount > 0 ? (
                       '重新提取方法字段'
                     ) : (
@@ -613,17 +677,32 @@ export function UploadFlowView({
                       '提取方法字段'
                     )
                   ) : (
-                    /* 什么都没得干（空队列 + 库里没有待提取论文）：保持初始文案，按钮禁用 */
+                    /* 空队列：本页只处理队列文件，保持初始文案并禁用 */
                     '开始梳理脉络'
                   )}
                 </button>
+                {notice && (
+                  <p className="text-xs text-[var(--warn)] text-center" data-queue-notice>
+                    {notice}
+                  </p>
+                )}
                 {blockedNoModel && (
                   <p className="text-xs text-[var(--warn)] text-center">
                     还没有配置模型接口，提取无法进行——在下方表单填好并保存，或到「设置」页配置。
                   </p>
                 )}
+                {!hasNewFiles && retryPapers.length === 0 && pendingPapers.length > 0 && (
+                  /* 范围里有未提取的论文但不在本次队列里：给出口，但不隐式分析 */
+                  <p className="text-xs text-[var(--fg-3)] text-center leading-relaxed">
+                    当前范围还有 {pendingPapers.length} 篇未提取方法字段。本页只处理队列里的文件，
+                    这些论文可在「论文集合」里就地提取。
+                    <button className="text-link ml-1" onClick={() => onGoNext()}>
+                      去论文集合
+                    </button>
+                  </p>
+                )}
                 {canNav && retryPapers.length > 0 && (
-                  <button className="btn-ghost w-full" disabled={running} onClick={() => void retryExtract()}>
+                  <button className="btn-ghost w-full" disabled={busy} onClick={() => void retryExtract()}>
                     {`还有 ${retryPapers.length} 篇未完成提取，重试`}
                   </button>
                 )}

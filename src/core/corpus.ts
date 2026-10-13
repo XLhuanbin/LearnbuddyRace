@@ -274,28 +274,136 @@ export function collectPaperRemoval(
   };
 }
 
+/* ============================ 分析范围身份 ============================ */
+
 /**
- * 阅读路线 / 分歧结果 / 语料元信息这类「某个案例的分析产物」必须带上语料集身份，
- * 否则切换案例后刷新会显示上一个案例的结果。
+ * 「当前分析范围」的完整身份。
+ *
+ * 为什么光有 corpusId 不够（P1，已复现）：`case`（案例预置）与 `own`（我上传的论文）
+ * 是**互斥的两个范围**，但过去分析产物只按 corpusId 归档。后果是：
+ * - own 模式生成的结果会被存成 vision/nlp 案例的身份；
+ * - 切换模式只是 `setMapMode`，不清理、不恢复、也不使在途任务失效；
+ * - 于是 case↔own 双向切换、刷新、以及请求途中切换，都可能显示或写入**另一个范围**的产物。
+ *
+ * 身份因此必须至少包含：**模式 + 语料集 + 输入论文集合 + 方法集合**。
+ * 论文集合用稳定哈希压缩（own 模式论文可能很多，不适合直接拼进 key）。
+ */
+export interface ScopeIdentity {
+  mode: ScopeMode;
+  corpusId: CorpusId;
+  /** 当前范围内的论文 id（顺序无关） */
+  paperIds: string[];
+  /** 当前范围内的方法 id（顺序无关） */
+  methodIds: string[];
+}
+
+/** 稳定短哈希：djb2 变体，只用于生成 key，不用于任何安全目的 */
+function stableHash(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+
+export function scopeIdentityKey(id: ScopeIdentity): string {
+  const papers = [...id.paperIds].sort().join(',');
+  const methods = [...id.methodIds].sort().join(',');
+  return `${id.mode}|${id.corpusId}|p${stableHash(papers)}.${id.paperIds.length}|m${stableHash(methods)}.${id.methodIds.length}`;
+}
+
+/** 由 CorpusScope 直接得到身份 key */
+export function scopeKeyOf(scope: CorpusScope): string {
+  return scopeIdentityKey({
+    mode: scope.mode,
+    corpusId: scope.meta.id,
+    paperIds: scope.papers.map((p) => p.id),
+    methodIds: scope.methods.map((m) => m.id),
+  });
+}
+
+/**
+ * 批量版：一次移除**多篇**论文及其方法与关系（切换语料集 / 清理其它语料集用）。
+ *
+ * 与逐篇调用 `collectPaperRemoval` 的区别：这里**一次性**算出全部要删的关系，
+ * 调用方才能把「删论文 + 删方法 + 删关系」放进**同一个 IndexedDB 事务**提交。
+ * 过去 `switchCorpus` 只删论文与方法、**留下悬挂关系**（关系指向已不存在的方法），
+ * 界面上表现为关系图里出现找不到端点的边。
+ */
+export function collectScopeRemoval(
+  papers: Paper[],
+  methods: Method[],
+  relations: Relation[],
+  paperIds: Set<string>,
+): {
+  papers: Paper[];
+  methods: Method[];
+  relations: Relation[];
+  removedPapers: Paper[];
+  removedMethods: Method[];
+  removedRelations: Relation[];
+} {
+  const removedPapers = papers.filter((p) => paperIds.has(p.id));
+  const removedMethods = methods.filter((m) => paperIds.has(m.paperId));
+  const removedMethodIds = new Set(removedMethods.map((m) => m.id));
+  // 任一端属于被删方法 → 该关系不再成立，必须一起删（否则就是悬挂关系）
+  const removedRelations = relations.filter(
+    (r) => removedMethodIds.has(r.fromMethodId) || removedMethodIds.has(r.toMethodId),
+  );
+  const removedRelIds = new Set(removedRelations.map((r) => r.id));
+  return {
+    papers: papers.filter((p) => !paperIds.has(p.id)),
+    methods: methods.filter((m) => !paperIds.has(m.paperId)),
+    relations: relations.filter((r) => !removedRelIds.has(r.id)),
+    removedPapers,
+    removedMethods,
+    removedRelations,
+  };
+}
+
+/**
+ * 找出「悬挂关系」：至少一端指向**当前已不存在**的方法。
+ *
+ * 用途：清理历史遗留数据 + 作为断言写进回归测试
+ * （验收标准之一：删除/撤销/案例替换之后，不存在指向已删除方法的关系）。
+ */
+export function danglingRelations(relations: Relation[], existingMethodIds: Set<string>): Relation[] {
+  return relations.filter((r) => !existingMethodIds.has(r.fromMethodId) || !existingMethodIds.has(r.toMethodId));
+}
+
+/**
+ * 阅读路线 / 分歧结果 / 语料元信息这类「某个范围的分析产物」必须带上范围身份，
+ * 否则切换案例或切换模式后刷新会显示上一个范围的结论。
  */
 export interface ScopedSnapshot<T> {
   corpusId: CorpusId;
   payload: T;
+  /**
+   * 范围身份 key（`scopeIdentityKey`）。
+   * 老版本只有 corpusId，`scopeKey` 缺失时**一律不复用** —— 宁可显示「尚未生成」，
+   * 也不拿别的结果冒充当前范围的结论。
+   */
+  scopeKey?: string;
+  /** 生成这份产物时范围内有多少篇论文（用于向用户说明「结论属于哪个集合」） */
+  paperCount?: number;
 }
 
-export function asScopedSnapshot<T>(corpusId: CorpusId, payload: T): ScopedSnapshot<T> {
-  return { corpusId, payload };
+export function asScopedSnapshot<T>(scopeKey: string, corpusId: CorpusId, payload: T, paperCount?: number): ScopedSnapshot<T> {
+  return { scopeKey, corpusId, payload, paperCount };
 }
 
 /**
- * 读取本机保存的分析产物：只有明确记录且语料集一致才复用。
- * 旧版本没有语料集标识的裸数据一律不复用（宁可显示「尚未生成」，也不显示别的案例的结论）。
+ * 读取本机保存的分析产物：只有**范围身份完全一致**才复用。
+ *
+ * 三条硬性判据：
+ * 1. 必须是带 `scopeKey` 的新格式（老格式一律不复用）；
+ * 2. `scopeKey` 必须与当前范围一致（模式 / 语料集 / 论文集合 / 方法集合 全都要对得上）；
+ * 3. payload 存在。
  */
-export function readScopedSnapshot<T>(stored: unknown, corpusId: CorpusId): T | undefined {
+export function readScopedSnapshot<T>(stored: unknown, scopeKey: string): T | undefined {
   if (!stored || typeof stored !== 'object') return undefined;
   const s = stored as Partial<ScopedSnapshot<T>>;
-  if (!('corpusId' in s) || !('payload' in s)) return undefined;
-  return s.corpusId === corpusId ? (s.payload as T) : undefined;
+  if (!('payload' in s)) return undefined;
+  if (typeof s.scopeKey !== 'string') return undefined;
+  return s.scopeKey === scopeKey ? (s.payload as T) : undefined;
 }
 
 /** 历史数据归位：给没有 corpusId 的论文/方法补上稳定身份 */

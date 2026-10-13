@@ -115,10 +115,12 @@ export interface LocateResult {
   matchedLength: number;
   /** 匹配部分占整个引文的比例（partial 时用于说明） */
   coverage: number;
+  /**
+   * partial 时：未能命中的尾部（归一化后的文本）。
+   * 上层用它说明「哪一段对不上」；其中若含数字或否定词，必须显式提示（这类尾部最容易反转结论）。
+   */
+  unmatchedTail?: string;
 }
-
-/** 允许的「尾部缺失」比例：低于该覆盖率即判定为 partial（不可信） */
-const MIN_COVERAGE = 0.9;
 
 /**
  * 在原文中定位引文。定位不到返回 null —— 调用方必须据此标记证据缺失。
@@ -150,9 +152,21 @@ export function locateQuote(rawText: string, quote: string): LocateResult | null
       return { start, end, matchType: 'loose', matchedLength: qLoose.out.length, coverage: 1 };
     }
 
-    // 2b) 引文含省略号或被截断时，取前 60 个字符再试。
-    // 覆盖率不足 90% 时只返回 partial —— 意味着引文尾部很可能是模型改写的内容，
-    // 这种情况必须被上层判定为「未通过校验」，不能当作有效证据。
+    /**
+     * 2b) 整段匹配不到时，取前 60 个字符再试（引文含省略号 / 被截断的兜底）。
+     *
+     * ⚠️ 修复（P1，已复现）：这条路径**永远返回 `partial`**。
+     *
+     * 旧实现写的是 `matchType: coverage >= MIN_COVERAGE ? 'loose' : 'partial'`。
+     * 复现：取原文前 60 个字符 + 5 个虚构尾部（总长 65）→ coverage = 60/65 ≈ 0.923 ≥ 0.9
+     * → 返回 `loose` → 上层 `buildEvidence` 把它当成完整匹配：**verified = true、coverage = 1，
+     * 并把模型给的引用片段替换成原文切片** —— 一段尾部被改写过的假引文就此被洗成「已核验」。
+     *
+     * 逻辑上也站得住：能走到这条分支的前提就是「整段引文在原文中找不到」，
+     * 因此它按定义就是部分覆盖，覆盖率再高也不构成完整匹配。
+     * 当未命中的尾部含**数字**（如 "78.5%"）或**否定词**（not / no / without / 未）时尤其危险 ——
+     * 这类尾部恰恰最容易让结论反转，绝不能放行。
+     */
     const head = qLoose.out.slice(0, 60);
     if (head.length >= 20) {
       const idx2 = rawLoose.out.indexOf(head);
@@ -163,15 +177,28 @@ export function locateQuote(rawText: string, quote: string): LocateResult | null
         return {
           start,
           end,
-          matchType: coverage >= MIN_COVERAGE ? 'loose' : 'partial',
+          matchType: 'partial',
           matchedLength: head.length,
           coverage,
+          unmatchedTail: qLoose.out.slice(head.length),
         };
       }
     }
   }
 
   return null;
+}
+
+/**
+ * partial 引文的未命中尾部里是否含**数字**或**否定词**。
+ * 上层据此把「尾部被改写」升级为更醒目的提示：这类改写最容易反转结论。
+ */
+export function tailHasRiskyTokens(tail?: string): { digits: boolean; negation: boolean } {
+  const t = tail ?? '';
+  return {
+    digits: /[0-9]/.test(t),
+    negation: /(not|no|never|without|none|未|无|没有|不)/i.test(t),
+  };
 }
 
 /** 在原文中抽取一段上下文，用于「点击证据查看上下文」 */

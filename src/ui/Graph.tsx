@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import type { Evidence, Method, Paper, Relation, RelationEvidenceState, RelationType } from '../core/types';
 import { effectiveField, effectiveFieldValue } from '../core/effective';
-import { buildMethodProfile } from '../core/grouping';
+import { buildMethodProfile, relationExplanation, relationSentence } from '../core/grouping';
 import { RELATION_LABELS, RELATION_STATE_DESC, RELATION_STATE_LABELS } from '../core/types';
 import { Status, Banner, Tag } from './common';
 
@@ -41,12 +41,13 @@ function layout(methods: Method[], papers: Paper[], width: number): { nodes: Nod
 
   const years = [...groups.keys()].sort((a, b) => a - b);
   const cols = years.length + (noYear.length ? 1 : 0);
-  const colGap = cols > 1 ? (width - 200) / (cols - 1) : 0;
+  const colGap = cols > 1 ? (width - 300) / (cols - 1) : 0;
   const nodes: Node[] = [];
   let height = 120;
 
   const place = (list: Method[], ci: number) => {
-    const x = cols > 1 ? 100 + ci * colGap : width / 2;
+    // 左右各留 130/170：最右列的节点框（约 190 宽）不能贴着 viewBox 右缘，否则文字和箭头被裁掉
+    const x = cols > 1 ? 130 + ci * colGap : width / 2;
     list.forEach((m, ri) => {
       const y = 80 + ri * 104;
       height = Math.max(height, y + 90);
@@ -124,10 +125,33 @@ export function GraphView({
 
   const yearsByColumn = [...new Set(nodes.map((n) => n.paper?.year))].sort((a, b) => (a ?? 0) - (b ?? 0));
 
+  /**
+   * 编辑草稿必须**绑定到具体那条关系**（P1，已复现）。
+   *
+   * 旧实现只有 `editing: boolean` + 一份 `draft`。复现路径：点关系 A 的「修正」→ 改类型/理由 →
+   * 不点保存，直接点图上的关系 B → 面板换成 B 的内容，但 `draft` 还是 A 的；
+   * 此时点「保存修正」用的是 `activeRel.id`（= B）配 A 的 draft → **A 的修正被写到 B 上**。
+   * 现在草稿带 `editingId`，切换关系时安全退出编辑态，保存前再核对一次 id。
+   */
+  const [editingId, setEditingId] = useState<string | null>(null);
+  /** 只有「当前正在看的那条关系」与「草稿所属的关系」一致时，才允许进入编辑面板 */
+  const editingThis = Boolean(activeRel && editingId && editingId === activeRel.id);
+
   const startEdit = (r: Relation) => {
     setDraft({ type: r.type, evidenceState: r.evidenceState, rationale: r.rationale ?? '' });
+    setEditingId(r.id);
     setEditing(true);
   };
+
+  /**
+   * 切换/关闭详情关系时退出编辑态。
+   * 用 effect 而不是在每个 onClick 里手动清理：`active` 有多处写入点（画布点击、键盘操作、
+   * 关闭按钮），漏一处就会出现「面板是 B、草稿是 A」的错配。
+   */
+  React.useEffect(() => {
+    setEditing(false);
+    setEditingId(null);
+  }, [active]);
 
   return (
     <div>
@@ -276,7 +300,8 @@ export function GraphView({
 
       {methods.length >= 2 && (
         <div className="graph-wrap">
-          <svg viewBox={`0 0 ${WIDTH} ${height}`} style={{ width: '100%', height: 'auto', minWidth: 760 }}>
+          {/* minWidth = 画布自然宽度：容器更窄时横向滚动（按 1:1 看），而不是把整张图缩到看不清 */}
+          <svg viewBox={`0 0 ${WIDTH} ${height}`} style={{ width: '100%', height: 'auto', minWidth: WIDTH }}>
             <defs>
               {(['explicit', 'inferred', 'candidate'] as RelationEvidenceState[]).map((s) => (
                 <marker key={s} id={`arrow-${s}`} markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
@@ -300,6 +325,12 @@ export function GraphView({
               const b = nodeById.get(r.toMethodId);
               if (!a || !b) return null;
               const style = STATE_STYLE[r.evidenceState];
+              /**
+               * 只有「有方向」的关系类型（extends / improves / combines）才画箭头。
+               * similar / unclear 的 from→to 只是形式上的两端，语义上不声明方向——
+               * 给它们画箭头等于凭空造出一条继承方向。
+               */
+              const undirected = r.type === 'similar' || r.type === 'unclear';
               const sameCol = Math.abs(b.x - a.x) < 1;
               const x1 = a.x + (sameCol ? 62 : a.x < b.x ? 70 : -70);
               const y1 = a.y;
@@ -319,7 +350,11 @@ export function GraphView({
                   className="grel"
                   role="button"
                   tabIndex={0}
-                  aria-label={`${nameOfId(r.fromMethodId)} → ${nameOfId(r.toMethodId)}：${RELATION_LABELS[r.type]}（${RELATION_STATE_LABELS[r.evidenceState]}）`}
+                  aria-label={
+                    undirected
+                      ? `${nameOfId(r.fromMethodId)} 与 ${nameOfId(r.toMethodId)}：${RELATION_LABELS[r.type]}（${RELATION_STATE_LABELS[r.evidenceState]}，不声明方向）`
+                      : `${nameOfId(r.fromMethodId)} → ${nameOfId(r.toMethodId)}：${RELATION_LABELS[r.type]}（${RELATION_STATE_LABELS[r.evidenceState]}）`
+                  }
                   aria-pressed={isActive}
                   style={{ cursor: 'pointer' }}
                   onClick={() => {
@@ -340,7 +375,7 @@ export function GraphView({
                     stroke={style.color}
                     strokeWidth={isActive ? 2.6 : 1.7}
                     strokeDasharray={style.dash}
-                    markerEnd={`url(#arrow-${r.evidenceState})`}
+                    markerEnd={undirected ? undefined : `url(#arrow-${r.evidenceState})`}
                     opacity={isActive || !active ? 1 : 0.32}
                   />
                   <text x={midX} y={midY - 6} textAnchor="middle" fill={style.color} fontSize="11" opacity={isActive || !active ? 0.95 : 0.3}>
@@ -427,6 +462,9 @@ export function GraphView({
           </span>
         ))}
         <span className="dim">点击一条关系查看来源、支持片段与理由，并可人工修正</span>
+        <span className="dim">
+          箭头只表示〈继承/基于 · 改进 · 组合〉的方向；〈相似 · 不明确〉不声明方向，只画线不画箭头。
+        </span>
       </div>
 
       {activeRel && (
@@ -465,7 +503,7 @@ export function GraphView({
             {RELATION_STATE_DESC[activeRel.evidenceState]}
           </p>
 
-          {editing ? (
+          {editingThis ? (
             <div>
               <div className="grid2">
                 <div>
@@ -505,6 +543,16 @@ export function GraphView({
                 <button
                   className="btn primary sm"
                   onClick={() => {
+                    /**
+                     * 保存前的最后一道闸：草稿所属关系必须就是当前详情关系。
+                     * 两者不一致说明中途切换过（理论上上面的 effect 已清掉编辑态，
+                     * 这里再挡一次，保证「A 的修正绝不会写进 B」）。
+                     */
+                    if (editingId !== activeRel.id) {
+                      setEditing(false);
+                      setEditingId(null);
+                      return;
+                    }
                     onUpdateRelation(activeRel.id, {
                       type: draft.type,
                       evidenceState: draft.evidenceState,
@@ -512,6 +560,7 @@ export function GraphView({
                       userEdited: true,
                     });
                     setEditing(false);
+                    setEditingId(null);
                   }}
                 >
                   保存修正
@@ -521,6 +570,11 @@ export function GraphView({
                   disabled={!activeRel.aiOriginal}
                   onClick={() => {
                     if (!activeRel.aiOriginal) return;
+                    if (editingId !== activeRel.id) {
+                      setEditing(false);
+                      setEditingId(null);
+                      return;
+                    }
                     onUpdateRelation(activeRel.id, {
                       type: activeRel.aiOriginal.type,
                       evidenceState: activeRel.aiOriginal.evidenceState,
@@ -528,6 +582,7 @@ export function GraphView({
                       userEdited: false,
                     });
                     setEditing(false);
+                    setEditingId(null);
                   }}
                 >
                   恢复 AI 原判定
@@ -645,6 +700,71 @@ export function GraphView({
           )}
         </div>
       )}
+
+      {/*
+        关系明细（全部 N 条关系）。
+        2026-10-13 用户决定：研究地图不再承担「关系与比较」子视图（重复入口），
+        但「一眼看全部关系」的清单不能丢 —— 关系图只能逐条点开看，清单是另一种读法。
+        因此把它整体搬到本页（关系图）下面：图 + 清单同页，去重不丢能力。
+      */}
+      <h3 style={{ margin: '26px 0 8px' }}>关系明细（{relations.length} 条）</h3>
+      <p className="small dim" style={{ margin: '0 0 10px' }}>
+        含「关系不明确」的配对与待核查关系；每条都标注证据状态，没有绑定引文的写「无引文」。
+        点「查看原文」核对支撑该关系的引文；点上方关系图里的连线打开的是同一条关系的详情。
+      </p>
+      <div className="table-wrap">
+        <table className="cmp">
+          <thead>
+            <tr>
+              <th style={{ width: 130 }}>起点方法</th>
+              <th style={{ width: 110 }}>关系类型</th>
+              <th style={{ width: 130 }}>指向方法</th>
+              <th>说明（按同一方向描述）</th>
+              <th style={{ width: 110 }}>证据状态</th>
+              <th style={{ width: 120 }}>原文依据</th>
+            </tr>
+          </thead>
+          <tbody>
+            {relations.map((r) => (
+              <tr key={r.id}>
+                <td className="small">{nameOfId(r.fromMethodId)}</td>
+                <td className="small">
+                  {RELATION_LABELS[r.type]}
+                  {r.userEdited ? <span className="dim"> ·人工</span> : null}
+                </td>
+                <td className="small">{nameOfId(r.toMethodId)}</td>
+                <td className="small">
+                  {relationSentence(r, r.toMethodId, nameOfId).text}
+                  <div className="dim" style={{ marginTop: 3 }}>
+                    {relationExplanation(r).slice(0, 120)}
+                  </div>
+                </td>
+                <td className="small">
+                  <Status kind={r.evidenceState === 'explicit' ? 'ok' : r.evidenceState === 'inferred' ? 'info' : 'pending'}>
+                    {RELATION_STATE_LABELS[r.evidenceState]}
+                  </Status>
+                </td>
+                <td className="small">
+                  {r.evidence ? (
+                    <button className="btn ghost sm" onClick={() => onOpenEvidence(r.evidence!, '方法关系：原文依据')}>
+                      查看原文
+                    </button>
+                  ) : (
+                    <span className="dim">无引文</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {!relations.length && (
+              <tr>
+                <td colSpan={6} className="small dim" style={{ padding: 14 }}>
+                  当前论文集合还没有可核验的方法关系。系统不会凭年份或关键词连边；补充更多论文或做一次关系分析后再看这里。
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
