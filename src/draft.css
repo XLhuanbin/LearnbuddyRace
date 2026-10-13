@@ -1121,37 +1121,47 @@ body:has(.futpage) {
    草稿顶栏是 fixed（--topbar-h: 72px + pt-32）；本应用顶栏在文档流内，
    页面容器用普通 padding，不引入 fixed 定位。
    --------------------------------------------------------------------------- */
+/* 圆角照草稿取 20px（草稿 .content-card 原值；项目其它页是 12px，本页按草稿走） */
 .exppage :where(.content-card) {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  background: var(--bg-2);
+  border: 1px solid rgba(22, 38, 61, 0.1);
+  border-radius: 20px;
   box-shadow: var(--shadow-2);
+  transition: all 0.3s ease;
 }
 
+/* 照草稿：4px 10px / gap 4px / 大写 + 字距 0.05em。
+   字号取 12px 而非草稿的 11px —— 布局验收有一条「可见文字 ≥12px」的底线，
+   徽标差 1px 不影响观感，但低于底线会被判为可读性风险。 */
 .exppage :where(.status-pill) {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  border-radius: 999px;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 99px;
   font-size: 12px;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   white-space: nowrap;
 }
 
+/* 照草稿：条高 12px、圆角 6px（不是细胶囊），底色 #EEF2F4 */
 .exppage :where(.stat-bar-bg) {
-  background: var(--bg-3);
-  border-radius: 999px;
-  height: 10px;
+  background: #eef2f4;
+  border-radius: 6px;
+  height: 12px;
   width: 100%;
-  overflow: hidden;
+  position: relative;
 }
 
 .exppage :where(.stat-bar-fill) {
   background: var(--accent);
   height: 100%;
-  border-radius: 999px;
-  transition: width 0.5s ease-out;
+  border-radius: 6px;
+  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
 }
+/* 条件不完整的记录按草稿降权显示（半透明） */
 .exppage :where(.stat-bar-fill.dim) { opacity: 0.6; }
 
 .exppage :where(.row-item) { transition: background-color 0.2s; }

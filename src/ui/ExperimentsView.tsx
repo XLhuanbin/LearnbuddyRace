@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import type { Evidence, ExperimentRecord, Method, Paper } from '../core/types';
 import type { CorpusKey, CorpusScope } from '../core/corpus';
 import { Crumb, Status, downloadText } from './common';
-import { isConditionValueMissing } from '../core/experiments';
+import { canonicalMetricName, isConditionValueMissing } from '../core/experiments';
 import { DraftIcon } from '../draft-icons';
 
 /**
@@ -127,14 +127,20 @@ export function ExperimentsView({
   const excludedCount = all.length - chartable.length;
   const modelCount = useMemo(() => new Set(all.map(modelOf)).size, [all]);
 
+  /**
+   * 指标分组用**规范名**（core/experiments.canonicalMetricName，与比较引擎同一套归一）：
+   * 原始名很散（top-1 err. / top-1 acc. / ImageNet top-1 acc. …实测 11 组），
+   * 归并后才是草稿那种「一个大指标一组」的观感；组内按记录数降序排（大组在前，方便先看）。
+   */
   const metricGroups = useMemo(() => {
     const map = new Map<string, { name: string; unit?: string; items: ExperimentRecord[] }>();
     for (const e of chartable) {
-      const key = `${e.metricName}|${e.metricUnit ?? ''}`;
-      if (!map.has(key)) map.set(key, { name: e.metricName, unit: e.metricUnit || undefined, items: [] });
+      const canon = canonicalMetricName(e.metricName) || e.metricName;
+      const key = `${canon}|${e.metricUnit ?? ''}`;
+      if (!map.has(key)) map.set(key, { name: canon, unit: e.metricUnit || undefined, items: [] });
       map.get(key)!.items.push(e);
     }
-    return [...map.values()];
+    return [...map.values()].sort((a, b) => b.items.length - a.items.length || a.name.localeCompare(b.name));
   }, [chartable]);
 
   /** 聚焦某篇论文（从别处跳进来时）：只显示该篇的记录 */
@@ -201,7 +207,14 @@ export function ExperimentsView({
     const canSwitchToVision = scope.key !== 'vision' && Boolean(onSwitchToVision);
     return (
       <div className="exppage sdpage">
-        <Crumb trail={[{ label: '论文集合', on: () => onGo?.('library') }, { label: '实验可比性审查' }]} />
+        <Crumb
+          trail={[
+            { label: '论文集合', on: () => onGo?.('library') },
+            /* 草稿的面包屑是「首页 › 论文集合 › ImageNet 分类 › 实验可比性审查」，中间一级是语料主题 */
+            { label: scope.meta.domain || scope.meta.label },
+            { label: '实验可比性审查' },
+          ]}
+        />
         <section className="mb-10">
           <h1 className="text-4xl font-serif font-bold text-slate-900 mb-3">实验可比性审查</h1>
           <div className="flex items-center gap-4 flex-wrap">
@@ -278,7 +291,14 @@ export function ExperimentsView({
   /* ---------------- 主视图 ---------------- */
   return (
     <div className="exppage sdpage">
-      <Crumb trail={[{ label: '论文集合', on: () => onGo?.('library') }, { label: '实验可比性审查' }]} />
+      <Crumb
+          trail={[
+            { label: '论文集合', on: () => onGo?.('library') },
+            /* 草稿的面包屑是「首页 › 论文集合 › ImageNet 分类 › 实验可比性审查」，中间一级是语料主题 */
+            { label: scope.meta.domain || scope.meta.label },
+            { label: '实验可比性审查' },
+          ]}
+        />
 
       {/* ① 页头 */}
       <section className="mb-10">
@@ -405,7 +425,7 @@ export function ExperimentsView({
             <div key={`${g.name}|${g.unit ?? ''}`} className="content-card bg-white p-0 overflow-hidden">
               <div className="px-8 py-6 bg-slate-50 border-b border-slate-100 flex justify-between items-center gap-4 flex-wrap">
                 <div className="flex items-center gap-4 flex-wrap">
-                  <h3 className="text-xl font-serif font-bold">{g.name}</h3>
+                  <h3 className="text-xl font-serif font-bold">{g.name.charAt(0).toUpperCase() + g.name.slice(1)}</h3>
                   {g.unit && <span className="text-[var(--fg-3)] text-sm">({g.unit})</span>}
                   {dir && (
                     <span
