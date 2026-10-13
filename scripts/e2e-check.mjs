@@ -599,8 +599,13 @@ fetch([...document.scripts].find((s) => /app.*\\.js/.test(s.src)).src).then((r) 
   await goMore(cdp, '实验可比性');
   await sleep(1600);
   const expText = await cdp.evaluate(`(document.querySelector('.main-inner') || document.body).innerText`);
-  check('展示分类实验与表格核查状态', /分类实验/.test(expText) && /行列已核验|待核查/.test(expText));
-  check('提供筛选与推荐对照入口', /按论文/.test(expText) && /推荐对照/.test(expText));
+  /**
+   * 2026-10-13 页面重构（草稿 78f0813c）：新版信息架构是「统计带 + 指标组（完整度 N/8）+ 快速状态筛选」，
+   * 旧版的「按论文筛选 / 推荐对照」入口不再存在。断言改为保护等价不变量：
+   * 筛选入口存在（快速状态的模型 chips 可点 × 排除）、核验状态随行显示、数值旁有原文入口。
+   */
+  check('提供模型筛选入口（快速状态 chips 可排除）', /快速状态/.test(expText));
+  check('条件完整度与核验状态随行显示', /\/8 完整/.test(expText) && /行列已核验|行列待核查/.test(expText));
   check('标注不做排名、不给因果结论', /不做排名/.test(expText) && /因果结论/.test(expText));
   check('数值旁有原文入口', /查看原文/.test(expText));
 

@@ -167,6 +167,21 @@ export function isMetricValueMissing(raw?: string): boolean {
   return METRIC_VALUE_UNKNOWN.test((raw ?? '').trim());
 }
 
+/**
+ * 条件维度的值是否「未记录」（实验可比性审查页：N/8 完整度的判据）。
+ *
+ * 「未知 / unknown / n/a / — / 空」这类占位写法与「没写」是同一类。
+ * 依据同一条铁律「未知 ≠ 一致（也不等于已记录）」：抽取侧给不出值时写的是「未知」，
+ * 界面若把它当成已记录，完整度会整体虚高——实测视觉案例 23 条记录里
+ * inputResolution / extraData / testTimeAug 就有相当一部分是「未知」。
+ */
+/** 条件维度的占位写法：与 UNKNOWN / METRIC_VALUE_UNKNOWN 同一族判据，覆盖破折号与「未说明」等写法 */
+const CONDITION_UNKNOWN = /^(未知|未说明|未报告|unknown|not\s+reported|n\/a|na|-|—|–|)$/i;
+
+export function isConditionValueMissing(raw?: string): boolean {
+  return CONDITION_UNKNOWN.test((raw ?? '').trim());
+}
+
 const same = (a?: string, b?: string, canon?: (v?: string) => string) => {
   const fa = canon ? canon(a) : (a ?? '').trim().toLowerCase();
   const fb = canon ? canon(b) : (b ?? '').trim().toLowerCase();

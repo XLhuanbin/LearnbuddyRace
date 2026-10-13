@@ -172,8 +172,6 @@ export default function App() {
   const [staleNotes, setStaleNotes] = useState<string[]>([]);
   /** 实验记录条数（导航与首页的状态提示用） */
   /** 实验比较页回报的选择与比较状态（仅用于顶部进度提示，不影响数据） */
-  const [expPicked, setExpPicked] = useState(0);
-  const [expCompared, setExpCompared] = useState(false);
   /** 从论文库「查看实验」进入时聚焦的论文（仅影响筛选默认值） */
   const [expFocus, setExpFocus] = useState<string | null>(null);
   /** 语料加载状态：用于按钮禁用与「加载中/完成/失败」反馈 */
@@ -1113,6 +1111,26 @@ export default function App() {
     if (extracted > 0) setRelationsAutoTick((t) => t + 1);
   };
 
+  /**
+   * 实验可比性审查页：人工确认/取消一条实验记录的条件维度（2026-10-12 用户新版页面）。
+   * 人工产物：写进该方法的分析结果并落库；重新分析时按记录匹配保留（core/reanalysis.ts）。
+   * 只标记「已在原文核对该项」，不改变模型抽取的字段值，因此不需要令下游缓存失效。
+   */
+  const supplementExperimentCondition = async (paperId: string, expId: string, dimKey: string, checked: boolean) => {
+    const method = methods.find((m) => (m.experiments ?? []).some((e) => e.id === expId));
+    if (!method) return;
+    const experiments = (method.experiments ?? []).map((e) => {
+      if (e.id !== expId) return e;
+      const cur = e.userSupplemented ?? [];
+      const next = checked ? [...new Set([...cur, dimKey])] : cur.filter((d) => d !== dimKey);
+      return { ...e, userSupplemented: next };
+    });
+    const nextMethod: Method = { ...method, experiments };
+    await repo.saveMethod(nextMethod);
+    setMethods((ms) => ms.map((m) => (m.id === nextMethod.id ? nextMethod : m)));
+    log(checked ? '已人工确认该实验的条件项（保存在本机，重新分析后保留）。' : '已取消该项的人工确认标记。');
+  };
+
   const overrideField = async (paperId: string, field: FieldKey, value: string) => {
     const m = methods.find((x) => x.paperId === paperId);
     if (!m) return;
@@ -1728,10 +1746,7 @@ export default function App() {
               cacheStats={sampleStats[corpus] ?? null}
               visionStats={sampleStats.vision ?? null}
               onSwitchToVision={() => void switchCorpus('vision')}
-              onProgress={(p) => {
-                setExpPicked(p.picked);
-                setExpCompared(p.compared);
-              }}
+              onSupplementCondition={supplementExperimentCondition}
             />
           )}
 

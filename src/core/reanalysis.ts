@@ -28,8 +28,23 @@ export function mergeReanalysisResult(prev: Method | undefined, next: Method): M
   for (const o of nextOverrides) {
     if (!merged.some((x) => x.field === o.field)) merged.push(o);
   }
+  /**
+   * 实验记录上的人工补充标记（实验可比性审查页的「已确认」勾选）也是人工产物：
+   * 重新分析会替换整份实验记录，按（模型变体 + 指标名 + 评估集）匹配把标记带到新记录上，
+   * 与 overrides 的合并口径一致——人工产物不被模型输出覆盖。匹配不上的（记录本身变了）自然丢弃。
+   */
+  const prevMarks = new Map(
+    (prev?.experiments ?? [])
+      .filter((e) => e.userSupplemented?.length)
+      .map((e) => [`${e.modelVariant}|${e.metricName}|${e.evalDataset}`, e.userSupplemented as string[]]),
+  );
+  const experiments = (next.experiments ?? []).map((e) => {
+    const carried = prevMarks.get(`${e.modelVariant}|${e.metricName}|${e.evalDataset}`);
+    return carried ? { ...e, userSupplemented: carried } : e;
+  });
   return {
     ...next,
+    ...(next.experiments?.length && prevMarks.size ? { experiments } : {}),
     overrides: merged as Method['overrides'],
     cached: false,
   };

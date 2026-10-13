@@ -498,7 +498,7 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
   // 品牌栏的行目录里这一项就叫「实验可比性」
   await goMore(ev, '实验可比性');
   await waitFor(ev, `/实验可比性/.test((document.querySelector('.main-inner')||document.body).innerText)`, 20000, '进入实验可比性');
-  const exp = await ev(`(() => { const d=document.querySelector('.main-inner')||document.body; return (d.innerText||'').slice(0, 900); })()`);
+  const exp = await ev(`(() => { const d=document.querySelector('.main-inner')||document.body; return (d.innerText||'').slice(0, 1600); })()`);
   console.log(`   实验页文案：${exp.replace(/\n+/g, ' ').slice(0, 200)}`);
   check('实验可比性页不再承诺「重新加载演示案例（补齐实验记录）」', !/补齐实验记录/.test(exp));
 
@@ -511,7 +511,7 @@ console.log('=== 阶段 A（独立数据目录 #1）：空数据 → 视觉案�
     'NLP 预置缓存加载完成',
   );
   await sleep(1500);
-  const exp2 = await ev(`(() => { const d=document.querySelector('.main-inner')||document.body; return (d.innerText||'').slice(0, 900); })()`);
+  const exp2 = await ev(`(() => { const d=document.querySelector('.main-inner')||document.body; return (d.innerText||'').slice(0, 1600); })()`);
   console.log(`   加载后的实验页文案：${exp2.replace(/\n+/g, ' ').slice(0, 220)}`);
   check('加载后如实说明这份语料没有实验记录，且不再提示「再来一次重载」', /没有实验记录/.test(exp2) && !/补齐/.test(exp2));
   check(

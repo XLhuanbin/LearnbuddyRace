@@ -1113,3 +1113,78 @@ body:has(.futpage) {
   color: var(--bg-4);
   line-height: 1;
 }
+
+/* ===========================================================================
+   实验可比性审查页（Superdesign 草稿 78f0813c，用户 2026-10-12 重构版）
+   逐行照搬草稿的 style 块，作用域收在本页容器 `.exppage` 下（不覆写全局）。
+   与 .libpage / .cmppage 一样：不设 background（草稿每张卡自带 bg 工具类）。
+   草稿顶栏是 fixed（--topbar-h: 72px + pt-32）；本应用顶栏在文档流内，
+   页面容器用普通 padding，不引入 fixed 定位。
+   --------------------------------------------------------------------------- */
+.exppage :where(.content-card) {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-2);
+}
+
+.exppage :where(.status-pill) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.exppage :where(.stat-bar-bg) {
+  background: var(--bg-3);
+  border-radius: 999px;
+  height: 10px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.exppage :where(.stat-bar-fill) {
+  background: var(--accent);
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.5s ease-out;
+}
+.exppage :where(.stat-bar-fill.dim) { opacity: 0.6; }
+
+.exppage :where(.row-item) { transition: background-color 0.2s; }
+.exppage :where(.row-item:hover) { background-color: #f0f5fa; }
+
+/* 手风琴：缺失条件清单默认收起，行被点开时展开（草稿用 max-height 过渡） */
+.exppage :where(.missing-list) {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+}
+.exppage :where(.row-item.accordion-active) :where(.missing-list) {
+  max-height: 500px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--accent-line);
+}
+
+.exppage :where(.tag-model) {
+  background: white;
+  border: 1px solid var(--accent-line);
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 草稿没有禁用态；本页按钮在「未配模型 / 无记录」时确实要禁用 —— 兼容必需的补充 */
+.exppage :where(button:disabled) {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

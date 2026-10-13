@@ -766,4 +766,10 @@ export interface ExperimentRecord {
   /** 数据来源名是否经过规范化（如 ImageNet-22K → ImageNet-21K） */
   aliasNotes?: string[];
   note?: string;
+  /**
+   * 用户在「实验可比性审查」页人工确认过的条件维度（DIMENSION_KEYS 的子集）。
+   * 人工产物：重新分析时按记录匹配保留（见 reanalysis.mergeReanalysisResult），不被模型输出覆盖。
+   * 只代表「用户声明已在原文核对该项」，不是模型抽取值，界面会与抽取值区分标注。
+   */
+  userSupplemented?: string[];
 }

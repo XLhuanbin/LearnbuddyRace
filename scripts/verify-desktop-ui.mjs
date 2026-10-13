@@ -346,14 +346,18 @@ for (const [tag, w, h] of VIEWPORTS) {
   await shot(`地图-方法关系-${tag}.png`);
 
   // ---------- 实验比较 ----------
+  // 2026-10-13 页面重构（草稿 78f0813c）：新版是「条件核对」信息架构——
+  // 统计带 + 指标组（完整度 N/8）+ 快速状态模型筛选。旧版的「推荐对照」已不在页面上，
+  // 断言改为保护新版的等价不变量：截断必须显式可展开（模型 chips +N 更多 / 实验详情折叠）。
   await goMore('实验可比性');
   await sleep(900);
   const exp = await ev(`(() => {
   const t = document.body.innerText || '';
-  return { label: /推荐对照（最多 3 条/.test(t), hasMore: /显示其余 \\d+ 对|只看前 3 对/.test(t), rows: document.querySelectorAll('.main-inner .exprow3').length };
+  return { expand: /\\+\\d+ 更多|收起/.test(t), details: /查看实验详情|收起实验详情/.test(t), rules: /比较规则提示/.test(t), bars: document.querySelectorAll('.main-inner .stat-bar-fill').length };
 })()`);
-  check(`[${tag}] 推荐对照明确标注「最多 3 条」`, exp.label);
-  check(`[${tag}] 存在「显示其余 N 对 / 只看前 3 对」的显式展开`, exp.hasMore);
+  check(`[${tag}] 快速状态的模型列表有显式展开（+N 更多 / 收起）`, exp.expand);
+  check(`[${tag}] 实验详情可显式展开（不静默截断记录）`, exp.details);
+  check(`[${tag}] 比较规则提示在页面上（不是排行榜的口径说明）`, exp.rules && exp.bars >= 0);
   await shot(`地图-实验比较-${tag}.png`);
 
   // ---------- 阅读路线 ----------

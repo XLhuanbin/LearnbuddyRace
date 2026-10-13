@@ -71,6 +71,7 @@ import {
   canonicalResolution,
   compareExperiments,
   isMetricValueMissing,
+  isConditionValueMissing,
   pickComparableExperimentPair,
   suggestComparablePairs,
 } from '../src/core/experiments';
@@ -913,6 +914,43 @@ console.log('=== 17. 重新分析：保留原结果与人工修正 ===');
 
   const noPrev = mergeReanalysisResult(undefined, next);
   check('首次分析（无旧结果）也能正常合并', noPrev.id === 'm_next' && (noPrev.overrides ?? []).length === 0);
+
+  // 实验记录上的人工补充标记也是人工产物：按（模型变体+指标+评估集）匹配保留，不被模型输出覆盖
+  {
+    const mkExp = (id: string, modelVariant: string, metricName: string, sup?: string[]) => ({
+      id,
+      paperId: 'p9',
+      taskTag: 'classification' as const,
+      modelVariant,
+      metricName,
+      metricValue: '23.9',
+      evalDataset: 'ImageNet',
+      ...(sup ? { userSupplemented: sup } : {}),
+    });
+    const prevWithMarks = {
+      ...base,
+      id: 'm_prev2',
+      experiments: [
+        mkExp('e1', 'ResNet-50', 'Top-1 Error', ['evalSplit', 'testTimeAug']),
+        mkExp('e2', 'VGG-16', 'Top-1 Error'),
+      ],
+    } as Method;
+    const nextExps = {
+      ...base,
+      id: 'm_next2',
+      experiments: [mkExp('e1n', 'ResNet-50', 'Top-1 Error'), mkExp('e2n', 'VGG-16', 'Top-1 Error')],
+    } as Method;
+    const m2 = mergeReanalysisResult(prevWithMarks, nextExps);
+    const carried = (m2.experiments ?? []).find((e) => e.modelVariant === 'ResNet-50');
+    const clean = (m2.experiments ?? []).find((e) => e.modelVariant === 'VGG-16');
+    check(
+      '重新分析后实验记录的人工补充标记被保留（按记录匹配）',
+      JSON.stringify(carried?.userSupplemented) === JSON.stringify(['evalSplit', 'testTimeAug']),
+    );
+    check('没有标记的实验记录不受影响', !clean?.userSupplemented?.length);
+    const noCarry = mergeReanalysisResult(base, nextExps);
+    check('旧结果没有标记时不注入 experiments 字段', noCarry.experiments === undefined || noCarry.experiments === (nextExps.experiments ?? undefined) || JSON.stringify(noCarry.experiments) === JSON.stringify(nextExps.experiments));
+  }
 
   // 失败/取消时原结果不变：由「只在成功后保存」保证，这里断言文案边界
   check('取消文案明确「未完成」且不夸大停止服务端计费', /未完成/.test(CANCEL_NOTICE) && /不代表服务端已停止计算或不再计费/.test(CANCEL_NOTICE));
@@ -2548,6 +2586,9 @@ console.log('=== 34. 实验记录数值缺失：必须保留信息不足，不�
   // ---- 判据函数本身 ----
   check('isMetricValueMissing：空串/未知/—/n/a 都算缺失', ['', '  ', '未知', '—', '–', 'n/a', 'N/A'].every((v) => isMetricValueMissing(v)), '');
   check('isMetricValueMissing：真实数值不算缺失', ['80.0', '83.1', '0.5'].every((v) => !isMetricValueMissing(v)), '');
+  // 条件维度完整度：占位值（实测缓存里大量出现「未知」）不能算已记录，否则 N/8 会整体虚高
+  check('isConditionValueMissing：空/未知/unknown/n/a/— 都算未记录', ['', '  ', '未知', 'unknown', 'n/a', 'N/A', '-', '—', 'not reported'].every((v) => isConditionValueMissing(v)), '');
+  check('isConditionValueMissing：真实取值算已记录', ['ImageNet validation', '10-crop testing', 'single model', '224x224'].every((v) => !isConditionValueMissing(v)), '');
 
   // ---- 可比性：数值缺失一律信息不足 ----
   const bothMissing = compareExperiments(mk({ id: 'a', metricValue: '' }), mk({ id: 'b', metricValue: '' }));
